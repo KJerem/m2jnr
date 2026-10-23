@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Barlow, Barlow_Semi_Condensed, JetBrains_Mono } from "next/font/google";
 import type { ReactNode } from "react";
 import { themeInitScript } from "@/components/layout/ThemeToggle";
+import { Providers } from "@/components/session/Providers";
 import "@/styles/tokens.css";
 import "@/styles/etabli.css";
 import "@/styles/app.css";
@@ -26,7 +27,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
