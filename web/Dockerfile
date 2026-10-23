@@ -1,6 +1,8 @@
 FROM node:22.20-alpine AS base
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
+# Même version de npm que celle qui a produit package-lock.json.
+RUN npm install -g npm@11.6.2 --no-audit --no-fund
 
 FROM base AS deps
 COPY package.json package-lock.json ./
