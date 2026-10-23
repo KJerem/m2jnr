@@ -1,0 +1,83 @@
+/* Composants du design system Établi (port de components/bundle.css, préfixe et-). */
+
+/* Button */
+.et-btn { font: inherit; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-5); border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--ink); cursor: pointer; white-space: nowrap; text-decoration: none; }
+.et-btn:hover { background: var(--surface-sunken); }
+.et-btn:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); }
+.et-btn:disabled, .et-btn[aria-disabled="true"] { cursor: not-allowed; opacity: .5; }
+.et-btn-sm { min-height: 36px; padding: 0 var(--space-4); font-size: 14px; }
+.et-btn-lg { min-height: 56px; padding: 0 var(--space-6); font-size: 17px; }
+.et-btn-block { width: 100%; }
+.et-btn-primary { background: var(--petrol); border-color: var(--petrol); color: var(--on-petrol); }
+.et-btn-primary:hover { background: var(--petrol-hover); border-color: var(--petrol-hover); }
+.et-btn-quiet { background: transparent; border-color: transparent; color: var(--petrol); }
+.et-btn-quiet:hover { background: var(--petrol-soft); }
+.et-btn-danger { background: var(--surface-raised); border-color: var(--danger); color: var(--danger); }
+.et-btn-danger:hover { background: var(--danger-soft); }
+
+/* StatusBadge */
+.et-status { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 var(--space-2); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; line-height: 1; white-space: nowrap; border: 1px solid transparent; }
+.et-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.et-dot-ring { background: transparent; box-shadow: inset 0 0 0 2px currentColor; }
+.et-dot-diamond { border-radius: 1px; transform: rotate(45deg); }
+.et-status-attente { background: var(--surface-sunken); color: var(--ink-muted); }
+.et-status-diagnostic { background: var(--info-soft); color: var(--info); }
+.et-status-en-cours { background: var(--warning-soft); color: var(--warning); }
+.et-status-pieces { background: var(--parts-soft); color: var(--parts); }
+.et-status-pret { background: var(--success-soft); color: var(--success); }
+.et-status-livre { background: transparent; color: var(--ink-muted); border-color: var(--line); }
+.et-status-urgent { background: var(--danger-soft); color: var(--danger); }
+.et-status-info { background: var(--info-soft); color: var(--info); }
+
+/* Plate */
+.et-plate { display: inline-flex; align-items: stretch; height: 28px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--ink-plate); background: var(--plate-ground); color: var(--ink-plate); font-family: var(--font-condensed); font-weight: 600; font-size: 17px; letter-spacing: .04em; flex: none; }
+.et-plate-band { display: flex; align-items: flex-end; justify-content: center; width: 16px; padding-bottom: 2px; background: var(--plate-band); color: var(--plate-ground); font-family: var(--font-sans); font-size: 9px; font-weight: 600; letter-spacing: 0; }
+.et-plate-num { display: flex; align-items: center; padding: 0 var(--space-2); white-space: nowrap; }
+.et-plate-lg { height: 40px; font-size: 26px; }
+.et-plate-lg .et-plate-band { width: 22px; font-size: 12px; }
+.et-plate-lg .et-plate-num { padding: 0 var(--space-3); }
+
+/* TextField, Select, TextArea */
+.et-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.et-field-label { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted); }
+.et-field-required { color: var(--danger); margin-left: 2px; }
+.et-input { font: inherit; min-height: 44px; width: 100%; box-sizing: border-box; padding: 0 var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: var(--surface-raised); color: var(--ink); }
+textarea.et-input { padding: var(--space-3); min-height: 96px; resize: vertical; }
+select.et-input { padding-right: var(--space-6); }
+.et-input::placeholder { color: var(--ink-muted); }
+.et-input:focus-visible { outline: 2px solid transparent; border-color: var(--petrol); box-shadow: var(--focus-ring); }
+.et-input-mono { font-family: var(--font-mono); font-size: 14px; font-weight: 500; letter-spacing: .02em; }
+.et-field-hint { font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.et-field-error .et-input { border-color: var(--danger); }
+.et-field-error .et-field-hint { color: var(--danger); }
+.et-check { display: inline-flex; align-items: center; gap: var(--space-3); min-height: 44px; cursor: pointer; }
+.et-check input { width: 22px; height: 22px; accent-color: var(--petrol); }
+
+/* KpiTile */
+.et-kpi { box-sizing: border-box; min-width: 0; padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--line); background: var(--surface-raised); display: flex; flex-direction: column; gap: var(--space-1); }
+.et-kpi-label { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted); }
+.et-kpi-value { font-family: var(--font-condensed); font-size: 32px; line-height: 36px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.et-kpi-unit { font-size: 18px; color: var(--ink-muted); margin-left: var(--space-1); }
+.et-kpi-delta { font-size: 13px; line-height: 18px; font-weight: 600; }
+.et-kpi-good { color: var(--success); }
+.et-kpi-bad { color: var(--danger); }
+.et-kpi-flat { color: var(--ink-muted); }
+.et-kpi-signal { border-top: 4px solid var(--signal); }
+
+/* WorkOrderCard */
+.et-wo { box-sizing: border-box; width: 100%; padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--surface-raised); box-shadow: var(--shadow-card); display: flex; flex-direction: column; gap: var(--space-3); color: inherit; text-decoration: none; }
+a.et-wo:hover { border-color: var(--line-strong); }
+a.et-wo:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); }
+.et-wo-priority { border-top: 4px solid var(--signal); }
+.et-wo-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
+.et-wo-ref { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--ink-muted); }
+.et-wo-badges { display: inline-flex; gap: var(--space-1); flex-wrap: wrap; }
+.et-wo-vehicle { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.et-wo-model { font-family: var(--font-condensed); font-size: 18px; line-height: 24px; font-weight: 600; }
+.et-wo-meta { font-size: 13px; line-height: 18px; color: var(--ink-muted); display: flex; justify-content: space-between; gap: var(--space-2); }
+.et-wo-meta strong { color: var(--ink); font-weight: 600; }
+.et-progress { height: 6px; border-radius: 3px; background: var(--surface-sunken); overflow: hidden; }
+.et-progress-bar { height: 100%; background: var(--petrol); border-radius: 3px; }
+.et-wo-foot { display: flex; justify-content: space-between; gap: var(--space-2); font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.et-wo-due { font-weight: 600; color: var(--ink); }
+.et-wo-late { color: var(--danger); }
