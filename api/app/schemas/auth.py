@@ -22,3 +22,7 @@ class UtilisateurSortie(BaseModel):
 
 class SessionSortie(BaseModel):
     utilisateur: UtilisateurSortie
+
+
+class CsrfSortie(BaseModel):
+    jeton: str

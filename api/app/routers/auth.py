@@ -2,14 +2,15 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.clock import get_now
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models.utilisateur import Utilisateur
-from app.schemas.auth import ConnexionEntree, SessionSortie, UtilisateurSortie
+from app.schemas.auth import ConnexionEntree, CsrfSortie, SessionSortie, UtilisateurSortie
+from app.security.csrf import generer_jeton, poser_cookie_csrf
 from app.security.dependances import get_current_user
 from app.security.jetons import creer_jeton_session
 from app.services import auth as service_auth
@@ -19,6 +20,17 @@ router = APIRouter(prefix="/auth", tags=["connexion"])
 
 def _session(utilisateur: Utilisateur) -> SessionSortie:
     return SessionSortie(utilisateur=UtilisateurSortie.model_validate(utilisateur))
+
+
+@router.get("/csrf")
+def jeton_csrf(
+    request: Request, response: Response, settings: Settings = Depends(get_settings)
+) -> CsrfSortie:
+    """Renvoie le jeton CSRF du navigateur, en le créant s'il n'existe pas encore."""
+    jeton = request.cookies.get(settings.csrf_cookie_name) or generer_jeton()
+    poser_cookie_csrf(response, jeton, settings)
+    response.headers["Cache-Control"] = "no-store"
+    return CsrfSortie(jeton=jeton)
 
 
 @router.post("/login")
