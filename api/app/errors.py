@@ -48,7 +48,9 @@ def forbidden(message: str = "Accès refusé pour votre rôle.") -> AppError:
     return AppError(status.HTTP_403_FORBIDDEN, "interdit", message)
 
 
-def _body(code: str, message: str, champs: dict[str, str] | None = None, **extra: Any) -> dict[str, Any]:
+def _body(
+    code: str, message: str, champs: dict[str, str] | None = None, **extra: Any
+) -> dict[str, Any]:
     return {"code": code, "message": message, "champs": champs or {}, **extra}
 
 
@@ -77,10 +79,11 @@ def _traduire(err: dict[str, Any]) -> str:
         return str(ctx.get("error", err.get("msg", "Valeur invalide.")))
     if typ in ("int_parsing", "int_type", "float_parsing", "decimal_parsing"):
         return "Nombre attendu."
+    egal = " ou égal" if "equal" in typ else ""
     if typ.startswith("greater_than"):
-        return f"Doit être supérieur{' ou égal' if 'equal' in typ else ''} à {ctx.get('ge', ctx.get('gt'))}."
+        return f"Doit être supérieur{egal} à {ctx.get('ge', ctx.get('gt'))}."
     if typ.startswith("less_than"):
-        return f"Doit être inférieur{' ou égal' if 'equal' in typ else ''} à {ctx.get('le', ctx.get('lt'))}."
+        return f"Doit être inférieur{egal} à {ctx.get('le', ctx.get('lt'))}."
     if typ == "string_too_long":
         return f"{ctx.get('max_length')} caractères maximum."
     if typ == "string_too_short":

@@ -19,6 +19,11 @@ ignore = [
   "B008",   # Depends() dans les signatures FastAPI
 ]
 
+[tool.ruff.lint.isort]
+# Le dossier local alembic/ contient les migrations ; le paquet alembic reste tiers.
+known-third-party = ["alembic"]
+known-first-party = ["app"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106"]
 

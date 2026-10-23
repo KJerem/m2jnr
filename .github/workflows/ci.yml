@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:16.10-alpine
+        env:
+          POSTGRES_USER: garage
+          POSTGRES_PASSWORD: garage
+          POSTGRES_DB: garage_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U garage -d garage_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      SECRET_KEY: ci-cle-secrete-de-test-suffisamment-longue-0123456789
+      DATABASE_URL: postgresql+psycopg://garage:garage@localhost:5432/garage
+      TEST_DATABASE_URL: postgresql+psycopg://garage:garage@localhost:5432/garage_test
+      DEMO_PASSWORD_GERANT: ci-gerant-motdepasse
+      DEMO_PASSWORD_MECANICIEN: ci-meca-motdepasse
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: api/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy app
+      - run: pytest -q --cov=app --cov-report=term-missing
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
