@@ -52,6 +52,17 @@ def planning(
                 charge_minutes=p.charge_minutes,
                 elements=[
                     ElementPlanning(
+                        type="ordre",
+                        heure=donnees.debut,
+                        rendez_vous=sortie_rendez_vous(r),
+                        ordre=resume_ordre(r.ordre, maintenant, voir_contact=contact),
+                        report=True,
+                    )
+                    for r in p.reports
+                    if r.ordre
+                ]
+                + [
+                    ElementPlanning(
                         type="ordre" if r.ordre else "rendez_vous",
                         heure=r.debut,
                         rendez_vous=sortie_rendez_vous(r),

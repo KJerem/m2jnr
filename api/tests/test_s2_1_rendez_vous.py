@@ -372,10 +372,72 @@ def test_planning_groupe_par_pont_et_par_jour_de_paris(
     assert [o["id"] for o in planning["a_planifier"]] == [sans_rdv["id"]]
 
     suivant = client_gerant.get("/planning?jour=2026-11-06").json()
-    assert [e["rendez_vous"]["id"] for e in suivant["ponts"][0]["elements"]] == [lendemain["id"]]
+    # L'OT du matin, non livré, reste sur son pont le lendemain (report), avant le créneau.
+    assert [(e["rendez_vous"]["id"], e["report"]) for e in suivant["ponts"][0]["elements"]] == [
+        (matin["id"], True),
+        (lendemain["id"], False),
+    ]
     # Sans jour : aujourd'hui à Paris (lundi 2 novembre).
     assert client_gerant.get("/planning").json()["jour"] == "2026-11-02"
     assert client_gerant.get("/planning?jour=2026-13-01").status_code == 422
+
+
+def test_planning_reporte_un_ot_non_livre_dont_le_rendez_vous_est_passe(
+    horloge: Horloge,
+    client_gerant: TestClient,
+    client_mecanicien: TestClient,
+    vehicule: Vehicule,
+    ponts: dict[str, Pont],
+    db: Session,
+) -> None:
+    # Rendez-vous le mardi 3 novembre ; l'OT est encore en cours le mercredi 4 et le jeudi 5.
+    rdv = _prendre(client_gerant, vehicule, ponts["Pont 2"], "2026-11-03T09:00", 60).json()
+    ordre = client_gerant.post(f"/rendez-vous/{rdv['id']}/ordre").json()
+    maj = client_gerant.put(
+        f"/ordres/{ordre['id']}",
+        json={
+            "demande_client": "Embrayage",
+            "taches": [
+                {"libelle": "Diagnostic", "duree_prevue_minutes": 30},
+                {"libelle": "Remplacement embrayage", "duree_prevue_minutes": 240},
+            ],
+        },
+    ).json()
+    assert client_gerant.post(f"/ordres/{ordre['id']}/statut", json={"nouveau": "en_cours"})
+    terminee = client_gerant.post(f"/ordres/{ordre['id']}/taches/{maj['taches'][0]['id']}/terminer")
+    assert terminee.status_code == 200
+    matin = _prendre(client_gerant, vehicule, ponts["Pont 2"], "2026-11-04T08:00", 90).json()
+
+    jour_du_rdv = client_gerant.get("/planning?jour=2026-11-03").json()["ponts"][1]
+    assert [(e["rendez_vous"]["id"], e["report"]) for e in jour_du_rdv["elements"]] == [
+        (rdv["id"], False)
+    ]
+
+    lendemain = client_mecanicien.get("/planning?jour=2026-11-04").json()
+    pont2 = lendemain["ponts"][1]
+    # Le report vient d'abord (à minuit, heure de Paris), puis les rendez-vous du jour.
+    assert [(e["type"], e["rendez_vous"]["id"], e["report"]) for e in pont2["elements"]] == [
+        ("ordre", rdv["id"], True),
+        ("rendez_vous", matin["id"], False),
+    ]
+    assert pont2["elements"][0]["heure"] == "2026-11-03T23:00:00Z"
+    assert pont2["elements"][0]["ordre"]["statut"] == "en_cours"
+    assert pont2["elements"][0]["ordre"]["client"]["contact"] is None
+    # Charge : 240 min de tâches restantes + 90 min de rendez-vous.
+    assert pont2["charge_minutes"] == 330
+    assert lendemain["a_planifier"] == []
+    surlendemain = client_gerant.get("/planning?jour=2026-11-05").json()["ponts"][1]
+    assert [e["rendez_vous"]["id"] for e in surlendemain["elements"]] == [rdv["id"]]
+    # Avant le rendez-vous, rien n'est reporté.
+    assert client_gerant.get("/planning?jour=2026-11-02").json()["ponts"][1]["elements"] == []
+
+    livre = db.get_one(OrdreTravail, ordre["id"])
+    livre.statut = StatutOT.LIVRE
+    livre.cloture_le = horloge.maintenant
+    db.flush()
+    pont2 = client_gerant.get("/planning?jour=2026-11-04").json()["ponts"][1]
+    assert [e["rendez_vous"]["id"] for e in pont2["elements"]] == [matin["id"]]
+    assert pont2["charge_minutes"] == 90
 
 
 def test_planning_et_ponts_lisibles_sans_session_refuses(client_anonyme: TestClient) -> None:
