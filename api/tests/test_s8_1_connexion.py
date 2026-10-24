@@ -350,7 +350,8 @@ def test_seed_cree_les_comptes_de_demo_et_reste_idempotent(db: Session) -> None:
     nadia.bloque_jusqu_a = datetime(2099, 1, 1, tzinfo=UTC)
     db.flush()
     second = semer(db, _reglages_demo())
-    assert len(premier) == len(second) == 12  # 4 comptes, 8 véhicules de démonstration
+    # 4 comptes, 8 véhicules, 10 ordres de travail et 3 rendez-vous à venir de la journée.
+    assert len(premier) == len(second) == 25
 
     assert all(ligne.startswith("Créé") for ligne in premier)
     assert all(ligne.startswith("À jour") for ligne in second)
