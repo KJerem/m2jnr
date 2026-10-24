@@ -47,6 +47,12 @@ export function formatDateAnnee(date: Date | string): string {
   return `${part(p, "weekday")} ${part(p, "day")} ${part(p, "month")} ${part(p, "year")}`.replace(/\s+/g, " ").trim();
 }
 
+/** « mar. 14 oct. » cette année (à Paris), « ven. 24 oct. 2025 » une autre année. */
+export function formatDateCourteOuAnnee(date: Date | string, maintenant: Date = new Date()): string {
+  const annee = (d: Date | string) => part(parts(d, { year: "numeric" }), "year");
+  return annee(date) === annee(maintenant) ? formatDateCourte(date) : formatDateAnnee(date);
+}
+
 /** « mar. 14 oct. à 17 h 30 ». */
 export function formatDateHeure(date: Date | string): string {
   return `${formatDateCourte(date)} à ${formatHeure(date)}`;

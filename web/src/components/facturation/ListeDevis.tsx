@@ -7,12 +7,12 @@ import { Plate } from "@/components/ui/Plate";
 import { apiFetch } from "@/lib/api";
 import type { Page } from "@/lib/clients";
 import type { DevisResume } from "@/lib/devis";
-import { formatDateCourte, formatEuros, nomComplet } from "@/lib/format";
+import { formatDateCourteOuAnnee, formatEuros, nomComplet } from "@/lib/format";
 import { modele } from "@/lib/ordres";
 
 export const TAILLE_LISTE = 50;
 
-/** Onglet « Devis » : numéro d'OT, véhicule, client, total TTC, date. */
+/** Onglet « Devis » : numéro d'OT, véhicule, client, total TTC, date (avec l'année si ce n'est pas l'année en cours). */
 export function ListeDevis({ page }: { page: number }) {
   const { data, isPending, isError, error } = useQuery({
     queryKey: ["devis", "liste", page],
@@ -69,7 +69,7 @@ export function ListeDevis({ page }: { page: number }) {
                   </td>
                   <td>{nomComplet(devis.client)}</td>
                   <td className="right num nowrap strong">{formatEuros(devis.total_ttc_centimes)}</td>
-                  <td className="nowrap">{formatDateCourte(devis.modifie_le)}</td>
+                  <td className="nowrap">{formatDateCourteOuAnnee(devis.modifie_le)}</td>
                   <td>
                     {devis.facture ? (
                       <Link href={`/factures/${devis.facture.id}`} className="table-link mono">

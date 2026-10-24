@@ -1,6 +1,6 @@
 /** Factures (story S4.3) : types de l'API et règles d'affichage. */
 import type { LigneDevis, TotauxDevis } from "./devis";
-import { formatDateAnnee, formatDateCourte } from "./format";
+import { formatDateCourteOuAnnee } from "./format";
 import { aujourdHui } from "./vehicules";
 import type { StatutOT } from "./statuts";
 
@@ -66,5 +66,5 @@ export function formatJour(jour: string): string {
 
 /** Date d'émission : « sam. 24 oct. » cette année, « ven. 24 oct. 2025 » sinon. */
 export function formatEmission(iso: string, maintenant: Date = new Date()): string {
-  return aujourdHui(new Date(iso)).slice(0, 4) === aujourdHui(maintenant).slice(0, 4) ? formatDateCourte(iso) : formatDateAnnee(iso);
+  return formatDateCourteOuAnnee(iso, maintenant);
 }

@@ -4,8 +4,9 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PiedFacturation } from "@/components/devis/DevisOrdre";
+import { ListeDevis } from "@/components/facturation/ListeDevis";
 import { ListeFactures } from "@/components/facturation/ListeFactures";
-import type { DevisDetail } from "@/lib/devis";
+import type { DevisDetail, DevisResume } from "@/lib/devis";
 import { formatEmission, formatJour, MESSAGE_FACTURE_INDISPONIBLE, numeroAVenir, peutFacturer, type FactureResume } from "@/lib/factures";
 
 const apiFetch = vi.fn();
@@ -145,5 +146,28 @@ describe("onglet Factures", () => {
     expect(formatEmission("2026-12-02T09:00:00Z", maintenant)).toBe("mer. 2 déc.");
     expect(formatEmission("2025-10-24T15:00:00Z", maintenant)).toBe("ven. 24 oct. 2025");
     expect(formatJour("2027-01-01")).toBe("01/01/2027");
+  });
+});
+
+const DEVIS_LISTE: DevisResume[] = [
+  {
+    id: 2,
+    ordre: { id: 1, numero: "OT-2025-001", statut: "livre" },
+    vehicule: { id: 4, immatriculation: "GH-482-KL", marque: "Peugeot", modele: "308 SW", kilometrage: 84312 },
+    client: { id: 9, nom: "Laurent", prenom: "Claire" },
+    total_ht_centimes: 14000,
+    total_ttc_centimes: 16800,
+    cree_le: "2025-10-24T07:10:00Z",
+    modifie_le: "2025-10-24T07:10:00Z",
+    facture: null,
+  },
+];
+
+describe("onglet Devis (revue du sprint 3)", () => {
+  it("donne l'année d'un devis d'une année précédente, comme l'onglet Factures", async () => {
+    apiFetch.mockResolvedValue({ elements: DEVIS_LISTE, total: 1, page: 1, taille: 50 });
+    avecRequetes(<ListeDevis page={1} />);
+
+    expect(await screen.findByText("ven. 24 oct. 2025")).toBeInTheDocument();
   });
 });
