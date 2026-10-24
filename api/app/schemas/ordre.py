@@ -268,3 +268,30 @@ def detail_ordre(ordre: OrdreTravail, maintenant: datetime, *, voir_contact: boo
 
 class MecanicienSortie(UtilisateurResume):
     """Mécanicien actif, proposé à l'affectation d'un OT."""
+
+
+class TacheHistorique(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    libelle: str
+    terminee: bool
+
+
+class InterventionHistorique(BaseModel):
+    """Intervention passée ou en cours d'un véhicule (story S1.4).
+
+    Lisible par le mécanicien : aucune donnée du client. Les liens vers le devis et la
+    facture arriveront au sprint 3."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    numero: str
+    statut: StatutOT
+    demande_client: str
+    diagnostic: str | None
+    kilometrage_entree: int | None
+    ouvert_le: datetime
+    cloture_le: datetime | None
+    mecanicien: UtilisateurResume | None
+    taches: list[TacheHistorique]

@@ -1,6 +1,6 @@
 """Fiche véhicule : lecture pour les deux rôles, modification réservée au gérant.
 
-Le mécanicien a besoin des données du véhicule (et, au sprint 2, de son historique) ; le
+Le mécanicien a besoin des données du véhicule et de son historique d'interventions ; le
 propriétaire ne lui est montré que par son nom.
 """
 
@@ -12,8 +12,10 @@ from app.clock import date_locale, get_now
 from app.config import Settings, get_settings
 from app.db import DbSession
 from app.models.utilisateur import Role
+from app.schemas.ordre import InterventionHistorique
 from app.schemas.vehicule import VehiculeEntree, VehiculeSortie
 from app.security.dependances import require_role
+from app.services import ordres as service_ordres
 from app.services import vehicules as service
 
 router = APIRouter(prefix="/vehicules", tags=["véhicules"])
@@ -42,3 +44,16 @@ def modifier(
     aujourd_hui = date_locale(maintenant, settings.timezone)
     vehicule = service.modifier_vehicule(db, vehicule, entree, aujourd_hui)
     return VehiculeSortie.model_validate(vehicule)
+
+
+@router.get(
+    "/{vehicule_id}/historique",
+    dependencies=[Depends(require_role(Role.GERANT, Role.MECANICIEN))],
+)
+def historique(vehicule_id: int, db: DbSession) -> list[InterventionHistorique]:
+    """Interventions du véhicule, de la plus récente à la plus ancienne."""
+    vehicule = service.obtenir_vehicule(db, vehicule_id)
+    return [
+        InterventionHistorique.model_validate(o)
+        for o in service_ordres.historique_vehicule(db, vehicule)
+    ]
