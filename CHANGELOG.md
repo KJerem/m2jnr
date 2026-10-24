@@ -4,6 +4,9 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une
 
 ## [Non publié]
 
+### Ajouté
+- S4.2 Statut du devis : brouillon → envoyé → accepté ou refusé (`POST /devis/{id}/statut`, gérant seul, devis verrouillé, dates d'envoi et de décision de l'horloge injectée, auteur de la décision) ; passage interdit refusé (409 `transition_devis_interdite`, message en français) ; lignes modifiables seulement en brouillon (409 `devis_verrouille`) ; facture réservée au devis accepté (409 `devis_non_accepte`, contrôlé après `devis_deja_facture`) ; nouveau devis possible quand tous les devis de l'OT sont refusés, au plus un devis non refusé par OT garanti par la base (index unique partiel) ; migration 0012 : devis déjà facturés repris « accepté » à la date de leur facture ; badge du statut dans la section devis et l'onglet Devis, boutons « Marquer comme envoyé au client » (l'application n'envoie rien elle-même), « Accepté par le client », « Refusé par le client » (confirmé), « Nouveau devis » ; tableau de bord : « Devis à faire valider » et « Facture à établir » limitée aux devis acceptés.
+
 ## [sprint-3] — Facturation (30 novembre au 11 décembre 2026)
 
 ### Ajouté
