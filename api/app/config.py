@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,7 +36,16 @@ class Settings(BaseSettings):
     garage_rcs: str = Field(default="RCS Lyon 000 000 000", alias="GARAGE_RCS")
     garage_telephone: str = Field(default="04 00 00 00 00", alias="GARAGE_TELEPHONE")
     garage_email: str = Field(default="contact@garage-etabli.test", alias="GARAGE_EMAIL")
-    facture_delai_paiement_jours: int = Field(default=30, alias="FACTURE_DELAI_PAIEMENT_JOURS")
+    # Délai de paiement d'une facture (échéance = jour d'émission à Paris + délai). Le Code de
+    # commerce plafonne le délai convenu à 60 jours. L'ancien nom de variable reste accepté.
+    garage_delai_paiement_jours: int = Field(
+        default=30,
+        ge=0,
+        le=60,
+        validation_alias=AliasChoices(
+            "GARAGE_DELAI_PAIEMENT_JOURS", "FACTURE_DELAI_PAIEMENT_JOURS"
+        ),
+    )
 
     @property
     def is_production(self) -> bool:

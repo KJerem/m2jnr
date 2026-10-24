@@ -13,7 +13,7 @@ from pydantic import (
 )
 
 from app.models.ordre_travail import OrdreTravail, StatutOT, TacheOT
-from app.schemas.commun import Identifiant, InstantFacultatif, vide_vers_none
+from app.schemas.commun import FactureLien, Identifiant, InstantFacultatif, vide_vers_none
 from app.schemas.vehicule import Kilometrage
 from app.services.delais import est_en_retard
 
@@ -201,6 +201,9 @@ class OrdreDetail(OrdreResume):
     taches: list[TacheSortie]
     # Suivi chronologique des statuts (le plus ancien d'abord).
     historique: list[HistoriqueSortie]
+    # Facture de l'OT (story S4.3) : renseignée pour le gérant seulement, toujours null pour
+    # le mécanicien (ni montant ni document comptable).
+    facture: FactureLien | None = None
 
 
 def _client(ordre: OrdreTravail, voir_contact: bool) -> ClientOrdre:
@@ -251,7 +254,13 @@ def resume_ordre(ordre: OrdreTravail, maintenant: datetime, *, voir_contact: boo
     )
 
 
-def detail_ordre(ordre: OrdreTravail, maintenant: datetime, *, voir_contact: bool) -> OrdreDetail:
+def detail_ordre(
+    ordre: OrdreTravail,
+    maintenant: datetime,
+    *,
+    voir_contact: bool,
+    facture: FactureLien | None = None,
+) -> OrdreDetail:
     return OrdreDetail.model_validate(
         {
             **_champs_resume(ordre, maintenant, voir_contact),
@@ -262,6 +271,7 @@ def detail_ordre(ordre: OrdreTravail, maintenant: datetime, *, voir_contact: boo
             "cree_par": UtilisateurResume.model_validate(ordre.createur),
             "taches": [TacheSortie.model_validate(t) for t in ordre.taches],
             "historique": [HistoriqueSortie.model_validate(h) for h in ordre.historique],
+            "facture": facture,
         }
     )
 

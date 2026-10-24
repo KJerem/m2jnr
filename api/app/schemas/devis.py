@@ -8,7 +8,7 @@ from pydantic import AfterValidator, BaseModel, BeforeValidator, Field, StringCo
 
 from app.models.devis import Devis, LigneDevis, TypeLigne
 from app.models.ordre_travail import StatutOT
-from app.schemas.commun import vide_vers_none
+from app.schemas.commun import FactureLien, vide_vers_none
 from app.schemas.ordre import VehiculeOrdre
 from app.services.calcul_devis import (
     LIGNES_MAX,
@@ -81,13 +81,6 @@ class OrdreDuDevis(BaseModel):
     statut: StatutOT
 
 
-class FactureLien(BaseModel):
-    """Facture émise à partir du devis (story S4.3)."""
-
-    id: int
-    numero: str
-
-
 class ClientDuDevis(BaseModel):
     id: int
     nom: str
@@ -154,7 +147,12 @@ def _ordre(devis: Devis) -> OrdreDuDevis:
     return OrdreDuDevis(id=devis.ordre.id, numero=devis.ordre.numero, statut=devis.ordre.statut)
 
 
-def detail_devis(devis: Devis, facture: FactureLien | None = None) -> DevisDetail:
+def lien_facture(devis: Devis) -> FactureLien | None:
+    facture = devis.facture
+    return FactureLien(id=facture.id, numero=facture.numero) if facture else None
+
+
+def detail_devis(devis: Devis) -> DevisDetail:
     return DevisDetail(
         id=devis.id,
         ordre=_ordre(devis),
@@ -163,11 +161,11 @@ def detail_devis(devis: Devis, facture: FactureLien | None = None) -> DevisDetai
         totaux=totaux_enregistres(devis),
         cree_le=devis.cree_le,
         modifie_le=devis.modifie_le,
-        facture=facture,
+        facture=lien_facture(devis),
     )
 
 
-def resume_devis(devis: Devis, facture: FactureLien | None = None) -> DevisResume:
+def resume_devis(devis: Devis) -> DevisResume:
     vehicule = devis.ordre.vehicule
     client = vehicule.client
     return DevisResume(
@@ -179,5 +177,5 @@ def resume_devis(devis: Devis, facture: FactureLien | None = None) -> DevisResum
         total_ttc_centimes=devis.total_ttc_centimes,
         cree_le=devis.cree_le,
         modifie_le=devis.modifie_le,
-        facture=facture,
+        facture=lien_facture(devis),
     )

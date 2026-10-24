@@ -66,3 +66,10 @@ class Page[T](BaseModel):
     total: int
     page: int
     taille: int
+
+
+class FactureLien(BaseModel):
+    """Facture émise à partir d'un devis (story S4.3) : lien vers sa page et son PDF."""
+
+    id: int
+    numero: str

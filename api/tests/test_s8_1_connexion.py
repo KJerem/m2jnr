@@ -256,7 +256,7 @@ def test_mecanicien_refuse_sur_devis_et_factures(
     ("chemin", "attendu"),
     [
         ("/devis", {"elements": [], "total": 0, "page": 1, "taille": 50}),
-        ("/factures", []),
+        ("/factures", {"elements": [], "total": 0, "page": 1, "taille": 50}),
     ],
 )
 def test_gerant_accede_aux_devis_et_factures(
