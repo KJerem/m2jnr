@@ -80,7 +80,9 @@ ORDRES_DEMO: tuple[OrdreDemo, ...] = (
         demande="Révision des 75 000 km.",
         diagnostic="Rien à signaler. Pneus avant à surveiller.",
         statut=StatutOT.LIVRE,
-        etapes=(Moment(-365, 9, 0), Moment(-365, 11, 40), Moment(-365, 17, 0)),
+        # Rendue le lendemain : la facture, émise à la livraison, porte « Prestation réalisée
+        # le … » (fin des travaux la veille).
+        etapes=(Moment(-365, 9, 0), Moment(-365, 11, 40), Moment(-364, 9, 30)),
         mecanicien=KARIM,
         kilometrage=75_120,
         taches=(
