@@ -111,7 +111,10 @@ def modifier(
     utilisateur: Utilisateur = Depends(gerant_seul),
     maintenant: datetime = Depends(get_now),
 ) -> OrdreDetail:
-    ordre = service.modifier_ordre(db, service.obtenir_ordre(db, ordre_id), entree)
+    # Verrou de l'OT, comme pour le statut et les tâches : la règle « Prêt » (pas de nouvelle
+    # tâche) et « Livré » (plus rien de modifiable) se vérifie sur l'état validé le plus récent.
+    ordre = service.obtenir_ordre(db, ordre_id, verrouiller=True)
+    ordre = service.modifier_ordre(db, ordre, entree)
     return detail_ordre(ordre, maintenant, voir_contact=True)
 
 
