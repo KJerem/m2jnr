@@ -93,6 +93,21 @@ def test_compte_desactive_refuse_avec_le_message_generique(
     assert reponse.json()["message"] == "Identifiants invalides."
 
 
+def test_compte_desactive_jamais_bloque_comme_un_e_mail_inconnu(
+    client_anonyme: TestClient, make_user: MakeUser, db: Session
+) -> None:
+    inactif = make_user(Role.MECANICIEN, actif=False)
+
+    reponses = [_login(client_anonyme, inactif.email, "mauvais-mot-de-passe") for _ in range(6)]
+    reponses.append(_login(client_anonyme, inactif.email))
+
+    assert [r.status_code for r in reponses] == [401] * 7
+    assert all(r.json()["code"] == "identifiants_invalides" for r in reponses)
+    db.refresh(inactif)
+    assert inactif.tentatives_echouees == 0
+    assert inactif.bloque_jusqu_a is None
+
+
 def test_cinq_echecs_bloquent_le_compte_avec_l_heure_de_deblocage(
     client_anonyme: TestClient, gerant: Utilisateur, horloge: Horloge, db: Session
 ) -> None:

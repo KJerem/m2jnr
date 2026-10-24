@@ -2,7 +2,8 @@
 
 Règles (story S8.1) :
 - e-mail inconnu, mauvais mot de passe ou compte désactivé : 401 « Identifiants invalides. »,
-  sans dire ce qui est faux ;
+  sans dire ce qui est faux ; un compte désactivé est traité comme un e-mail inconnu (aucun
+  compteur, jamais de blocage) ;
 - chaque échec incrémente `tentatives_echouees` ; au 5ᵉ échec consécutif, le compte est bloqué
   15 minutes (réglages `max_login_attempts` et `lockout_minutes`) ;
 - pendant le blocage, toute tentative est refusée (423), même avec le bon mot de passe, et le
@@ -77,6 +78,13 @@ def connecter(
         journal.info("Connexion refusée : e-mail inconnu.")
         raise identifiants_invalides()
 
+    if not utilisateur.actif:
+        # Traité comme un e-mail inconnu : ni compteur ni blocage (un 423 révélerait que
+        # l'adresse existe), et un temps de réponse comparable grâce au hash factice.
+        verifier(hash_factice(), mot_de_passe)
+        journal.info("Connexion refusée : compte %s désactivé.", utilisateur.id)
+        raise identifiants_invalides()
+
     if utilisateur.bloque_jusqu_a is not None:
         if maintenant < utilisateur.bloque_jusqu_a:
             journal.info("Connexion refusée : compte %s bloqué.", utilisateur.id)
@@ -99,11 +107,6 @@ def connecter(
         )
         if fin_blocage is not None:
             raise compte_bloque(fin_blocage, settings)
-        raise identifiants_invalides()
-
-    if not utilisateur.actif:
-        db.commit()
-        journal.info("Connexion refusée : compte %s désactivé.", utilisateur.id)
         raise identifiants_invalides()
 
     utilisateur.tentatives_echouees = 0
