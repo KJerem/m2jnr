@@ -312,6 +312,14 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
 .recherche-lien-ot { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); }
 .recherche-lien-ot .recherche-texte { min-width: 0; }
 
+/* Paiements d'une facture (S4.4) : solde, reste à payer en grand, formulaire d'encaissement. */
+.paiement-solde { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--space-5); flex-wrap: wrap; }
+.paiement-reste { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); }
+.paiement-reste-montant { margin: 0; font-family: var(--font-condensed); font-size: 32px; font-weight: 600; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; border-radius: var(--radius-sm); }
+.paiement-form { border-top: 1px solid var(--line); padding-top: var(--space-4); }
+.paiement-form h3 { margin: 0; font-size: 18px; }
+.factures-filtres { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+
 /* Toast */
 .toasts { position: fixed; right: var(--space-5); bottom: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); z-index: 50; pointer-events: none; }
 .toasts-zone { display: flex; flex-direction: column; gap: var(--space-2); }

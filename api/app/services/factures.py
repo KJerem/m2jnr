@@ -38,9 +38,11 @@ from app.errors import conflict, not_found
 from app.models.devis import Devis
 from app.models.facture import Facture, LigneFacture
 from app.models.ordre_travail import OrdreTravail, StatutOT
+from app.models.paiement import Paiement
 from app.models.utilisateur import Utilisateur
 from app.services import calcul_devis
 from app.services.numerotation import PREFIXE_FACTURE, TYPE_FACTURE, prochain_numero
+from app.services.paiements import StatutPaiement, condition_statut
 from app.services.statut_devis import verifier_accepte
 
 MESSAGE_FACTURE_INTROUVABLE = "Facture introuvable."
@@ -213,14 +215,26 @@ def etablir_facture(
     return facture
 
 
-def obtenir_facture(db: Session, facture_id: int) -> Facture:
+def obtenir_facture(db: Session, facture_id: int, *, verrouiller: bool = False) -> Facture:
+    """Facture avec ses lignes, son OT et ses paiements (et leur auteur).
+
+    `verrouiller` pose SELECT … FOR UPDATE sur la ligne de la facture (encaissement, story
+    S4.4) : un verrou de ligne ne déclenche pas le trigger d'immuabilité (qui ne vise que
+    UPDATE et DELETE). Les données sont alors relues en base."""
     facture = None
     if id_possible(facture_id):
-        facture = db.scalars(
+        requete = (
             select(Facture)
             .where(Facture.id == facture_id)
-            .options(selectinload(Facture.lignes), selectinload(Facture.ordre))
-        ).one_or_none()
+            .options(
+                selectinload(Facture.lignes),
+                selectinload(Facture.ordre),
+                selectinload(Facture.paiements).selectinload(Paiement.createur),
+            )
+        )
+        if verrouiller:
+            requete = requete.with_for_update(of=Facture).execution_options(populate_existing=True)
+        facture = db.scalars(requete).one_or_none()
     if facture is None:
         raise not_found(MESSAGE_FACTURE_INTROUVABLE)
     return facture
@@ -243,14 +257,25 @@ def _filtrer(
 
 
 def lister_factures(
-    db: Session, depuis: datetime | None, avant: datetime | None, page: int, taille: int
+    db: Session,
+    depuis: datetime | None,
+    avant: datetime | None,
+    page: int,
+    taille: int,
+    statut_paiement: StatutPaiement | None = None,
 ) -> PageFactures:
-    """Factures de la plus récente à la plus ancienne, émises dans [depuis, avant[."""
+    """Factures de la plus récente à la plus ancienne, émises dans [depuis, avant[, d'un
+    statut de paiement donné (story S4.4) si demandé."""
     base = _filtrer(select(Facture), depuis, avant)
+    if statut_paiement is not None:
+        base = base.where(condition_statut(statut_paiement))
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
     elements = list(
         db.scalars(
-            base.options(selectinload(Facture.ordre))
+            base.options(
+                selectinload(Facture.ordre),
+                selectinload(Facture.paiements).selectinload(Paiement.createur),
+            )
             .order_by(Facture.emise_le.desc(), Facture.id.desc())
             .offset((page - 1) * taille)
             .limit(taille)

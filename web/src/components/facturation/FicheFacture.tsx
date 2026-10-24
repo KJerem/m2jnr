@@ -8,11 +8,15 @@ import { apiFetch } from "@/lib/api";
 import { formatJour, libelleTelechargement, lienPdf, type FactureDetail } from "@/lib/factures";
 import { formatDate, formatKm, formatTelephone, nomComplet } from "@/lib/format";
 import { modele } from "@/lib/ordres";
+import { BadgesPaiement, cleFacture, PaiementsFacture } from "./PaiementsFacture";
 
-/** Page d'une facture : uniquement les données figées à l'émission, et son PDF. */
+/**
+ * Page d'une facture : les données figées à l'émission et son PDF (qui ne change jamais), puis
+ * ses paiements (story S4.4).
+ */
 export function FicheFacture({ factureId }: { factureId: number }) {
   const { data: facture, isPending, isError, error } = useQuery({
-    queryKey: ["factures", "fiche", factureId],
+    queryKey: cleFacture(factureId),
     queryFn: ({ signal }) => apiFetch<FactureDetail>(`/factures/${factureId}`, { signal }),
   });
 
@@ -47,6 +51,7 @@ export function FicheFacture({ factureId }: { factureId: number }) {
           <h1 className="display">
             Facture <span className="mono-titre">{facture.numero}</span>
           </h1>
+          <BadgesPaiement statut={facture.statut_paiement} enRetard={facture.en_retard} />
           <p className="caption">
             Émise le {formatDate(facture.emise_le)} · échéance le {formatJour(facture.echeance)} · ordre de travail{" "}
             <Link href={`/ordres/${facture.ordre.id}`} className="mono">
@@ -62,14 +67,17 @@ export function FicheFacture({ factureId }: { factureId: number }) {
       </header>
 
       <div className="grid-ot">
-        <section className="panel" aria-labelledby="titre-lignes-facture">
-          <div className="panel-head">
-            <h2 id="titre-lignes-facture">Pièces &amp; main-d&apos;œuvre</h2>
-            <span className="caption">Facture non modifiable</span>
-          </div>
-          <TableauDevis devis={facture} legende={`Lignes de la facture ${facture.numero}`} />
-          <BlocTotaux totaux={facture.totaux} tauxBp={facture.taux_tva_bp} />
-        </section>
+        <div className="stack">
+          <section className="panel" aria-labelledby="titre-lignes-facture">
+            <div className="panel-head">
+              <h2 id="titre-lignes-facture">Pièces &amp; main-d&apos;œuvre</h2>
+              <span className="caption">Facture non modifiable</span>
+            </div>
+            <TableauDevis devis={facture} legende={`Lignes de la facture ${facture.numero}`} />
+            <BlocTotaux totaux={facture.totaux} tauxBp={facture.taux_tva_bp} />
+          </section>
+          <PaiementsFacture facture={facture} />
+        </div>
         <aside className="stack" aria-label="Client, véhicule et garage">
           <section className="panel" aria-labelledby="titre-facture-client">
             <div className="panel-head">

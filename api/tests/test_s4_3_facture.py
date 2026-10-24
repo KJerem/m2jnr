@@ -707,6 +707,16 @@ def test_le_downgrade_de_0010_remet_le_compteur_des_factures_a_zero(engine: Engi
     Le downgrade s'exécute dans une transaction annulée : le DDL de PostgreSQL est
     transactionnel, la base de test reste intacte."""
     migration = _migration("20261202_0010_facture.py")
+    # Les migrations suivantes qui dépendent de la facture (paiement, 0014) sont défaites
+    # d'abord, de la plus récente à la plus ancienne, comme le ferait `alembic downgrade`.
+    suivantes = [
+        _migration(nom)
+        for nom in sorted(
+            p.name
+            for p in (Path(__file__).resolve().parent.parent / "alembic" / "versions").glob("*.py")
+        )
+        if nom > "20261202_0010_facture.py"
+    ]
     with engine.connect() as connexion:
         transaction = connexion.begin()
         try:
@@ -717,6 +727,8 @@ def test_le_downgrade_de_0010_remet_le_compteur_des_factures_a_zero(engine: Engi
                 )
             )
             with Operations.context(MigrationContext.configure(connexion)):
+                for suivante in reversed(suivantes):
+                    suivante.downgrade()
                 migration.downgrade()
 
             restants = connexion.execute(

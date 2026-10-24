@@ -124,6 +124,11 @@ const FACTURES: FactureResume[] = [
     vehicule: { immatriculation: "GH-482-KL", marque: "Peugeot", modele: "308 SW" },
     total_ht_centimes: 37900,
     total_ttc_centimes: 45480,
+    paiements: [{ id: 1, montant_centimes: 10000, mode: "cheque", recu_le: "2026-12-03T10:00:00Z", reference: "1234567", cree_par: { id: 1, nom: "Nadia Benali" } }],
+    deja_paye_centimes: 10000,
+    reste_centimes: 35480,
+    statut_paiement: "partielle",
+    en_retard: false,
   },
 ];
 
