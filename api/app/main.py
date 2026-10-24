@@ -13,6 +13,7 @@ from app.routers import (
     health,
     ordres,
     planning,
+    recherche,
     rendez_vous,
     tableau_de_bord,
     vehicules,
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
     app.include_router(devis.router)
     app.include_router(factures.router)
     app.include_router(tableau_de_bord.router)
+    app.include_router(recherche.router)
     return app
 
 
