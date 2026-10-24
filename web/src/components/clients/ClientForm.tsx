@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
@@ -31,6 +31,8 @@ export function ClientForm({ mode, valeursInitiales = CLIENT_VIDE, envoyer, onSu
   const [erreurGenerale, setErreurGenerale] = useState<string | null>(null);
   const [doublons, setDoublons] = useState<{ entree: ClientEntree; clients: ClientResume[] } | null>(null);
   const [confirmation, setConfirmation] = useState(false);
+  // Désactivé pendant l'envoi, le bouton perd le focus : la fenêtre de doublon le lui rend.
+  const boutonEnvoi = useRef<HTMLButtonElement>(null);
 
   async function enregistrer(entree: ClientEntree, confirmerDoublon: boolean) {
     setErreurGenerale(null);
@@ -90,7 +92,7 @@ export function ClientForm({ mode, valeursInitiales = CLIENT_VIDE, envoyer, onSu
         Le client accepte de recevoir des rappels d&apos;entretien
       </label>
       <div className="actions">
-        <Button type="submit" variant="primary" loading={isSubmitting && !doublons}>
+        <Button ref={boutonEnvoi} type="submit" variant="primary" loading={isSubmitting && !doublons}>
           {creation ? "Créer le client" : "Enregistrer"}
         </Button>
         {onAnnuler ? <Button onClick={onAnnuler}>Annuler</Button> : null}
@@ -102,6 +104,7 @@ export function ClientForm({ mode, valeursInitiales = CLIENT_VIDE, envoyer, onSu
           envoi={confirmation}
           onConfirmer={confirmerDoublon}
           onAnnuler={() => setDoublons(null)}
+          retourFocus={boutonEnvoi}
         />
       ) : null}
     </form>
