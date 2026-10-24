@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { CarteOrdre } from "@/components/ordres/CarteOrdre";
 import { useSession } from "@/components/session/useSession";
-import { KpiTile } from "@/components/ui/KpiTile";
+import { TableauDeBord } from "@/components/tableau-de-bord/TableauDeBord";
 import { apiFetch } from "@/lib/api";
 import type { Page } from "@/lib/clients";
 import { prenom, trierCartes, type OrdreResume } from "@/lib/ordres";
@@ -48,24 +48,10 @@ export function MesTravaux({ mecanicienId, nom }: { mecanicienId: number; nom: s
   );
 }
 
-/** Accueil : « Mes travaux » pour le mécanicien ; le tableau de bord du gérant arrive au sprint 3. */
+/** Accueil : « Mes travaux » pour le mécanicien, tableau de bord de l'atelier pour le gérant. */
 export function Accueil() {
   const { utilisateur } = useSession();
   if (!utilisateur) return null;
   if (utilisateur.role === "mecanicien") return <MesTravaux mecanicienId={utilisateur.id} nom={utilisateur.nom} />;
-  return (
-    <>
-      <header className="page-head">
-        <div>
-          <h1 className="display">Atelier</h1>
-          <p className="caption sub">Le tableau de bord se remplit au fil des sprints.</p>
-        </div>
-      </header>
-      <section className="kpis" aria-label="Indicateurs">
-        <KpiTile label="Véhicules à l'atelier" value="—" />
-        <KpiTile label="Prêts à restituer" value="—" />
-        <KpiTile label="Rendez-vous du jour" value="—" />
-      </section>
-    </>
-  );
+  return <TableauDeBord />;
 }
