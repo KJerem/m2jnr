@@ -20,7 +20,7 @@ import {
   type ModePaiement,
   type StatutPaiement,
 } from "@/lib/factures";
-import { formatDateHeure, formatEuros } from "@/lib/format";
+import { formatDateHeureOuAnnee, formatEuros } from "@/lib/format";
 
 export const cleFacture = (factureId: number) => ["factures", "fiche", factureId] as const;
 
@@ -197,7 +197,7 @@ export function PaiementsFacture({ facture }: { facture: FactureDetail }) {
               <tbody>
                 {facture.paiements.map((p) => (
                   <tr key={p.id}>
-                    <td className="nowrap">{formatDateHeure(p.recu_le)}</td>
+                    <td className="nowrap">{formatDateHeureOuAnnee(p.recu_le)}</td>
                     <td>{LIBELLE_MODE[p.mode]}</td>
                     <td className="mono">{p.reference ?? <span className="muted">—</span>}</td>
                     <td className="right num nowrap strong">{formatEuros(p.montant_centimes)}</td>

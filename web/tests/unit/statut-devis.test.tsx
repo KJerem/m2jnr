@@ -158,6 +158,14 @@ describe("statut du devis : badge et boutons selon l'état", () => {
     expect(factureDisponible("termine", "envoye")).toBe(false);
     expect(factureDisponible("en_cours", "accepte")).toBe(false);
     expect(phraseStatutDevis(BROUILLON)).toBe("Brouillon : le devis se modifie librement.");
+    // Décision d'une année précédente : l'année est écrite (devis de 2025 rouvert en 2026).
+    const en2026 = new Date("2026-10-25T10:00:00Z");
+    expect(phraseStatutDevis({ ...ACCEPTE, decide_le: "2025-10-24T07:30:00Z" }, en2026).replace(/\s/g, " ")).toBe(
+      "Accepté par le client le ven. 24 oct. 2025 à 9 h 30, noté par Nadia Benali.",
+    );
+    expect(phraseStatutDevis({ ...ENVOYE, envoye_le: "2025-12-31T22:30:00Z" }, en2026).replace(/\s/g, " ")).toBe(
+      "Envoyé au client le mer. 31 déc. 2025 à 23 h 30, en attente de sa réponse.",
+    );
   });
 });
 

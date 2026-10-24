@@ -147,6 +147,13 @@ describe("panneau « Paiements »", () => {
     expect(screen.getByRole("option", { name: "Carte bancaire (terminal)" })).toBeInTheDocument();
   });
 
+  it("donne l'année d'un paiement reçu une année précédente", () => {
+    const ancienne: FactureDetail = { ...PAYEE, emise_le: "2025-10-25T07:30:00Z", paiements: [{ ...PAIEMENT, montant_centimes: 16800, recu_le: "2025-10-27T08:30:00Z" }] };
+    avecRequetes(<PaiementsFacture facture={ancienne} />);
+    const ligne = within(screen.getByRole("region", { name: "Paiements" })).getAllByRole("row")[1]!;
+    expect(ligne.textContent?.replace(/\s/g, " ")).toContain("lun. 27 oct. 2025 à 9 h 30");
+  });
+
   it("dit qu'aucun paiement n'est enregistré", () => {
     avecRequetes(<PaiementsFacture facture={FACTURE} />);
     expect(screen.getByText("Aucun paiement enregistré.")).toBeInTheDocument();

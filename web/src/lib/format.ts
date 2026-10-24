@@ -58,6 +58,11 @@ export function formatDateHeure(date: Date | string): string {
   return `${formatDateCourte(date)} à ${formatHeure(date)}`;
 }
 
+/** « mar. 14 oct. à 17 h 30 » cette année, « lun. 27 oct. 2025 à 9 h 30 » une autre année. */
+export function formatDateHeureOuAnnee(date: Date | string, maintenant: Date = new Date()): string {
+  return `${formatDateCourteOuAnnee(date, maintenant)} à ${formatHeure(date)}`;
+}
+
 /** « 14/10/2026 ». */
 export function formatDate(date: Date | string): string {
   return new Intl.DateTimeFormat("fr-FR", { timeZone: TIMEZONE, day: "2-digit", month: "2-digit", year: "numeric" }).format(
