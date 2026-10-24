@@ -29,6 +29,7 @@ from app.models import (
     LigneFacture,
     OrdreTravail,
     Role,
+    StatutDevis,
     StatutOT,
     Utilisateur,
     Vehicule,
@@ -37,6 +38,7 @@ from app.routers import factures as routes_factures
 from app.schemas.devis import DevisEntree
 from app.services import devis as service_devis
 from app.services.numerotation import prochain_numero
+from app.services.statut_devis import changer_statut_devis
 from tests.conftest import Horloge, connecter
 from tests.test_concurrence_ordres import en_parallele, nouvelle_session
 from tests.test_s4_1_devis import LIGNES_BACKLOG, LIGNES_MAQUETTE
@@ -84,9 +86,13 @@ def nouvel_ordre(db: Session, gerant: Utilisateur) -> Callable[..., OrdreTravail
 
 
 def _devis(c: TestClient, ordre: OrdreTravail, lignes: list[dict[str, Any]]) -> dict[str, Any]:
+    """Devis créé puis accepté par le client (story S4.2 : seul un devis accepté se facture)."""
     reponse = c.post(f"/ordres/{ordre.id}/devis", json={"lignes": lignes})
     assert reponse.status_code == 201, reponse.text
-    return dict(reponse.json())
+    for nouveau in ("envoye", "accepte"):
+        statut = c.post(f"/devis/{reponse.json()['id']}/statut", json={"nouveau": nouveau})
+        assert statut.status_code == 200, statut.text
+    return dict(statut.json())
 
 
 def _facturer(c: TestClient, devis_id: int) -> dict[str, Any]:
@@ -556,6 +562,9 @@ def deux_devis(engine: Engine) -> Iterator[DonneesFacturation]:
         s.flush()
         entree = DevisEntree.model_validate({"lignes": LIGNES_BACKLOG})
         devis = [service_devis.creer_devis(s, o, entree.lignes, gerant, MAINTENANT) for o in ordres]
+        for d in devis:
+            changer_statut_devis(d, StatutDevis.ENVOYE, gerant, MAINTENANT)
+            changer_statut_devis(d, StatutDevis.ACCEPTE, gerant, MAINTENANT)
         s.commit()
         donnees = DonneesFacturation(
             gerant.id,
