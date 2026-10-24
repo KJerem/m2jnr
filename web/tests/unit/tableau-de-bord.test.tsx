@@ -49,7 +49,7 @@ beforeEach(() => {
 
 describe("interventions du jour", () => {
   it("filtre avec des boutons à bascule qui annoncent leur état et leur nombre", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<Interventions ordres={ORDRES} maintenant={MAINTENANT} />);
 
     const groupe = screen.getByRole("group", { name: "Filtrer les interventions" });
@@ -98,7 +98,7 @@ describe("interventions du jour", () => {
   });
 
   it("dit quand un filtre ne trouve rien", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<Interventions ordres={[PRET]} maintenant={MAINTENANT} />);
 
     await user.click(screen.getByRole("button", { name: "En retard · 0" }));

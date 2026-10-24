@@ -43,11 +43,11 @@ const ORDRE = { id: 1, numero: "OT-2026-001" } as OrdreDetail;
 function rendre(envoyer = vi.fn<(e: OrdreEntree) => Promise<OrdreDetail>>().mockResolvedValue(ORDRE), vehiculeId: number | null = 4) {
   const onSucces = vi.fn();
   render(<OrdreForm mode="creation" valeursInitiales={ordreVide(vehiculeId)} vehicules={VEHICULES} mecaniciens={MECANICIENS} envoyer={envoyer} onSucces={onSucces} />);
-  return { envoyer, onSucces, user: userEvent.setup() };
+  return { envoyer, onSucces, user: userEvent.setup({ delay: null }) };
 }
 
 // Beaucoup de saisie au clavier simulée : délai élargi quand toute la suite tourne en parallèle.
-describe("lignes de tâches du formulaire d'ordre de travail", { timeout: 20_000 }, () => {
+describe("lignes de tâches du formulaire d'ordre de travail", () => {
   it("ajoute des lignes, totalise les durées et envoie les tâches dans l'ordre", async () => {
     const { envoyer, onSucces, user } = rendre();
     await user.type(screen.getByLabelText(/demande du client/i), "Bruit au freinage");

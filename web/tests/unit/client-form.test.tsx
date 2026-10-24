@@ -23,7 +23,7 @@ function doublon() {
 }
 
 async function remplir(nom: string, telephone: string) {
-  const user = userEvent.setup();
+  const user = userEvent.setup({ delay: null });
   if (nom) await user.type(screen.getByLabelText(/^nom/i), nom);
   if (telephone) await user.type(screen.getByLabelText(/téléphone/i), telephone);
   return user;
@@ -34,7 +34,7 @@ describe("formulaire client", () => {
     const envoyer = vi.fn();
     render(<ClientForm mode="creation" envoyer={envoyer} onSucces={vi.fn()} />);
 
-    await userEvent.setup().click(screen.getByRole("button", { name: "Créer le client" }));
+    await userEvent.setup({ delay: null }).click(screen.getByRole("button", { name: "Créer le client" }));
 
     expect(await screen.findAllByText("Champ obligatoire.")).toHaveLength(2);
     expect(screen.getByLabelText(/^nom/i)).toHaveAttribute("aria-invalid", "true");
@@ -103,7 +103,7 @@ describe("alerte de doublon", () => {
   it("se ferme avec Échap, garde le focus à l'intérieur et le rend au bouton", async () => {
     const envoyer = vi.fn().mockRejectedValue(doublon());
     render(<ClientForm mode="modification" valeursInitiales={{ nom: "Laurent", prenom: "", telephone: "0612345678", email: "", consentement_rappels: false }} envoyer={envoyer} onSucces={vi.fn()} />);
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const bouton = screen.getByRole("button", { name: "Enregistrer" });
     await user.click(bouton);
     const dialogue = await screen.findByRole("dialog");

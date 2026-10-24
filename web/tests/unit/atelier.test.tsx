@@ -61,7 +61,7 @@ beforeEach(() => {
 describe("carte du kanban", () => {
   it("propose de passer à l'étape suivante avec un bouton nommé et accessible au clavier", async () => {
     const onAvancer = vi.fn();
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CarteKanban ordre={{ ...ORDRE, statut: "a_faire" }} enCours={false} onAvancer={onAvancer} />);
 
     const bouton = screen.getByRole("button", { name: /^Passer à « En cours »/ });
@@ -93,7 +93,7 @@ describe("tâches cochables de la vue tablette", () => {
   it("coche la tâche tout de suite puis garde la réponse de l'API", async () => {
     let repondre: (o: OrdreDetail) => void = () => {};
     apiFetch.mockImplementation(() => new Promise((resolve) => (repondre = resolve)));
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { client } = avecRequetes(<TachesCochables ordre={ORDRE} variante="tablette" />);
 
     await user.click(screen.getByLabelText(/Remplacement plaquettes/));
@@ -107,7 +107,7 @@ describe("tâches cochables de la vue tablette", () => {
 
   it("annule la coche et affiche l'erreur si l'API refuse", async () => {
     apiFetch.mockRejectedValue(new ApiError(409, "ordre_livre", "Un ordre de travail livré ne peut plus être modifié."));
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { client } = avecRequetes(<TachesCochables ordre={ORDRE} variante="tablette" />);
 
     await user.click(screen.getByLabelText(/Remplacement plaquettes/));
@@ -163,7 +163,7 @@ describe("données rafraîchies après une action sur un OT", () => {
 
   it("un changement de statut rafraîchit kanban, planning, rendez-vous et historique du véhicule", async () => {
     apiFetch.mockResolvedValue({ ...ORDRE, statut: "en_cours" });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { client } = avecRequetes(<ActionPrincipale ordre={{ ...ORDRE, statut: "a_faire" }} />);
     remplirCache(client);
 
@@ -177,7 +177,7 @@ describe("données rafraîchies après une action sur un OT", () => {
 
   it("une tâche cochée rafraîchit aussi le planning et l'historique du véhicule", async () => {
     apiFetch.mockResolvedValue(basculerTache(ORDRE, 11, true, { id: 2, nom: "Karim B." }));
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { client } = avecRequetes(<TachesCochables ordre={ORDRE} />);
     remplirCache(client);
 

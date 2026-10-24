@@ -27,7 +27,7 @@ describe("onglets de la fiche véhicule", () => {
   });
 
   it("se pilote au clavier : flèches en boucle, Début et Fin", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<Onglets label="Fiche du véhicule" onglets={ONGLETS} />);
 
     await user.tab();

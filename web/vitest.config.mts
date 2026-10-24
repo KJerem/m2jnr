@@ -13,5 +13,7 @@ export default defineConfig({
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/unit/**/*.test.{ts,tsx}"],
     css: false,
+    // Les formulaires saisis touche par touche dans jsdom dépassent parfois 5 s sur une machine chargée (CI, Docker Desktop).
+    testTimeout: 20_000,
   },
 });

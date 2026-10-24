@@ -179,9 +179,9 @@ beforeEach(() => {
   apiFetch.mockReset();
 });
 
-describe("formulaire du devis", { timeout: 20_000 }, () => {
+describe("formulaire du devis", () => {
   it("ajoute une ligne, recalcule les totaux en direct, retire une ligne et enregistre", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onSucces = vi.fn();
     apiFetch.mockResolvedValue(DEVIS);
     avecRequetes(<FormulaireDevis ordreId={1} devis={null} onAnnuler={vi.fn()} onSucces={onSucces} />);
@@ -216,7 +216,7 @@ describe("formulaire du devis", { timeout: 20_000 }, () => {
   });
 
   it("signale en français une quantité invalide sur son champ, sans appeler l'API", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     avecRequetes(<FormulaireDevis ordreId={1} devis={DEVIS} onAnnuler={vi.fn()} onSucces={vi.fn()} />);
     const ligne1 = screen.getByRole("group", { name: "Ligne 1" });
     const heures = within(ligne1).getByLabelText(/Heures/);
@@ -231,7 +231,7 @@ describe("formulaire du devis", { timeout: 20_000 }, () => {
   });
 
   it("rattache une erreur de l'API à la ligne concernée et modifie le devis existant", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     apiFetch.mockRejectedValue(new ApiError(422, "validation", "Certains champs sont invalides.", { "lignes.1.prix_unitaire_ht_centimes": "Doit être inférieur ou égal à 10000000." }));
     avecRequetes(<FormulaireDevis ordreId={1} devis={DEVIS} onAnnuler={vi.fn()} onSucces={vi.fn()} />);
 
@@ -260,7 +260,7 @@ describe("section devis de la fiche d'un OT", () => {
   });
 
   it("propose de créer le devis quand l'OT n'en a pas", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     avecRequetes(<DevisOrdre ordre={ORDRE} />, "gerant", null);
 
     expect(screen.getByText("Aucun devis pour cet ordre de travail.")).toBeInTheDocument();

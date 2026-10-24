@@ -45,7 +45,7 @@ describe("génération de la facture depuis le devis", () => {
   });
 
   it("demande confirmation puis émet la facture d'un OT « Prêt »", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onEmise = vi.fn();
     const facture = { id: 3, numero: "F-2026-001", totaux: DEVIS.totaux };
     apiFetch.mockResolvedValue(facture);
@@ -65,7 +65,7 @@ describe("génération de la facture depuis le devis", () => {
   });
 
   it("annule sans rien émettre et rend le focus au bouton", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     avecRequetes(<PiedFacturation statut="livre" devis={DEVIS} onEmise={vi.fn()} />);
     const bouton = screen.getByRole("button", { name: "Générer la facture" });
 
@@ -78,7 +78,7 @@ describe("génération de la facture depuis le devis", () => {
   });
 
   it("affiche le refus de l'API dans la fenêtre", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { ApiError } = await import("@/lib/api");
     apiFetch.mockRejectedValue(new ApiError(409, "devis_deja_facture", "Ce devis est déjà facturé."));
     avecRequetes(<PiedFacturation statut="termine" devis={DEVIS} onEmise={vi.fn()} />);
