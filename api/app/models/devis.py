@@ -5,9 +5,10 @@ Montants en centimes (entiers) ; quantité en décimal à deux chiffres après l
 par app/services/calcul_devis.py et enregistrés : la facture (story S4.3) recopie exactement
 ce qui a été présenté au client.
 
-Le statut du devis (brouillon, envoyé, accepté, refusé) arrive avec la story S4.2 : un OT
-peut déjà porter plusieurs devis (un devis refusé sera remplacé par un nouveau), le devis
-« courant » est le plus récent.
+Statut (story S4.2) : brouillon → envoyé → accepté ou refusé. Seul un brouillon se modifie,
+seul un devis accepté se facture. Un OT peut porter plusieurs devis (un devis refusé est
+remplacé par un nouveau), mais au plus un devis non refusé (index unique partiel) : le devis
+« courant » est celui-là, à défaut le dernier refusé.
 """
 
 import enum
@@ -21,6 +22,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -52,6 +54,30 @@ ENUM_TYPE_LIGNE = Enum(
 )
 
 
+class StatutDevis(enum.StrEnum):
+    BROUILLON = "brouillon"
+    ENVOYE = "envoye"
+    ACCEPTE = "accepte"
+    REFUSE = "refuse"
+
+
+ENUM_STATUT_DEVIS = Enum(
+    StatutDevis,
+    name="statut_devis",
+    values_callable=lambda statuts: [s.value for s in statuts],
+)
+
+# Un brouillon n'a ni envoi ni décision ; un devis envoyé a sa date d'envoi ; un devis accepté
+# ou refusé a les deux dates (migration 0012).
+CONTRAINTE_STATUT_COHERENT = (
+    "(statut = 'brouillon' AND envoye_le IS NULL AND decide_le IS NULL AND decide_par IS NULL)"
+    " OR (statut = 'envoye' AND envoye_le IS NOT NULL AND decide_le IS NULL"
+    " AND decide_par IS NULL)"
+    " OR (statut IN ('accepte', 'refuse') AND envoye_le IS NOT NULL AND decide_le IS NOT NULL"
+    " AND decide_le >= envoye_le)"
+)
+
+
 class Devis(Base):
     __tablename__ = "devis"
     __table_args__ = (
@@ -61,6 +87,14 @@ class Devis(Base):
         CheckConstraint("total_ttc_centimes >= 0", name="total_ttc_positif"),
         CheckConstraint(
             "total_ttc_centimes = total_ht_centimes + total_tva_centimes", name="ttc_coherent"
+        ),
+        CheckConstraint(CONTRAINTE_STATUT_COHERENT, name="statut_coherent"),
+        # Au plus un devis non refusé par OT : deux créations simultanées ne passent pas.
+        Index(
+            "uq_devis_ordre_non_refuse",
+            "ordre_travail_id",
+            unique=True,
+            postgresql_where=text("statut <> 'refuse'"),
         ),
     )
 
@@ -77,6 +111,19 @@ class Devis(Base):
     total_ht_centimes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     total_tva_centimes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     total_ttc_centimes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    statut: Mapped[StatutDevis] = mapped_column(
+        ENUM_STATUT_DEVIS,
+        nullable=False,
+        default=StatutDevis.BROUILLON,
+        server_default=StatutDevis.BROUILLON.value,
+        index=True,
+    )
+    # Horloge injectée : envoi au client, puis décision (acceptation ou refus) et son auteur.
+    envoye_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decide_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decide_par: Mapped[int | None] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="RESTRICT")
+    )
     cree_par: Mapped[int] = mapped_column(
         ForeignKey("utilisateur.id", ondelete="RESTRICT"), nullable=False
     )
@@ -89,7 +136,8 @@ class Devis(Base):
     )
 
     ordre: Mapped["OrdreTravail"] = relationship()
-    createur: Mapped["Utilisateur"] = relationship()
+    createur: Mapped["Utilisateur"] = relationship(foreign_keys=[cree_par])
+    decideur: Mapped["Utilisateur | None"] = relationship(foreign_keys=[decide_par])
     lignes: Mapped[list["LigneDevis"]] = relationship(
         back_populates="devis",
         order_by="(LigneDevis.position, LigneDevis.id)",
