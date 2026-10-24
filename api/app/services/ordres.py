@@ -17,11 +17,11 @@ from datetime import date, datetime
 from fastapi import status
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy.sql.base import ExecutableOption
 
 from app.db import id_possible
 from app.errors import AppError, conflict, invalid, not_found
 from app.models.ordre_travail import HistoriqueStatut, OrdreTravail, StatutOT, TacheOT
+from app.models.rendez_vous import RendezVous
 from app.models.utilisateur import Role, Utilisateur
 from app.models.vehicule import Vehicule
 from app.schemas.ordre import (
@@ -43,12 +43,13 @@ MESSAGE_ORDRE_INTROUVABLE = "Ordre de travail introuvable."
 MESSAGE_MECANICIEN_INVALIDE = "Choisissez un mécanicien actif."
 
 # Tout ce qu'une carte ou une fiche d'OT affiche, chargé en quelques requêtes (pas de N+1).
-CHARGEMENT_ORDRE: tuple[ExecutableOption, ...] = (
+CHARGEMENT_ORDRE = (
     selectinload(OrdreTravail.vehicule).selectinload(Vehicule.client),
     selectinload(OrdreTravail.mecanicien),
     selectinload(OrdreTravail.createur),
     selectinload(OrdreTravail.taches).selectinload(TacheOT.terminee_par_utilisateur),
     selectinload(OrdreTravail.historique).selectinload(HistoriqueStatut.utilisateur),
+    selectinload(OrdreTravail.rendez_vous).selectinload(RendezVous.pont),
 )
 
 
