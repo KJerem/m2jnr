@@ -20,7 +20,8 @@ const VEHICULE: Vehicule = {
 };
 
 async function remplir(valeurs: Partial<Record<"immatriculation" | "marque" | "modele" | "kilometrage" | "vin", string>>) {
-  const user = userEvent.setup();
+  // Sans délai entre les frappes : la saisie caractère par caractère frôlait le délai de 5 s du test.
+  const user = userEvent.setup({ delay: null });
   const champs = { immatriculation: /immatriculation/i, marque: /marque/i, modele: /modèle/i, kilometrage: /kilométrage/i, vin: /vin/i } as const;
   for (const [cle, valeur] of Object.entries(valeurs)) {
     await user.type(screen.getByLabelText(champs[cle as keyof typeof champs]), valeur);

@@ -50,7 +50,7 @@ function rdv(id: number, debut: string, fin: string, pont = PONTS[0]!): RendezVo
 function rendre(envoyer = vi.fn<(e: RendezVousEntree) => Promise<RendezVous>>().mockResolvedValue(rdv(1, "2026-11-16T09:30:00Z", "2026-11-16T10:30:00Z"))) {
   const onSucces = vi.fn();
   render(<RendezVousForm vehicules={VEHICULES} ponts={PONTS} envoyer={envoyer} onSucces={onSucces} maintenant={MAINTENANT} />);
-  return { envoyer, onSucces, user: userEvent.setup() };
+  return { envoyer, onSucces, user: userEvent.setup({ delay: null }) };
 }
 
 async function remplir(user: ReturnType<typeof userEvent.setup>, jour: string, heure: string) {
@@ -62,7 +62,7 @@ async function remplir(user: ReturnType<typeof userEvent.setup>, jour: string, h
   await user.type(screen.getByLabelText(/^motif/i), "Remplacement des plaquettes avant");
 }
 
-describe("formulaire de rendez-vous", { timeout: 20_000 }, () => {
+describe("formulaire de rendez-vous", () => {
   it("exige véhicule, pont, jour, heure et motif", async () => {
     const { envoyer, user } = rendre();
 

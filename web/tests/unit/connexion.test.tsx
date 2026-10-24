@@ -34,7 +34,7 @@ afterEach(() => {
 });
 
 async function saisirEtEnvoyer(email: string, motDePasse: string) {
-  const user = userEvent.setup();
+  const user = userEvent.setup({ delay: null });
   await user.type(screen.getByLabelText(/e-mail/i), email);
   await user.type(screen.getByLabelText(/mot de passe/i), motDePasse);
   await user.click(screen.getByRole("button", { name: "Se connecter" }));
@@ -77,7 +77,7 @@ describe("formulaire de connexion", () => {
 
   it("demande les deux champs avant d'appeler l'API", async () => {
     render(avecQuery(<LoginForm suivant="/" />));
-    await userEvent.setup().click(screen.getByRole("button", { name: "Se connecter" }));
+    await userEvent.setup({ delay: null }).click(screen.getByRole("button", { name: "Se connecter" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("Saisissez votre e-mail et votre mot de passe.");
     expect(fetchMock).not.toHaveBeenCalled();
@@ -104,7 +104,7 @@ describe("déconnexion", () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
     render(avecQuery(<PiedDeMenu />, client));
 
-    await userEvent.setup().click(screen.getByRole("button", { name: /Se déconnecter/ }));
+    await userEvent.setup({ delay: null }).click(screen.getByRole("button", { name: /Se déconnecter/ }));
 
     await vi.waitFor(() => expect(routeur.replace).toHaveBeenCalledWith("/connexion"));
     await new Promise((resolve) => setTimeout(resolve, 20));
