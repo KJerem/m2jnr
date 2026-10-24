@@ -18,9 +18,10 @@ appelle ces routes sous le préfixe `/api` (réécriture de Next.js vers l'API).
   409 peut ajouter des détails (`reste_centimes`, `numero`, `clients`…). Identifiant inconnu
   ou hors limites : **404** `introuvable`.
 - **Formats** : montants en centimes (entiers) ; quantités de devis en texte (« 1,5 ») ; dates
-  et heures en ISO 8601, rendues en UTC ; une date et heure sans fuseau envoyée par
-  l'interface est lue à l'heure de Paris ; jours `AAAA-MM-JJ` entre 2000 et 2100 ; listes
-  paginées `{elements, total, page, taille}`.
+  et heures en ISO 8601 avec décalage horaire (`Z`, `+01:00` ou `+02:00` selon la valeur :
+  un même instant peut s'écrire de plusieurs façons, à lire et comparer comme un instant) ;
+  une date et heure sans fuseau envoyée par l'interface est lue à l'heure de Paris ; jours
+  `AAAA-MM-JJ` entre 2000 et 2100 ; listes paginées `{elements, total, page, taille}`.
 
 ## Connexion et santé
 
@@ -37,9 +38,9 @@ appelle ces routes sous le préfixe `/api` (réécriture de Next.js vers l'API).
 | Méthode et route | Rôle | Rôle de la route | Erreurs principales |
 | --- | --- | --- | --- |
 | `GET /clients?page&taille` | gérant | liste paginée | — |
-| `POST /clients?confirmer=` | gérant | création (adresse facultative) | 422, 409 `doublon_telephone` (confirmable par `?confirmer=true`) |
+| `POST /clients?confirmer_doublon=` | gérant | création (adresse facultative) | 422, 409 `doublon_telephone` (confirmable par `?confirmer_doublon=true`) |
 | `GET /clients/{id}` | gérant | fiche et véhicules | 404 |
-| `PUT /clients/{id}?confirmer=` | gérant | modification complète | 422, 409 `doublon_telephone` |
+| `PUT /clients/{id}?confirmer_doublon=` | gérant | modification complète | 422, 409 `doublon_telephone` |
 | `GET /clients/{id}/vehicules` | gérant | véhicules du client | 404 |
 | `POST /clients/{id}/vehicules` | gérant | rattacher un véhicule | 422, 409 `immatriculation_existante` |
 | `GET /vehicules` | gérant, mécanicien | véhicules | — |
