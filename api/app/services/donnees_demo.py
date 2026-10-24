@@ -2,21 +2,24 @@
 
 Les mots de passe viennent du fichier .env (DEMO_PASSWORD_GERANT, DEMO_PASSWORD_MECANICIEN) :
 aucun secret n'est écrit dans le code. Les clients et véhicules reprennent ceux des maquettes ;
-téléphones et e-mails sont inventés (domaine réservé exemple.test).
+téléphones et e-mails sont inventés (domaine réservé exemple.test). La journée d'atelier
+(ordres de travail, rendez-vous, historique) est décrite dans journee_demo.py.
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.clock import get_now
 from app.config import Settings
 from app.models.client import Client
 from app.models.utilisateur import Role
 from app.models.vehicule import Vehicule
 from app.schemas.client import ClientEntree
 from app.schemas.vehicule import VehiculeEntree
+from app.services.journee_demo import semer_journee
 from app.services.utilisateurs import CompteDemo, enregistrer_compte
 
 COMPTE_GERANT = CompteDemo("nadia@garage.test", "Nadia Benali", Role.GERANT)
@@ -138,8 +141,9 @@ def enregistrer_fiche(db: Session, fiche: FicheDemo) -> bool:
     return True
 
 
-def semer(db: Session, settings: Settings) -> list[str]:
-    """Charge les comptes, clients et véhicules de démonstration ; renvoie un compte rendu."""
+def semer(db: Session, settings: Settings, maintenant: datetime | None = None) -> list[str]:
+    """Charge les comptes, clients, véhicules et la journée d'atelier de démonstration
+    (datée par rapport à `maintenant`, l'heure courante par défaut) ; renvoie un compte rendu."""
     if not settings.demo_password_gerant or not settings.demo_password_mecanicien:
         raise SeedImpossibleError(
             "DEMO_PASSWORD_GERANT et DEMO_PASSWORD_MECANICIEN doivent être renseignés dans .env."
@@ -158,4 +162,5 @@ def semer(db: Session, settings: Settings) -> list[str]:
             f"{'Créé' if cree else 'À jour'} : {v.marque} {v.modele} {v.immatriculation}"
             f" ({c.prenom} {c.nom})"
         )
+    rapport += semer_journee(db, maintenant or get_now(), settings.timezone)
     return rapport

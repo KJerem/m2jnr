@@ -55,6 +55,8 @@ export interface OrdreResume {
   taches_total: number;
   duree_prevue_minutes: number;
   en_retard: boolean;
+  /** Rendez-vous d'origine : pont et créneau où l'OT est traité. */
+  rendez_vous: { id: number; debut: string; fin: string; duree_minutes: number; pont: { id: number; nom: string } } | null;
 }
 
 /** Ligne du suivi ; `ancien` vaut null pour l'ouverture de l'OT. */

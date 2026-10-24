@@ -144,6 +144,36 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
 
 .cartes-grille { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4); }
 
+.stack-xs { display: flex; flex-direction: column; gap: var(--space-1); }
+
+/* Rendez-vous */
+.rdv-jours { display: flex; flex-direction: column; }
+.rdv-jour + .rdv-jour { border-top: 1px solid var(--line); }
+.rdv-jour-titre { padding: var(--space-3) var(--space-5); background: var(--surface-sunken); font-size: 16px; line-height: 22px; }
+.rdv-liste { list-style: none; margin: 0; padding: 0; }
+.rdv-ligne { display: grid; grid-template-columns: 136px 64px auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: 64px; padding: var(--space-2) var(--space-5); border-top: 1px solid var(--line); }
+.rdv-liste > li:first-child { border-top: 0; }
+.rdv-creneau { font-family: var(--font-condensed); font-weight: 600; font-size: 17px; }
+.rdv-pont { font-weight: 600; }
+.rdv-texte { display: flex; flex-direction: column; min-width: 0; }
+.rdv-action { justify-self: end; }
+@media (max-width: 900px) { .rdv-ligne { grid-template-columns: 1fr auto; } .rdv-texte { grid-column: 1 / -1; } }
+
+/* Planning atelier */
+.planning-nav { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.planning-nav .et-btn { min-width: 44px; padding: 0 var(--space-4); }
+.planning-jour { font-size: 22px; line-height: 28px; margin-left: var(--space-2); min-width: 7em; }
+.planning-legende { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.planning-legende ul { list-style: none; margin: 0; padding: 0; }
+.planning { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: var(--space-4); overflow-x: auto; padding-bottom: var(--space-2); align-items: start; border-radius: var(--radius-lg); }
+.planning:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); }
+.planning-colonne { background: var(--surface-sunken); border-radius: var(--radius-lg); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.planning-tete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; padding: 0 var(--space-1); }
+.planning-charge { display: flex; flex-direction: column; gap: var(--space-1); font-size: 14px; padding: 0 var(--space-1); }
+.planning-surcharge { background: var(--danger); }
+.carte-rdv { padding: var(--space-3); border-radius: var(--radius-md); border: 1px dashed var(--line-strong); background: var(--surface-raised); display: flex; flex-direction: column; gap: var(--space-2); }
+.carte-rdv-creneau { font-family: var(--font-condensed); font-weight: 600; font-size: 15px; color: var(--ink); }
+
 /* Suivi atelier (kanban) */
 .kanban { display: grid; grid-template-columns: repeat(4, minmax(200px, 1fr)); gap: var(--space-4); overflow-x: auto; padding-bottom: var(--space-2); align-items: start; }
 .kanban-colonne { background: var(--surface-sunken); border-radius: var(--radius-lg); padding: var(--space-2); display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }

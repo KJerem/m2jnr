@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import { useChangerStatut } from "@/components/ordres/actions";
+import { CarteOrdre } from "@/components/ordres/CarteOrdre";
 import { useOrdre } from "@/components/ordres/donnees";
+import { CarteRendezVous, usePlanning } from "@/components/planning/Planning";
 import { TachesCochables } from "@/components/ordres/TachesCochables";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Plate } from "@/components/ui/Plate";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatKm } from "@/lib/format";
 import { formatRestitution, modele, type OrdreDetail } from "@/lib/ordres";
+import { elementSuivant, formatCreneau } from "@/lib/rendezvous";
 import { BADGE_OT, LIBELLE_OT } from "@/lib/statuts";
+import { aujourdHui } from "@/lib/vehicules";
 import { Horloge } from "./Horloge";
 
 /** « TRAVAUX 1 SUR 3 TERMINÉS » et barre de progression. */
@@ -68,11 +72,46 @@ export function ActionPrincipale({ ordre }: { ordre: OrdreDetail }) {
   );
 }
 
+type RendezVousOrdre = NonNullable<OrdreDetail["rendez_vous"]>;
+
+/** « Ensuite sur ce pont » : le créneau suivant du même pont, le même jour. */
+function EnsuiteSurCePont({ rdv }: { rdv: RendezVousOrdre }) {
+  const { data, isPending } = usePlanning(aujourdHui(new Date(rdv.debut)));
+  const suivant = elementSuivant(data, rdv.pont.id, rdv.id);
+  return (
+    <aside className="panel" aria-labelledby="titre-ensuite">
+      <div className="panel-head">
+        <h2 id="titre-ensuite">Ensuite sur ce pont</h2>
+      </div>
+      <div className="panel-body">
+        <p className="caption">
+          Ce créneau : <span className="num">{formatCreneau(rdv.debut, rdv.fin)}</span>
+        </p>
+        {isPending ? (
+          <p className="muted" role="status">
+            Chargement…
+          </p>
+        ) : !suivant ? (
+          <p className="muted">Rien d&apos;autre de prévu aujourd&apos;hui sur ce pont.</p>
+        ) : suivant.ordre ? (
+          <div className="stack-xs">
+            <p className="carte-rdv-creneau num">{formatCreneau(suivant.rendez_vous.debut, suivant.rendez_vous.fin)}</p>
+            <CarteOrdre ordre={suivant.ordre} href={`/ordres/${suivant.ordre.id}/tablette`} />
+          </div>
+        ) : (
+          <CarteRendezVous rdv={suivant.rendez_vous} />
+        )}
+      </div>
+    </aside>
+  );
+}
+
 /** Vue tablette atelier (maquette 1) : lisible à un mètre, cibles de 56 px et plus. */
 export function VueTablette({ ordreId }: { ordreId: number }) {
   const { data: ordre, isPending, isError, error } = useOrdre(ordreId);
-  const colonne = null;
-  const nomPoste = "Atelier";
+  const rdv = ordre?.rendez_vous ?? null;
+  const colonne = rdv ? <EnsuiteSurCePont rdv={rdv} /> : null;
+  const nomPoste = rdv?.pont.nom ?? "Atelier";
 
   return (
     <div className="tablette-page">

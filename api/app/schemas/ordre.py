@@ -137,6 +137,25 @@ class TacheSortie(BaseModel):
     terminee_par: UtilisateurResume | None = Field(validation_alias="terminee_par_utilisateur")
 
 
+class PontSortie(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nom: str
+
+
+class RendezVousOrdre(BaseModel):
+    """Rendez-vous d'origine d'un OT : le pont où il est traité et son créneau."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    debut: datetime
+    fin: datetime
+    duree_minutes: int
+    pont: PontSortie
+
+
 class HistoriqueSortie(BaseModel):
     """Ligne du suivi : `ancien` vaut null pour l'ouverture de l'OT."""
 
@@ -170,6 +189,7 @@ class OrdreResume(BaseModel):
     taches_total: int
     duree_prevue_minutes: int
     en_retard: bool
+    rendez_vous: RendezVousOrdre | None
 
 
 class OrdreDetail(OrdreResume):
@@ -216,6 +236,9 @@ def _champs_resume(
         "taches_total": ordre.taches_total,
         "duree_prevue_minutes": _duree_prevue(ordre.taches),
         "en_retard": est_en_retard(ordre.statut, ordre.restitution_prevue, maintenant),
+        "rendez_vous": (
+            RendezVousOrdre.model_validate(ordre.rendez_vous) if ordre.rendez_vous else None
+        ),
     }
 
 

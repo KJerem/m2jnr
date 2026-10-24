@@ -1,12 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useForm, useWatch, type Path } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
+import { SelectVehicule } from "@/components/vehicules/SelectVehicule";
 import { appliquerErreursApi } from "@/lib/formulaires";
-import { formatKm, nomComplet } from "@/lib/format";
+import { formatKm } from "@/lib/format";
 import {
   MESSAGE_VEHICULE_OBLIGATOIRE,
   ordreSchema,
@@ -32,21 +33,6 @@ export interface OrdreFormProps {
   onAnnuler?: () => void;
 }
 
-interface Groupe {
-  proprietaire: string;
-  vehicules: Vehicule[];
-}
-
-function grouperParProprietaire(vehicules: Vehicule[]): Groupe[] {
-  const groupes = new Map<number, Groupe>();
-  for (const v of vehicules) {
-    const groupe = groupes.get(v.proprietaire.id) ?? { proprietaire: nomComplet(v.proprietaire), vehicules: [] };
-    groupe.vehicules.push(v);
-    groupes.set(v.proprietaire.id, groupe);
-  }
-  return [...groupes.values()];
-}
-
 export function OrdreForm({ mode, valeursInitiales, vehicules, mecaniciens, envoyer, onSucces, onAnnuler }: OrdreFormProps) {
   const {
     register,
@@ -57,7 +43,6 @@ export function OrdreForm({ mode, valeursInitiales, vehicules, mecaniciens, envo
     formState: { errors, isSubmitting },
   } = useForm<OrdreFormValues>({ resolver: zodResolver(ordreSchema), defaultValues: valeursInitiales });
   const [erreurGenerale, setErreurGenerale] = useState<string | null>(null);
-  const groupes = useMemo(() => grouperParProprietaire(vehicules), [vehicules]);
   const vehiculeId = useWatch({ control, name: "vehicule_id" });
   const vehicule = vehicules.find((v) => String(v.id) === vehiculeId);
   const creation = mode === "creation";
@@ -96,18 +81,7 @@ export function OrdreForm({ mode, valeursInitiales, vehicules, mecaniciens, envo
       </div>
       <div className="form-grid">
         {creation ? (
-          <SelectField label="Véhicule" required error={errors.vehicule_id?.message} hint={vehicules.length === 0 ? "Aucun véhicule enregistré." : undefined} {...register("vehicule_id")}>
-            <option value="">Choisir un véhicule</option>
-            {groupes.map((g) => (
-              <optgroup key={g.proprietaire + g.vehicules[0]?.id} label={g.proprietaire}>
-                {g.vehicules.map((v) => (
-                  <option key={v.id} value={String(v.id)}>
-                    {v.immatriculation} · {v.marque} {v.modele}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </SelectField>
+          <SelectVehicule label="Véhicule" required vehicules={vehicules} error={errors.vehicule_id?.message} {...register("vehicule_id")} />
         ) : null}
         <SelectField label="Mécanicien" hint="Facultatif" error={errors.mecanicien_id?.message} {...register("mecanicien_id")}>
           <option value="">Non affecté</option>

@@ -25,6 +25,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.rendez_vous import RendezVous
     from app.models.utilisateur import Utilisateur
     from app.models.vehicule import Vehicule
 
@@ -87,8 +88,13 @@ class OrdreTravail(TimestampMixin, Base):
     cree_par: Mapped[int] = mapped_column(
         ForeignKey("utilisateur.id", ondelete="RESTRICT"), nullable=False
     )
+    # Rendez-vous d'origine (au plus un OT par rendez-vous) : l'OT s'affiche sur son pont.
+    rendez_vous_id: Mapped[int | None] = mapped_column(
+        ForeignKey("rendez_vous.id", ondelete="RESTRICT"), unique=True
+    )
 
     vehicule: Mapped["Vehicule"] = relationship()
+    rendez_vous: Mapped["RendezVous | None"] = relationship(back_populates="ordre")
     mecanicien: Mapped["Utilisateur | None"] = relationship(foreign_keys=[mecanicien_id])
     createur: Mapped["Utilisateur"] = relationship(foreign_keys=[cree_par])
     taches: Mapped[list["TacheOT"]] = relationship(
