@@ -1,12 +1,17 @@
 """Story S4.3 — facture : numéro sans trou, copie figée du devis, immuabilité, PDF, accès."""
 
+import importlib.util
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from io import BytesIO
+from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
@@ -640,3 +645,43 @@ def test_echeance_selon_le_delai_de_paiement_configure(
     assert facture["echeance"] == "2026-12-17"  # 2 novembre + 45 jours
     texte = _texte_pdf(client_gerant.get(f"/factures/{facture['id']}/pdf").content)
     assert "Date d'échéance : 17/12/2026" in texte
+
+
+# --- Migrations --------------------------------------------------------------------------------
+
+
+def _migration(nom: str) -> ModuleType:
+    chemin = Path(__file__).resolve().parent.parent / "alembic" / "versions" / nom
+    spec = importlib.util.spec_from_file_location(chemin.stem, chemin)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_le_downgrade_de_0010_remet_le_compteur_des_factures_a_zero(engine: Engine) -> None:
+    """Revue du sprint 3 : après downgrade puis upgrade, la facturation reprenait à
+    F-AAAA-005 alors que les factures 001 à 004 n'existaient plus (trou de numérotation).
+    Le downgrade s'exécute dans une transaction annulée : le DDL de PostgreSQL est
+    transactionnel, la base de test reste intacte."""
+    migration = _migration("20261202_0010_facture.py")
+    with engine.connect() as connexion:
+        transaction = connexion.begin()
+        try:
+            connexion.execute(
+                text(
+                    "INSERT INTO compteur (type, annee, dernier) VALUES"
+                    " ('FACTURE', 2093, 4), ('OT', 2093, 7)"
+                )
+            )
+            with Operations.context(MigrationContext.configure(connexion)):
+                migration.downgrade()
+
+            restants = connexion.execute(
+                text("SELECT type, dernier FROM compteur WHERE annee = 2093")
+            ).all()
+            assert restants == [("OT", 7)]
+        finally:
+            transaction.rollback()
+    with engine.connect() as connexion:
+        assert connexion.execute(text("SELECT to_regclass('facture') IS NOT NULL")).scalar()
