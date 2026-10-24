@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PiedFacturation } from "@/components/devis/DevisOrdre";
+import { DevisFactures } from "@/components/facturation/DevisFactures";
 import { ListeDevis } from "@/components/facturation/ListeDevis";
 import { ListeFactures } from "@/components/facturation/ListeFactures";
 import type { DevisDetail, DevisResume } from "@/lib/devis";
@@ -14,6 +15,8 @@ vi.mock("@/lib/api", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/api")>();
   return { ...original, apiFetch: (...args: unknown[]) => apiFetch(...args) };
 });
+const navigation = vi.hoisted(() => ({ chemin: "/devis" }));
+vi.mock("next/navigation", () => ({ usePathname: () => navigation.chemin, useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 
 const DEVIS: DevisDetail = {
   id: 7,
@@ -169,5 +172,31 @@ describe("onglet Devis (revue du sprint 3)", () => {
     avecRequetes(<ListeDevis page={1} />);
 
     expect(await screen.findByText("ven. 24 oct. 2025")).toBeInTheDocument();
+  });
+
+  it("garde l'onglet affiché d'accord avec l'adresse, même quand la page est réutilisée", async () => {
+    const user = userEvent.setup({ delay: null });
+    apiFetch.mockResolvedValue({ elements: [], total: 0, page: 1, taille: 50 });
+    navigation.chemin = "/devis";
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const page = () => (
+      <QueryClientProvider client={client}>
+        <DevisFactures onglet="devis" page={1} />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(page());
+    const rendre = () => rerender(page());
+
+    await user.click(screen.getByRole("tab", { name: "Factures" }));
+    expect(window.location.pathname).toBe("/factures");
+    navigation.chemin = window.location.pathname; // Next synchronise usePathname avec replaceState
+    act(rendre);
+    expect(screen.getByRole("tab", { name: "Factures" })).toHaveAttribute("aria-selected", "true");
+
+    // Lien « Devis & factures » du menu : retour sur /devis sans remonter la page.
+    navigation.chemin = "/devis";
+    act(rendre);
+    expect(screen.getByRole("tab", { name: "Devis" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Factures" })).toHaveAttribute("aria-selected", "false");
   });
 });
