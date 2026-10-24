@@ -20,6 +20,16 @@ NAMING_CONVENTION = {
 }
 
 
+# Les clés primaires sont des INTEGER (int4) : au-delà, PostgreSQL lève une erreur de type
+# (500) au lieu de ne rien trouver.
+ID_MAX = 2_147_483_647
+
+
+def id_possible(identifiant: int) -> bool:
+    """Vrai si l'identifiant tient dans une clé INTEGER ; sinon, aucune ligne ne peut exister."""
+    return 1 <= identifiant <= ID_MAX
+
+
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 

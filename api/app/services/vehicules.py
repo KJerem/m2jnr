@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.db import id_possible
 from app.errors import AppError, conflict, invalid, not_found
 from app.models.client import Client
 from app.models.vehicule import Vehicule
@@ -17,7 +18,7 @@ DATE_MIN = date(1900, 1, 1)
 
 
 def obtenir_vehicule(db: Session, vehicule_id: int) -> Vehicule:
-    vehicule = db.get(Vehicule, vehicule_id)
+    vehicule = db.get(Vehicule, vehicule_id) if id_possible(vehicule_id) else None
     if vehicule is None:
         raise not_found("Véhicule introuvable.")
     return vehicule

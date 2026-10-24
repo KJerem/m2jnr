@@ -234,6 +234,17 @@ def test_client_inconnu_404(client_gerant: TestClient) -> None:
     assert client_gerant.put("/clients/999999", json=_client()).status_code == 404
 
 
+@pytest.mark.parametrize("identifiant", ["2147483648", "99999999999", "-99999999999"])
+def test_identifiant_hors_limites_404(client_gerant: TestClient, identifiant: str) -> None:
+    for reponse in (
+        client_gerant.get(f"/clients/{identifiant}"),
+        client_gerant.put(f"/clients/{identifiant}", json=_client()),
+        client_gerant.get(f"/clients/{identifiant}/vehicules"),
+    ):
+        assert reponse.status_code == 404
+        assert reponse.json()["message"] == "Client introuvable."
+
+
 # --- Liste paginée --------------------------------------------------------------------------
 
 
@@ -261,6 +272,9 @@ def test_pagination_par_defaut_et_bornes(client_gerant: TestClient) -> None:
     assert (defaut["page"], defaut["taille"], defaut["total"]) == (1, 20, 0)
 
     assert client_gerant.get("/clients?page=0").status_code == 422
+    assert client_gerant.get("/clients?page=100000").status_code == 200
+    assert client_gerant.get("/clients?page=100001").status_code == 422
+    assert client_gerant.get("/clients?page=99999999999999999999").status_code == 422
     assert client_gerant.get("/clients?taille=101").status_code == 422
 
 

@@ -278,6 +278,21 @@ def test_vehicule_inconnu_404(client_gerant: TestClient) -> None:
     assert client_gerant.put("/vehicules/999999", json=_vehicule()).status_code == 404
 
 
+@pytest.mark.parametrize("identifiant", ["2147483648", "99999999999", "-99999999999"])
+def test_identifiant_hors_limites_404(
+    client_gerant: TestClient, client_mecanicien: TestClient, identifiant: str
+) -> None:
+    for reponse in (
+        client_mecanicien.get(f"/vehicules/{identifiant}"),
+        client_gerant.get(f"/vehicules/{identifiant}"),
+        client_gerant.put(f"/vehicules/{identifiant}", json=_vehicule()),
+    ):
+        assert reponse.status_code == 404
+        assert reponse.json()["message"] == "Véhicule introuvable."
+    ajout = client_gerant.post(f"/clients/{identifiant}/vehicules", json=_vehicule())
+    assert ajout.status_code == 404
+
+
 # --- Accès ----------------------------------------------------------------------------------
 
 

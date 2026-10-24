@@ -27,6 +27,10 @@ EmailFacultatif = Annotated[
 ]
 
 
+# Borne haute du numéro de page : au-delà, le décalage SQL (page - 1) × taille déborde.
+PAGE_MAX = 100_000
+
+
 class Page[T](BaseModel):
     """Page de résultats : `elements` de la page demandée et `total` sur toutes les pages."""
 

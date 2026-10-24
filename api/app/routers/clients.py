@@ -9,7 +9,7 @@ from app.config import Settings, get_settings
 from app.db import DbSession
 from app.models.utilisateur import Role
 from app.schemas.client import ClientDetail, ClientEntree, ClientSortie
-from app.schemas.commun import Page
+from app.schemas.commun import PAGE_MAX, Page
 from app.schemas.vehicule import VehiculeEntree, VehiculeSortie
 from app.security.dependances import require_role
 from app.services import clients as service
@@ -23,7 +23,7 @@ router = APIRouter(
 @router.get("")
 def lister(
     db: DbSession,
-    page: int = Query(1, ge=1),
+    page: int = Query(1, ge=1, le=PAGE_MAX),
     taille: int = Query(20, ge=1, le=100),
 ) -> Page[ClientSortie]:
     resultat = service.lister_clients(db, page, taille)
