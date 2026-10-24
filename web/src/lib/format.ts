@@ -41,6 +41,12 @@ export function formatDateCourte(date: Date | string): string {
   return `${part(p, "weekday")} ${part(p, "day")} ${part(p, "month")}`.replace(/\s+/g, " ").trim();
 }
 
+/** « mar. 14 oct. 2026 » (historique : l'année compte). */
+export function formatDateAnnee(date: Date | string): string {
+  const p = parts(date, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  return `${part(p, "weekday")} ${part(p, "day")} ${part(p, "month")} ${part(p, "year")}`.replace(/\s+/g, " ").trim();
+}
+
 /** « mar. 14 oct. à 17 h 30 ». */
 export function formatDateHeure(date: Date | string): string {
   return `${formatDateCourte(date)} à ${formatHeure(date)}`;

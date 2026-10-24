@@ -249,3 +249,15 @@ def lister_ordres(db: Session, filtres: FiltresOrdres, page: int, taille: int) -
 def jour_valide(du: date | None, au: date | None) -> None:
     if du is not None and au is not None and au < du:
         raise invalid("au", "La date de fin doit suivre la date de début.")
+
+
+def historique_vehicule(db: Session, vehicule: Vehicule) -> list[OrdreTravail]:
+    """Interventions du véhicule, de la plus récente à la plus ancienne (story S1.4)."""
+    return list(
+        db.scalars(
+            select(OrdreTravail)
+            .where(OrdreTravail.vehicule_id == vehicule.id)
+            .options(selectinload(OrdreTravail.mecanicien), selectinload(OrdreTravail.taches))
+            .order_by(OrdreTravail.ouvert_le.desc(), OrdreTravail.id.desc())
+        )
+    )
