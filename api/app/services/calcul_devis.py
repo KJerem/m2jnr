@@ -12,6 +12,7 @@ nombre à virgule flottante. Exemple du backlog : 2 pièces à 40,00 € + 1 h �
 140,00 € HT, 28,00 € de TVA, 168,00 € TTC.
 """
 
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -25,11 +26,16 @@ LIGNES_MAX = 100
 CENTIEME = Decimal("0.01")
 # Au-delà, le texte ne peut pas être une quantité valide : refusé sans le convertir.
 LONGUEUR_SAISIE_MAX = 32
+# Seule forme acceptée pour le texte, la même que l'interface : chiffres ASCII, virgule ou
+# point décimal, signe moins (pour répondre « supérieure à 0 »). Ni exposant (« 1e3 »), ni
+# tiret bas (« 1_0 »), ni « + », ni chiffres non ASCII (« １ »), que Decimal accepterait.
+FORME_QUANTITE = re.compile(r"-?[0-9]+(?:[.,][0-9]+)?")
 
 MESSAGE_QUANTITE_INVALIDE = "Quantité invalide : nombre attendu, par exemple 1 ou 0,5."
 MESSAGE_QUANTITE_POSITIVE = "La quantité doit être supérieure à 0."
 MESSAGE_QUANTITE_MAX = "La quantité ne peut pas dépasser 9 999,99."
 MESSAGE_QUANTITE_DECIMALES = "Deux décimales au plus pour la quantité."
+MESSAGE_QUANTITE_TEXTE = "Quantité décimale à envoyer en texte, par exemple « 0,5 »."
 
 
 class LigneACalculer(Protocol):
@@ -58,22 +64,23 @@ def arrondi_centime(valeur: Decimal) -> int:
 
 
 def lire_quantite(valeur: object) -> Decimal:
-    """Quantité saisie (texte « 1,5 » ou « 1.50 », entier ou décimal JSON) vers Decimal.
+    """Quantité saisie (texte « 1,5 » ou « 1.50 », ou entier JSON) vers Decimal.
 
-    Lève ValueError (message en français, 422 sur le champ) si elle n'est pas un nombre fini,
-    si elle est nulle ou négative, dépasse 9 999,99 ou a plus de deux décimales : une
-    quantité n'est jamais arrondie en silence."""
-    if isinstance(valeur, bool) or not isinstance(valeur, str | int | float | Decimal):
+    Lève ValueError (message en français, 422 sur le champ) si elle n'a pas la forme
+    attendue, si elle est nulle ou négative, dépasse 9 999,99 ou a plus de deux décimales :
+    une quantité n'est jamais arrondie en silence. Un nombre JSON à virgule est refusé : le
+    flottant est déjà arrondi quand il arrive ici (1.0000000000000001 vaut 1.0)."""
+    if isinstance(valeur, float):
+        raise ValueError(MESSAGE_QUANTITE_TEXTE)
+    if isinstance(valeur, bool) or not isinstance(valeur, str | int | Decimal):
         raise ValueError(MESSAGE_QUANTITE_INVALIDE)
-    texte = str(valeur).strip().replace(",", ".")
-    if len(texte) > LONGUEUR_SAISIE_MAX:
+    texte = str(valeur).strip()
+    if len(texte) > LONGUEUR_SAISIE_MAX or not FORME_QUANTITE.fullmatch(texte):
         raise ValueError(MESSAGE_QUANTITE_INVALIDE)
     try:
-        quantite = Decimal(texte)
-    except InvalidOperation:
+        quantite = Decimal(texte.replace(",", "."))
+    except InvalidOperation:  # pragma: no cover - exclu par FORME_QUANTITE
         raise ValueError(MESSAGE_QUANTITE_INVALIDE) from None
-    if not quantite.is_finite():
-        raise ValueError(MESSAGE_QUANTITE_INVALIDE)
     if quantite <= 0:
         raise ValueError(MESSAGE_QUANTITE_POSITIVE)
     if quantite > QUANTITE_MAX:

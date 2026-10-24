@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Onglets } from "@/components/ui/Onglets";
 import { ListeDevis } from "./ListeDevis";
 import { ListeFactures } from "./ListeFactures";
@@ -12,13 +12,17 @@ const CHEMINS: Record<OngletFacturation, string> = { devis: "/devis", factures: 
 /**
  * Page « Devis & factures » (gérant) : deux onglets, chacun avec son adresse (/devis,
  * /factures). Changer d'onglet met l'adresse à jour sans recharger la page.
+ *
+ * L'onglet affiché se déduit de l'adresse (usePathname, que Next.js synchronise avec
+ * replaceState) et non d'un état local : revenir sur /devis par le menu, qui réutilise la
+ * page déjà affichée, montrait encore l'onglet « Factures » (revue du sprint 3).
  */
 export function DevisFactures({ onglet, page }: { onglet: OngletFacturation; page: number }) {
-  const [actif, setActif] = useState<OngletFacturation>(onglet);
+  const chemin = usePathname();
+  const actif: OngletFacturation = chemin === CHEMINS.factures ? "factures" : chemin === CHEMINS.devis ? "devis" : onglet;
 
   function changer(id: string) {
     const suivant: OngletFacturation = id === "factures" ? "factures" : "devis";
-    setActif(suivant);
     window.history.replaceState(null, "", CHEMINS[suivant]);
   }
 

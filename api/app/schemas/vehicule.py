@@ -12,7 +12,7 @@ from pydantic import (
     StringConstraints,
 )
 
-from app.schemas.commun import vide_vers_none
+from app.schemas.commun import SansControle, vide_vers_none
 from app.services.immatriculation import normaliser_immatriculation, normaliser_vin
 
 KILOMETRAGE_MAX = 2_000_000
@@ -34,8 +34,12 @@ class VehiculeEntree(BaseModel):
     """Création ou modification complète d'un véhicule."""
 
     immatriculation: Immatriculation
-    marque: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
-    modele: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    marque: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50), SansControle
+    ]
+    modele: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80), SansControle
+    ]
     kilometrage: Kilometrage
     vin: Vin = None
     date_mise_en_circulation: Annotated[date | None, BeforeValidator(vide_vers_none)] = None

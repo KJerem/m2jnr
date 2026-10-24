@@ -1,16 +1,21 @@
 """Story S4.3 — facture : numéro sans trou, copie figée du devis, immuabilité, PDF, accès."""
 
+import importlib.util
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from io import BytesIO
+from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
-from sqlalchemy import Engine, delete, select, text
+from sqlalchemy import Engine, delete, func, select, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
@@ -429,6 +434,37 @@ def test_pdf_genere_a_partir_des_seules_donnees_figees(
     assert client_gerant.get(f"/factures/{facture['id']}").json()["client"]["nom"] == "Laurent"
 
 
+def test_pdf_ecrit_les_noms_hors_winansi_sans_carre_noir(
+    client_gerant: TestClient, nouvel_ordre: Callable[..., OrdreTravail], db: Session
+) -> None:
+    """Revue du sprint 3 : avec Helvetica (WinAnsi), « ł », « ş » ou « ễ » sortaient en « ■ »."""
+    ordre = nouvel_ordre()
+    client = ordre.vehicule.client
+    client.nom, client.prenom = "Dvořák-Nguyễn", "Łukasz Ştefan"
+    ordre.vehicule.marque, ordre.vehicule.modele = "Škoda", "Octavia Ő"
+    db.flush()
+    designation = "Joint torique Ø 5 mm ≤ 3 bar → kit Ő"
+    lignes = [
+        {"type": "piece", "reference": "JT-Ø5", "designation": designation, "quantite": "1",
+         "prix_unitaire_ht_centimes": 1250},
+        *LIGNES_BACKLOG,
+    ]  # fmt: skip
+    facture = _facturer(client_gerant, _devis(client_gerant, ordre, lignes)["id"])
+
+    texte = _texte_pdf(client_gerant.get(f"/factures/{facture['id']}/pdf").content)
+
+    assert "■" not in texte
+    for attendu in (
+        "Łukasz Ştefan Dvořák-Nguyễn",
+        "Škoda Octavia Ő",
+        "JT-Ø5",
+        designation,
+        "Main-d'œuvre HT",
+        "183,00 €",  # 152,50 € HT + 30,50 € de TVA
+    ):
+        assert attendu in texte, attendu
+
+
 # --- Accès -----------------------------------------------------------------------------------
 
 
@@ -594,6 +630,39 @@ def test_un_meme_devis_facture_deux_fois_en_meme_temps_une_seule_facture(
         assert compteur.dernier == 1
 
 
+def test_la_base_refuse_d_ajouter_une_ligne_a_une_facture_emise(
+    engine: Engine, deux_devis: DonneesFacturation
+) -> None:
+    """Revue du sprint 3 : INSERT dans ligne_facture était accepté après l'émission (une
+    ligne de 1 000,00 € s'ajoutait au PDF, les totaux restant à 168,00 €). Les lignes ne
+    s'ajoutent que dans la transaction qui crée la facture."""
+    with nouvelle_session(engine) as s:
+        emise = _emettre(deux_devis, deux_devis.devis_ids[0])(s)
+        s.commit()
+        facture_id = emise.id
+
+    with nouvelle_session(engine) as s:
+        # Une autre facture créée dans la transaction n'ouvre pas la première aux ajouts.
+        autre = _emettre(deux_devis, deux_devis.devis_ids[1])(s)
+        with pytest.raises(DBAPIError) as erreur, s.begin_nested():
+            s.execute(
+                text(
+                    "INSERT INTO ligne_facture (facture_id, type, designation, quantite,"
+                    " prix_unitaire_ht_centimes, total_ht_centimes, position)"
+                    " VALUES (:id, 'piece', 'ajout frauduleux', 1, 100000, 100000, 99)"
+                ),
+                {"id": facture_id},
+            )
+        assert getattr(erreur.value.orig, "sqlstate", None) == "ET001"
+        assert "facture immuable" in str(erreur.value.orig)
+        s.commit()
+        assert len(autre.lignes) == len(LIGNES_BACKLOG)
+
+    with nouvelle_session(engine) as s:
+        lignes = s.scalars(select(func.count()).where(LigneFacture.facture_id == facture_id)).one()
+        assert lignes == len(LIGNES_BACKLOG)
+
+
 def test_echeance_selon_le_delai_de_paiement_configure(
     app: FastAPI,
     horloge: Horloge,
@@ -609,3 +678,43 @@ def test_echeance_selon_le_delai_de_paiement_configure(
     assert facture["echeance"] == "2026-12-17"  # 2 novembre + 45 jours
     texte = _texte_pdf(client_gerant.get(f"/factures/{facture['id']}/pdf").content)
     assert "Date d'échéance : 17/12/2026" in texte
+
+
+# --- Migrations --------------------------------------------------------------------------------
+
+
+def _migration(nom: str) -> ModuleType:
+    chemin = Path(__file__).resolve().parent.parent / "alembic" / "versions" / nom
+    spec = importlib.util.spec_from_file_location(chemin.stem, chemin)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_le_downgrade_de_0010_remet_le_compteur_des_factures_a_zero(engine: Engine) -> None:
+    """Revue du sprint 3 : après downgrade puis upgrade, la facturation reprenait à
+    F-AAAA-005 alors que les factures 001 à 004 n'existaient plus (trou de numérotation).
+    Le downgrade s'exécute dans une transaction annulée : le DDL de PostgreSQL est
+    transactionnel, la base de test reste intacte."""
+    migration = _migration("20261202_0010_facture.py")
+    with engine.connect() as connexion:
+        transaction = connexion.begin()
+        try:
+            connexion.execute(
+                text(
+                    "INSERT INTO compteur (type, annee, dernier) VALUES"
+                    " ('FACTURE', 2093, 4), ('OT', 2093, 7)"
+                )
+            )
+            with Operations.context(MigrationContext.configure(connexion)):
+                migration.downgrade()
+
+            restants = connexion.execute(
+                text("SELECT type, dernier FROM compteur WHERE annee = 2093")
+            ).all()
+            assert restants == [("OT", 7)]
+        finally:
+            transaction.rollback()
+    with engine.connect() as connexion:
+        assert connexion.execute(text("SELECT to_regclass('facture') IS NOT NULL")).scalar()

@@ -28,7 +28,7 @@ LIGNES_MAQUETTE: list[dict[str, Any]] = [
      "designation": "Remplacement plaquettes + disques AV", "quantite": "1,5",
      "prix_unitaire_ht_centimes": 7200},
     {"type": "main_oeuvre", "reference": "MO-VIDANGE", "designation": "Vidange + filtre",
-     "quantite": 0.5, "prix_unitaire_ht_centimes": 7200},
+     "quantite": "0,5", "prix_unitaire_ht_centimes": 7200},
     {"type": "piece", "reference": "PLQ-308-AV", "designation": "Jeu de plaquettes avant",
      "quantite": 1, "prix_unitaire_ht_centimes": 4850},
     {"type": "piece", "reference": "DSQ-308-283", "designation": "Disques avant ventilés (paire)",
@@ -125,7 +125,7 @@ def test_total_ht_somme_des_lignes_arrondies() -> None:
         ("1.50", Decimal("1.50")),
         (" 2 ", Decimal("2.00")),
         (2, Decimal("2.00")),
-        (0.25, Decimal("0.25")),
+        ("0.25", Decimal("0.25")),
         ("1.500", Decimal("1.50")),
         ("9999.99", Decimal("9999.99")),
     ],
@@ -140,8 +140,9 @@ def test_lecture_de_la_quantite(saisie: object, attendu: Decimal) -> None:
         ("0", calcul_devis.MESSAGE_QUANTITE_POSITIVE),
         (0, calcul_devis.MESSAGE_QUANTITE_POSITIVE),
         ("-1", calcul_devis.MESSAGE_QUANTITE_POSITIVE),
+        ("-0", calcul_devis.MESSAGE_QUANTITE_POSITIVE),
         ("1.005", calcul_devis.MESSAGE_QUANTITE_DECIMALES),
-        (0.333, calcul_devis.MESSAGE_QUANTITE_DECIMALES),
+        ("0.333", calcul_devis.MESSAGE_QUANTITE_DECIMALES),
         ("10000", calcul_devis.MESSAGE_QUANTITE_MAX),
         ("abc", calcul_devis.MESSAGE_QUANTITE_INVALIDE),
         ("", calcul_devis.MESSAGE_QUANTITE_INVALIDE),
@@ -150,6 +151,21 @@ def test_lecture_de_la_quantite(saisie: object, attendu: Decimal) -> None:
         (True, calcul_devis.MESSAGE_QUANTITE_INVALIDE),
         (None, calcul_devis.MESSAGE_QUANTITE_INVALIDE),
         ("1" * 40, calcul_devis.MESSAGE_QUANTITE_INVALIDE),
+        # Revue du sprint 3 : formes que Decimal accepte mais que l'interface refuse.
+        ("1e3", calcul_devis.MESSAGE_QUANTITE_INVALIDE),
+        ("1E-2", calcul_devis.MESSAGE_QUANTITE_INVALIDE),
+        ("1_0", calcul_devis.MESSAGE_QUANTITE_INVALIDE),
+        ("１", calcul_devis.MESSAGE_QUANTITE_INVALIDE),  # chiffre pleine largeur
+        ("٢", calcul_devis.MESSAGE_QUANTITE_INVALIDE),  # chiffre arabe
+        ("+2", calcul_devis.MESSAGE_QUANTITE_INVALIDE),
+        (".5", calcul_devis.MESSAGE_QUANTITE_INVALIDE),
+        ("1.", calcul_devis.MESSAGE_QUANTITE_INVALIDE),
+        ("1,5,0", calcul_devis.MESSAGE_QUANTITE_INVALIDE),
+        # Nombre JSON à virgule : déjà arrondi en flottant (1.0000000000000001 → 1.0) avant
+        # toute lecture, il est refusé au lieu d'être accepté en silence.
+        (1.0000000000000001, calcul_devis.MESSAGE_QUANTITE_TEXTE),
+        (0.25, calcul_devis.MESSAGE_QUANTITE_TEXTE),
+        (2.0, calcul_devis.MESSAGE_QUANTITE_TEXTE),
     ],
 )
 def test_quantite_refusee_jamais_arrondie_en_silence(saisie: object, message: str) -> None:
@@ -260,9 +276,12 @@ def test_reference_vide_enregistree_comme_absente(
         ("0", "La quantité doit être supérieure à 0."),
         (0, "La quantité doit être supérieure à 0."),
         ("-1", "La quantité doit être supérieure à 0."),
-        (-0.5, "La quantité doit être supérieure à 0."),
+        ("-0,5", "La quantité doit être supérieure à 0."),
         ("1.005", "Deux décimales au plus pour la quantité."),
         ("deux", calcul_devis.MESSAGE_QUANTITE_INVALIDE),
+        ("1e3", calcul_devis.MESSAGE_QUANTITE_INVALIDE),
+        ("１", calcul_devis.MESSAGE_QUANTITE_INVALIDE),
+        (1.0000000000000001, calcul_devis.MESSAGE_QUANTITE_TEXTE),
     ],
 )
 def test_quantite_nulle_negative_ou_a_trois_decimales_422(

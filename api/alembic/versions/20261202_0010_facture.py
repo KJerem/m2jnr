@@ -8,7 +8,8 @@
   deux tables (RAISE EXCEPTION 'facture immuable', SQLSTATE ET001), y compris en SQL direct.
 
 La numérotation réutilise la table `compteur` (type 'FACTURE') : sa colonne `type` est un
-varchar(20) sans liste fermée, aucune modification n'est nécessaire.
+varchar(20) sans liste fermée, aucune modification n'est nécessaire. Le downgrade supprime
+les compteurs 'FACTURE' avec les factures (sinon, trou de numérotation au prochain upgrade).
 
 Revision ID: 0010
 Revises: 0009
@@ -143,3 +144,7 @@ def downgrade() -> None:
     op.drop_index("ix_facture_emise_le", table_name="facture")
     op.drop_index("ix_facture_ordre_travail_id", table_name="facture")
     op.drop_table("facture")
+    # Sans les factures, leur compteur n'a plus de sens : le garder ferait reprendre la
+    # numérotation après des numéros qui n'existent plus nulle part (trou), au prochain
+    # upgrade. Ce downgrade détruit des pièces comptables : à réserver au développement.
+    op.execute("DELETE FROM compteur WHERE type = 'FACTURE'")

@@ -1,4 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
@@ -283,5 +285,71 @@ describe("section devis de la fiche d'un OT", () => {
     expect(screen.getByRole("heading", { name: /Devis — pièces/ })).toBeInTheDocument();
     expect(await screen.findByText("Aucun devis pour cet ordre de travail.")).toBeInTheDocument();
     expect(apiFetch).toHaveBeenCalledWith("/ordres/1/devis", expect.anything());
+  });
+});
+
+describe("focus clavier de la section devis (revue du sprint 3)", () => {
+  it("place le focus sur la première ligne à l'ouverture et le rend à « Modifier le devis » après Annuler", async () => {
+    const user = userEvent.setup({ delay: null });
+    avecRequetes(<DevisOrdre ordre={ORDRE} />, "gerant", DEVIS);
+
+    await user.click(screen.getByRole("button", { name: "Modifier le devis" }));
+    expect(within(screen.getByRole("group", { name: "Ligne 1" })).getByLabelText("Type")).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(screen.getByRole("button", { name: "Modifier le devis" })).toHaveFocus();
+  });
+
+  it("place le focus sur la ligne ajoutée puis sur « Modifier le devis » après l'enregistrement", async () => {
+    const user = userEvent.setup({ delay: null });
+    apiFetch.mockResolvedValue(DEVIS);
+    avecRequetes(<DevisOrdre ordre={ORDRE} />, "gerant", DEVIS);
+
+    await user.click(screen.getByRole("button", { name: "Ajouter une ligne" }));
+    const ligne3 = screen.getByRole("group", { name: "Ligne 3" });
+    expect(within(ligne3).getByLabelText("Type")).toHaveFocus();
+
+    await user.click(within(ligne3).getByRole("button", { name: "Retirer la ligne 3" }));
+    await user.click(screen.getByRole("button", { name: "Enregistrer le devis" }));
+
+    expect(await screen.findByText(/Devis enregistré/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Modifier le devis" })).toHaveFocus();
+  });
+
+  it("sans devis, rend le focus à « Ajouter une ligne » après Annuler", async () => {
+    const user = userEvent.setup({ delay: null });
+    avecRequetes(<DevisOrdre ordre={ORDRE} />, "gerant", null);
+
+    await user.click(screen.getByRole("button", { name: "Ajouter une ligne" }));
+    expect(within(screen.getByRole("group", { name: "Ligne 1" })).getByLabelText("Type")).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Annuler" }));
+    expect(screen.getByRole("button", { name: "Ajouter une ligne" })).toHaveFocus();
+  });
+
+  it("après « Générer la facture », place le focus sur « Télécharger le PDF »", async () => {
+    const user = userEvent.setup({ delay: null });
+    const facture = { id: 3, numero: "F-2026-001", totaux: DEVIS.totaux };
+    apiFetch.mockImplementation((chemin: string) =>
+      Promise.resolve(chemin === "/devis/7/facture" ? facture : { ...DEVIS, facture: { id: 3, numero: "F-2026-001" } }),
+    );
+    avecRequetes(<DevisOrdre ordre={{ ...ORDRE, statut: "termine" }} />, "gerant", DEVIS);
+
+    await user.click(screen.getByRole("button", { name: "Générer la facture" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Générer la facture" }));
+
+    const pdf = await screen.findByRole("link", { name: "Télécharger le PDF" });
+    expect(pdf).toHaveFocus();
+    expect(screen.getByText(/Facture F-2026-001 établie/)).toBeInTheDocument();
+  });
+});
+
+describe("éditeur du devis à 1024 px (revue du sprint 3)", () => {
+  it("garde 168 px au moins à la colonne « Type » : « Main-d'œuvre » n'est plus coupé par le chevron", () => {
+    // Mesuré dans Chromium à 1024 px : le libellé fait 87 px, la flèche native et les marges
+    // du select en prennent environ 70 ; à 140 px, on lisait « Main-d'œuvr ».
+    const css = readFileSync(join(process.cwd(), "src/styles/app.css"), "utf8");
+    const colonnes = /\.devis-ligne \{[^}]*grid-template-columns:\s*minmax\((\d+)px/.exec(css);
+    expect(Number(colonnes?.[1])).toBeGreaterThanOrEqual(168);
   });
 });

@@ -65,6 +65,12 @@ puis fiches client et véhicule, puis atelier et rendez-vous, puis devis, puis f
 
 **S4.4 Suivi des paiements** — paiements partiels, solde restant, statut payé ; trop-perçu refusé.
 
+**À planifier (revue du sprint 3) — mentions de la facture** — adresse du client sur sa fiche,
+figée dans la facture et imprimée sur le PDF (art. 242 nonies A du CGI) ; date de fin de la
+prestation (clôture de l'OT, à défaut passage à « Prêt ») figée à l'émission et imprimée
+« Prestation réalisée le jj/mm/aaaa » quand elle diffère de la date d'émission. À estimer et à
+prioriser par le Product Owner avant le sprint 4.
+
 ## Reporté après le MVP
 Glisser-déposer dans le planning, modification et annulation de rendez-vous, rappels SMS et e-mail,
 stock de pièces, espace client, paiement en ligne, statistiques, suppression des données sur demande (RGPD).

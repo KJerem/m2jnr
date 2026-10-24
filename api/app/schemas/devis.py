@@ -8,7 +8,7 @@ from pydantic import AfterValidator, BaseModel, BeforeValidator, Field, StringCo
 
 from app.models.devis import Devis, LigneDevis, TypeLigne
 from app.models.ordre_travail import StatutOT
-from app.schemas.commun import FactureLien, vide_vers_none
+from app.schemas.commun import FactureLien, SansControle, vide_vers_none
 from app.schemas.ordre import VehiculeOrdre
 from app.services.calcul_devis import (
     LIGNES_MAX,
@@ -20,12 +20,14 @@ MESSAGE_LIGNES_VIDES = "Le devis doit contenir au moins une ligne."
 MESSAGE_LIGNES_MAX = f"{LIGNES_MAX} lignes au plus par devis."
 
 Reference = Annotated[
-    Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)] | None,
+    Annotated[str, StringConstraints(strip_whitespace=True, max_length=40), SansControle] | None,
     BeforeValidator(vide_vers_none),
 ]
-Designation = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
-# Texte (« 1,5 », « 1.50 ») ou nombre JSON, converti en Decimal sans passer par un flottant
-# arrondi : plus de deux décimales, zéro ou négatif → 422 sur le champ.
+Designation = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200), SansControle
+]
+# Texte (« 1,5 », « 1.50 ») ou entier JSON, converti en Decimal sans passer par un flottant
+# arrondi : nombre JSON à virgule, exposant, plus de deux décimales, zéro ou négatif → 422.
 Quantite = Annotated[Decimal, BeforeValidator(lire_quantite)]
 PrixUnitaire = Annotated[int, Field(strict=True, ge=0, le=PRIX_UNITAIRE_MAX_CENTIMES)]
 

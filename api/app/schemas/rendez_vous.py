@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.models.ordre_travail import StatutOT
 from app.models.rendez_vous import DUREE_MAX_MINUTES, RendezVous
-from app.schemas.commun import Identifiant, Instant
+from app.schemas.commun import Identifiant, Instant, SansControle
 from app.schemas.ordre import ClientOrdre, OrdreResume, PontSortie, VehiculeOrdre
 
 # Journée de travail d'un pont, pour l'indicateur de charge « 6 h 30 / 8 h ».
@@ -22,7 +22,9 @@ class RendezVousEntree(BaseModel):
     # Avec fuseau, ou sans : lu alors à l'heure de Paris (« 2026-11-19T09:00 »).
     debut: Instant
     duree_minutes: Annotated[int, Field(strict=True, ge=1, le=DUREE_MAX_MINUTES)]
-    motif: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+    motif: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500), SansControle
+    ]
 
 
 class OrdreLie(BaseModel):

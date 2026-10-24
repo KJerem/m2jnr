@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch, type Path } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
@@ -49,6 +49,11 @@ export function DevisOrdre({ ordre, onEditionChange }: DevisOrdreProps) {
   const [edition, setEdition] = useState<{ ajouter: boolean } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const boutonAjout = useRef<HTMLButtonElement>(null);
+  const boutonModifier = useRef<HTMLButtonElement>(null);
+  const titre = useRef<HTMLHeadingElement>(null);
+  // Le formulaire démonte le bouton qui avait le focus (Annuler, Enregistrer) : sans relais,
+  // le focus tombait sur <body> et l'utilisateur au clavier repartait du haut de la page.
+  const rendreFocus = useRef(false);
 
   function ouvrir(ajouter: boolean) {
     setMessage(null);
@@ -57,20 +62,29 @@ export function DevisOrdre({ ordre, onEditionChange }: DevisOrdreProps) {
   }
 
   function fermer() {
+    rendreFocus.current = true;
     setEdition(null);
     onEditionChange?.(false);
   }
+
+  useEffect(() => {
+    if (edition || !rendreFocus.current) return;
+    rendreFocus.current = false;
+    (boutonModifier.current ?? boutonAjout.current ?? titre.current)?.focus();
+  }, [edition]);
 
   const modifiable = devis !== undefined && !devis?.facture;
 
   return (
     <section className="panel" aria-labelledby="titre-devis">
       <div className="panel-head">
-        <h2 id="titre-devis">Devis — pièces &amp; main-d&apos;œuvre</h2>
+        <h2 id="titre-devis" ref={titre} tabIndex={-1}>
+          Devis — pièces &amp; main-d&apos;œuvre
+        </h2>
         {modifiable && !edition ? (
           <div className="actions">
             {devis ? (
-              <Button variant="quiet" onClick={() => ouvrir(false)}>
+              <Button ref={boutonModifier} variant="quiet" onClick={() => ouvrir(false)}>
                 Modifier le devis
               </Button>
             ) : null}
@@ -142,13 +156,25 @@ export interface PiedFacturationProps {
 export function PiedFacturation({ statut, devis, onEmise }: PiedFacturationProps) {
   const [confirmation, setConfirmation] = useState(false);
   const bouton = useRef<HTMLButtonElement>(null);
+  const lienPdfFacture = useRef<HTMLAnchorElement>(null);
+  // Après l'émission, le bouton « Générer la facture » disparaît avec la fenêtre : le focus
+  // va sur « Télécharger le PDF », action suivante du nouvel état.
+  const focaliserFacture = useRef(false);
   const emission = useMutation({
     mutationFn: () => apiFetch<FactureDetail>(`/devis/${devis.id}/facture`, { method: "POST" }),
     onSuccess: (facture) => {
+      focaliserFacture.current = true;
       setConfirmation(false);
       onEmise(facture);
     },
   });
+  const factureId = devis.facture?.id;
+
+  useEffect(() => {
+    if (factureId === undefined || !focaliserFacture.current) return;
+    focaliserFacture.current = false;
+    lienPdfFacture.current?.focus();
+  }, [factureId]);
 
   if (devis.facture) {
     const { id, numero } = devis.facture;
@@ -159,7 +185,7 @@ export function PiedFacturation({ statut, devis, onEmise }: PiedFacturationProps
           <span className="caption"> · le devis ne peut plus être modifié</span>
         </p>
         <div className="actions">
-          <a className="et-btn et-btn-secondary" href={lienPdf(id)} download aria-describedby={`facture-${id}`}>
+          <a ref={lienPdfFacture} className="et-btn et-btn-secondary" href={lienPdf(id)} download aria-describedby={`facture-${id}`}>
             Télécharger le PDF
           </a>
           <Link href={`/factures/${id}`} className="et-btn et-btn-quiet">
@@ -312,11 +338,14 @@ export interface FormulaireDevisProps {
 export function FormulaireDevis({ ordreId, devis, ajouterLigne, onAnnuler, onSucces }: FormulaireDevisProps) {
   const initiales = versFormulaireDevis(devis);
   if (ajouterLigne || initiales.lignes.length === 0) initiales.lignes.push({ ...LIGNE_VIDE });
+  // Ligne qui reçoit le focus à l'ouverture : la ligne ajoutée, sinon la première.
+  const ligneInitiale = ajouterLigne ? initiales.lignes.length - 1 : 0;
   const {
     control,
     register,
     handleSubmit,
     setError,
+    setFocus,
     formState: { errors },
   } = useForm<DevisFormValues>({ resolver: zodResolver(devisSchema), defaultValues: initiales, mode: "onTouched" });
   const { fields, append, remove } = useFieldArray({ control, name: "lignes", keyName: "cle" });
@@ -329,6 +358,10 @@ export function FormulaireDevis({ ordreId, devis, ajouterLigne, onAnnuler, onSuc
     calculables.filter((l): l is LigneCalcul => l !== null),
     tauxBp,
   );
+
+  useEffect(() => {
+    setFocus(`lignes.${ligneInitiale}.type`);
+  }, [setFocus, ligneInitiale]);
 
   const enregistrement = useMutation({
     mutationFn: (valeurs: DevisFormValues) => enregistrerDevis(ordreId, devis, versEntreeDevis(valeurs)),
