@@ -392,6 +392,64 @@ def test_mecanicien_refuse_a_la_prise_de_rendez_vous(
     assert reponse.status_code == 403
 
 
+# --- Dates hors limites (revue du sprint 2) ------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("url", "champ"),
+    [
+        ("/ordres?au=9999-12-31", "au"),
+        ("/ordres?du=0001-01-01", "du"),
+        ("/planning?jour=9999-12-31", "jour"),
+        ("/rendez-vous?au=9999-12-31", "au"),
+        ("/rendez-vous?du=0001-01-01", "du"),
+        ("/ordres?du=1999-12-31", "du"),
+        ("/planning?jour=2101-01-01", "jour"),
+    ],
+)
+def test_jour_hors_limites_refuse_en_422(
+    client_mecanicien: TestClient, url: str, champ: str
+) -> None:
+    reponse = client_mecanicien.get(url)
+
+    assert reponse.status_code == 422, reponse.text
+    assert reponse.json()["champs"] == {champ: "Date hors limites."}
+
+
+def test_jours_aux_limites_acceptes(client_gerant: TestClient) -> None:
+    assert client_gerant.get("/ordres?du=2000-01-01&au=2100-12-31").status_code == 200
+    assert client_gerant.get("/planning?jour=2100-12-31").status_code == 200
+    assert client_gerant.get("/rendez-vous?du=2000-01-01&au=2100-12-31").status_code == 200
+
+
+@pytest.mark.parametrize(
+    "debut", ["9999-12-31T20:00:00Z", "0001-01-01T00:30", "0001-01-01T00:30:00+05:00"]
+)
+def test_rendez_vous_hors_limites_refuse_en_422(
+    client_gerant: TestClient, vehicule: Vehicule, ponts: dict[str, Pont], debut: str
+) -> None:
+    reponse = _prendre(client_gerant, vehicule, ponts["Pont 1"], debut, 600)
+
+    assert reponse.status_code == 422, reponse.text
+    assert reponse.json()["champs"] == {"debut": "Date hors limites."}
+
+
+def test_restitution_hors_limites_refusee_en_422(
+    client_gerant: TestClient, vehicule: Vehicule
+) -> None:
+    reponse = client_gerant.post(
+        "/ordres",
+        json={
+            "vehicule_id": vehicule.id,
+            "demande_client": "Pneus",
+            "restitution_prevue": "0001-01-01T00:30",
+        },
+    )
+
+    assert reponse.status_code == 422, reponse.text
+    assert reponse.json()["champs"] == {"restitution_prevue": "Date hors limites."}
+
+
 # --- Base de données ------------------------------------------------------------------------
 
 

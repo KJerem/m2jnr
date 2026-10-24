@@ -1,11 +1,11 @@
 """Types partagés par les schémas : textes nettoyés, e-mail facultatif, dates, pagination."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, BeforeValidator, Field, StringConstraints
 
-from app.clock import instant_local
+from app.clock import instant_local, verifier_annee
 from app.config import get_settings
 from app.db import ID_MAX
 from app.services.courriel import normaliser_courriel
@@ -32,13 +32,23 @@ EmailFacultatif = Annotated[
 
 
 def _instant_garage(valeur: datetime) -> datetime:
+    # Contrôle AVANT le passage en UTC : « 0001-01-01T00:30 » à Paris déborderait déjà.
+    verifier_annee(valeur)
     return instant_local(valeur, get_settings().timezone)
+
+
+def _jour_borne(valeur: date) -> date:
+    verifier_annee(valeur)
+    return valeur
 
 
 # Date et heure : avec fuseau (ISO 8601 « 2026-11-16T17:30:00+01:00 ») ou sans, lue alors à
 # l'heure du garage (« 2026-11-16T17:30 », valeur d'un champ datetime-local). Rendue en UTC.
 Instant = Annotated[datetime, AfterValidator(_instant_garage)]
 InstantFacultatif = Annotated[Instant | None, BeforeValidator(vide_vers_none)]
+
+# Jour « AAAA-MM-JJ » d'un paramètre de recherche (du, au, jour), entre 2000 et 2100.
+Jour = Annotated[date, AfterValidator(_jour_borne)]
 
 # Identifiant envoyé par le client : entier JSON strict (ni « 3 », ni true), dans les limites
 # d'une clé INTEGER (au-delà, la base lèverait une erreur de type au lieu de ne rien trouver).

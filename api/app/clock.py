@@ -7,6 +7,19 @@ pour vérifier la fin d'un blocage de compte sans attendre quinze minutes.
 from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+# Années acceptées pour un jour ou un instant saisi : au-delà, les calculs de bornes (minuit
+# du lendemain, fin d'un créneau, passage en UTC) sortiraient des limites de `datetime`
+# (OverflowError → 500). Un garage n'a rien à planifier ni à chercher hors de cet intervalle.
+ANNEE_MIN = 2000
+ANNEE_MAX = 2100
+MESSAGE_DATE_HORS_LIMITES = "Date hors limites."
+
+
+def verifier_annee(valeur: date) -> None:
+    """Lève ValueError (422 sur le champ) pour une date ou un instant hors des limites."""
+    if not ANNEE_MIN <= valeur.year <= ANNEE_MAX:
+        raise ValueError(MESSAGE_DATE_HORS_LIMITES)
+
 
 def get_now() -> datetime:
     """Instant présent, en UTC et avec fuseau."""

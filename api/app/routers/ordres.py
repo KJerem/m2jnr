@@ -5,7 +5,7 @@ ne lui est montré que par son nom : ni téléphone ni e-mail. Les deux rôles f
 statut et cochent les tâches ; l'historique enregistre qui a fait quoi.
 """
 
-from datetime import date, datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, status
 
@@ -14,7 +14,7 @@ from app.config import Settings, get_settings
 from app.db import ID_MAX, DbSession
 from app.models.ordre_travail import StatutOT
 from app.models.utilisateur import Role, Utilisateur
-from app.schemas.commun import PAGE_MAX, Page
+from app.schemas.commun import PAGE_MAX, Jour, Page
 from app.schemas.ordre import (
     ChangementStatutEntree,
     OrdreDetail,
@@ -49,8 +49,8 @@ def lister(
     ),
     mecanicien_id: int | None = Query(None, ge=1, le=ID_MAX),
     vehicule_id: int | None = Query(None, ge=1, le=ID_MAX),
-    du: date | None = Query(None, description="Ouverts à partir de ce jour (Paris)"),
-    au: date | None = Query(None, description="Ouverts jusqu'à ce jour inclus (Paris)"),
+    du: Jour | None = Query(None, description="Ouverts à partir de ce jour (Paris)"),
+    au: Jour | None = Query(None, description="Ouverts jusqu'à ce jour inclus (Paris)"),
     atelier: bool = Query(False, description="Vue atelier : non livrés et livrés du jour"),
     page: int = Query(1, ge=1, le=PAGE_MAX),
     taille: int = Query(50, ge=1, le=200),
