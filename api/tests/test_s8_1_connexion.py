@@ -331,6 +331,7 @@ def _reglages_demo():  # type: ignore[no-untyped-def]
 def test_seed_cree_les_comptes_de_demo_et_reste_idempotent(db: Session) -> None:
     premier = semer(db, _reglages_demo())
     second = semer(db, _reglages_demo())
+    assert len(premier) == len(second) == 12  # 4 comptes, 8 véhicules de démonstration
 
     assert all(ligne.startswith("Créé") for ligne in premier)
     assert all(ligne.startswith("À jour") for ligne in second)

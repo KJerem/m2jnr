@@ -1,14 +1,18 @@
 """Story S1.2 — fiche véhicule : plaque SIV unique, kilométrage, client existant, accès."""
 
 import re
+from datetime import date
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
+from app.models import Client, Vehicule
+from app.services.donnees_demo import semer
 from app.services.immatriculation import (
     MESSAGE_IMMATRICULATION_INVALIDE,
     MESSAGE_VIN_INVALIDE,
@@ -302,3 +306,23 @@ def test_mecanicien_refuse_en_ecriture(
 def test_sans_session_401(client_anonyme: TestClient) -> None:
     assert client_anonyme.get("/vehicules/1").status_code == 401
     assert client_anonyme.put("/vehicules/1", json=_vehicule()).status_code == 401
+
+
+# --- Jeu de démonstration -------------------------------------------------------------------
+
+
+def test_seed_des_clients_et_vehicules_de_demo_idempotent(db: Session) -> None:
+    reglages = get_settings().model_copy(
+        update={"demo_password_gerant": "demo-g", "demo_password_mecanicien": "demo-m"}
+    )
+    semer(db, reglages)
+    semer(db, reglages)
+
+    assert db.scalar(select(func.count()).select_from(Client)) == 8
+    assert db.scalar(select(func.count()).select_from(Vehicule)) == 8
+    peugeot = db.scalars(select(Vehicule).where(Vehicule.immatriculation == "GH-482-KL")).one()
+    assert (peugeot.marque, peugeot.modele, peugeot.kilometrage) == ("Peugeot", "308 SW", 84312)
+    assert peugeot.vin == "VF3LCYHZPKS123456"
+    assert peugeot.date_mise_en_circulation == date(2019, 3, 1)
+    assert (peugeot.client.prenom, peugeot.client.nom) == ("Claire", "Laurent")
+    assert peugeot.client.email is not None and peugeot.client.email.endswith("@exemple.test")
