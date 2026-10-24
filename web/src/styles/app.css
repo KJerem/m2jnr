@@ -79,7 +79,13 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
 .dl dd { margin: 0; }
 
 /* Tableaux */
-.table-wrap { overflow-x: auto; }
+/* position: relative garde les .sr-only (position absolue) dans le cadre : sans elle, ils font défiler la page. */
+.table-wrap { overflow-x: auto; position: relative; }
+/* Deux informations l'une sous l'autre dans une cellule (plaque et modèle, numéro et date) : le tableau tient à 1024 px. */
+.cellule-empilee { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); }
+.cellule-empilee .et-plate, .cellule-empilee .table-link { white-space: nowrap; }
+/* En-tête autorisé sur deux lignes quand il est plus large que sa colonne. */
+.table th.th-replie { white-space: normal; }
 .table { width: 100%; border-collapse: collapse; font-size: 15px; }
 .table th { background: var(--surface-sunken); text-align: left; font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted); padding: var(--space-3) var(--space-4); white-space: nowrap; }
 .table td { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--line); vertical-align: middle; }
