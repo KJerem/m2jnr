@@ -2,12 +2,14 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch, type Path } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
-import { ApiError } from "@/lib/api";
+import { Modal } from "@/components/ui/Modal";
+import { ApiError, apiFetch } from "@/lib/api";
 import {
   calculerTotaux,
   CHAMP_API,
@@ -28,8 +30,10 @@ import {
   type LigneFormValues,
   type TotauxDevis,
 } from "@/lib/devis";
+import { lienPdf, MESSAGE_FACTURE_INDISPONIBLE, numeroAVenir, peutFacturer, type FactureDetail } from "@/lib/factures";
 import { formatEuros } from "@/lib/format";
 import type { OrdreDetail } from "@/lib/ordres";
+import type { StatutOT } from "@/lib/statuts";
 import { cleDevisOrdre, enregistrerDevis, rafraichirApresDevis, useDevisOrdre } from "./donnees";
 
 export interface DevisOrdreProps {
@@ -103,6 +107,15 @@ export function DevisOrdre({ ordre, onEditionChange }: DevisOrdreProps) {
         <>
           <TableauDevis devis={devis} />
           <BlocTotaux totaux={devis.totaux} tauxBp={devis.taux_tva_bp} />
+          <PiedFacturation
+            statut={ordre.statut}
+            devis={devis}
+            onEmise={(facture) => {
+              queryClient.setQueryData(cleDevisOrdre(ordre.id), { ...devis, facture: { id: facture.id, numero: facture.numero } });
+              void rafraichirApresDevis(queryClient);
+              setMessage(`Facture ${facture.numero} établie : ${formatEuros(facture.totaux.total_ttc_centimes)} TTC.`);
+            }}
+          />
         </>
       ) : (
         <div className="panel-body">
@@ -116,12 +129,101 @@ export function DevisOrdre({ ordre, onEditionChange }: DevisOrdreProps) {
   );
 }
 
+export interface PiedFacturationProps {
+  statut: StatutOT;
+  devis: DevisDetail;
+  onEmise: (facture: FactureDetail) => void;
+}
+
+/**
+ * Facturation du devis : « Générer la facture » (actif quand l'intervention est « Prêt » ou
+ * « Livré », confirmation obligatoire), puis lien vers la facture et son PDF.
+ */
+export function PiedFacturation({ statut, devis, onEmise }: PiedFacturationProps) {
+  const [confirmation, setConfirmation] = useState(false);
+  const bouton = useRef<HTMLButtonElement>(null);
+  const emission = useMutation({
+    mutationFn: () => apiFetch<FactureDetail>(`/devis/${devis.id}/facture`, { method: "POST" }),
+    onSuccess: (facture) => {
+      setConfirmation(false);
+      onEmise(facture);
+    },
+  });
+
+  if (devis.facture) {
+    const { id, numero } = devis.facture;
+    return (
+      <div className="devis-pied">
+        <p id={`facture-${id}`}>
+          Facture <span className="mono strong">{numero}</span>
+          <span className="caption"> · le devis ne peut plus être modifié</span>
+        </p>
+        <div className="actions">
+          <a className="et-btn et-btn-secondary" href={lienPdf(id)} download aria-describedby={`facture-${id}`}>
+            Télécharger le PDF
+          </a>
+          <Link href={`/factures/${id}`} className="et-btn et-btn-quiet">
+            Voir la facture
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const possible = peutFacturer(statut);
+  return (
+    <div className="devis-pied">
+      <p className="caption" id="facture-aide">
+        {possible ? "La facture reprend exactement ce devis." : MESSAGE_FACTURE_INDISPONIBLE}
+      </p>
+      <Button
+        ref={bouton}
+        disabled={!possible}
+        aria-describedby="facture-aide"
+        onClick={() => {
+          emission.reset();
+          setConfirmation(true);
+        }}
+      >
+        Générer la facture
+      </Button>
+      {confirmation ? (
+        <Modal
+          titre="Générer la facture"
+          onClose={() => setConfirmation(false)}
+          retourFocus={bouton}
+          actions={
+            <>
+              <Button onClick={() => setConfirmation(false)} disabled={emission.isPending}>
+                Annuler
+              </Button>
+              <Button variant="primary" loading={emission.isPending} onClick={() => emission.mutate()}>
+                Générer la facture
+              </Button>
+            </>
+          }
+        >
+          <p>La facture {numeroAVenir()} sera numérotée et ne pourra plus être modifiée.</p>
+          <p>
+            Montant : <span className="strong">{formatEuros(devis.totaux.total_ttc_centimes)} TTC</span>
+          </p>
+          {emission.isError ? (
+            <p className="callout callout-danger" role="alert">
+              {emission.error.message}
+            </p>
+          ) : null}
+        </Modal>
+      ) : null}
+    </div>
+  );
+}
+
 /** Lignes du devis en lecture (référence en mono, quantité « 0,5 h » ou « 1 »). */
-export function TableauDevis({ devis }: { devis: DevisDetail }) {
+export function TableauDevis({ devis, legende = "Lignes du devis" }: { devis: Pick<DevisDetail, "lignes">; legende?: string }) {
   return (
     <div className="table-wrap">
       <table className="table table-devis">
-        <caption className="sr-only">Lignes du devis</caption>
+        <caption className="sr-only">{legende}</caption>
         <thead>
           <tr>
             <th scope="col">Référence</th>
