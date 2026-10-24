@@ -31,6 +31,7 @@ from app.services.format import (
     formater_km,
     formater_quantite,
 )
+from app.services.telephone import formater_telephone
 
 MENTION_PENALITES = (
     "En cas de retard de paiement : pénalités au taux de trois fois le taux d'intérêt légal, "
@@ -111,7 +112,7 @@ def _parties(facture: Facture) -> Table:
     vehicule = facture.vehicule_fige
     bloc_client = [_p("CLIENT", STYLE_ETIQUETTE), _p(_nom_client(client), STYLE_GRAS)]
     if client.get("telephone"):
-        bloc_client.append(_p(f"Tél. {client['telephone']}"))
+        bloc_client.append(_p(f"Tél. {formater_telephone(client['telephone'])}"))
     if client.get("email"):
         bloc_client.append(_p(client["email"]))
     bloc_vehicule = [
