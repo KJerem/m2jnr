@@ -6,7 +6,8 @@ Règles (story S3.1) :
 - le mécanicien affecté, s'il y en a un, est un mécanicien actif ;
 - le kilométrage d'entrée ne peut pas être inférieur à celui du véhicule ; s'il est
   supérieur, la fiche du véhicule est mise à jour ;
-- un OT livré n'est plus modifiable ; un OT « Prêt » ne reçoit plus de nouvelle tâche.
+- un OT livré n'est plus modifiable ; un OT « Prêt » ne reçoit plus de nouvelle tâche ;
+- l'ouverture est la première ligne de l'historique des statuts (NULL → a_faire).
 """
 
 from collections.abc import Sequence
@@ -20,7 +21,7 @@ from sqlalchemy.sql.base import ExecutableOption
 
 from app.db import id_possible
 from app.errors import AppError, conflict, invalid, not_found
-from app.models.ordre_travail import OrdreTravail, StatutOT, TacheOT
+from app.models.ordre_travail import HistoriqueStatut, OrdreTravail, StatutOT, TacheOT
 from app.models.utilisateur import Role, Utilisateur
 from app.models.vehicule import Vehicule
 from app.schemas.ordre import (
@@ -31,12 +32,15 @@ from app.schemas.ordre import (
 )
 from app.services.format import formater_km
 from app.services.numerotation import TYPE_ORDRE_TRAVAIL, prochain_numero
+from app.services.transitions import (
+    MESSAGE_ORDRE_LIVRE,
+    MESSAGE_ORDRE_PRET,
+    MESSAGE_TACHE_INTROUVABLE,
+    tracer,
+)
 
 MESSAGE_ORDRE_INTROUVABLE = "Ordre de travail introuvable."
 MESSAGE_MECANICIEN_INVALIDE = "Choisissez un mécanicien actif."
-MESSAGE_ORDRE_LIVRE = "Un ordre de travail livré ne peut plus être modifié."
-MESSAGE_ORDRE_PRET = "Le véhicule est prêt : impossible d'ajouter ou de rouvrir une tâche."
-MESSAGE_TACHE_INTROUVABLE = "Tâche introuvable pour cet ordre de travail."
 
 # Tout ce qu'une carte ou une fiche d'OT affiche, chargé en quelques requêtes (pas de N+1).
 CHARGEMENT_ORDRE: tuple[ExecutableOption, ...] = (
@@ -44,6 +48,7 @@ CHARGEMENT_ORDRE: tuple[ExecutableOption, ...] = (
     selectinload(OrdreTravail.mecanicien),
     selectinload(OrdreTravail.createur),
     selectinload(OrdreTravail.taches).selectinload(TacheOT.terminee_par_utilisateur),
+    selectinload(OrdreTravail.historique).selectinload(HistoriqueStatut.utilisateur),
 )
 
 
@@ -54,14 +59,15 @@ def message_kilometrage_inferieur(kilometrage_vehicule: int) -> str:
     )
 
 
-def obtenir_ordre(db: Session, ordre_id: int) -> OrdreTravail:
-    ordre = (
-        db.scalars(
-            select(OrdreTravail).where(OrdreTravail.id == ordre_id).options(*CHARGEMENT_ORDRE)
-        ).one_or_none()
-        if id_possible(ordre_id)
-        else None
-    )
+def obtenir_ordre(db: Session, ordre_id: int, *, verrouiller: bool = False) -> OrdreTravail:
+    """OT et tout ce qu'il affiche ; `verrouiller` pose SELECT … FOR UPDATE sur la ligne de
+    l'OT : deux changements simultanés (statut, tâches) s'appliquent l'un après l'autre."""
+    ordre = None
+    if id_possible(ordre_id):
+        requete = select(OrdreTravail).where(OrdreTravail.id == ordre_id)
+        if verrouiller:
+            requete = requete.with_for_update().execution_options(populate_existing=True)
+        ordre = db.scalars(requete.options(*CHARGEMENT_ORDRE)).one_or_none()
     if ordre is None:
         raise not_found(MESSAGE_ORDRE_INTROUVABLE)
     return ordre
@@ -141,6 +147,7 @@ def creer_ordre(
         TacheOT(libelle=t.libelle, duree_prevue_minutes=t.duree_prevue_minutes, position=i)
         for i, t in enumerate(entree.taches)
     ]
+    tracer(ordre, None, StatutOT.A_FAIRE, auteur, maintenant)
     db.add(ordre)
     db.flush()
     return ordre
@@ -194,6 +201,8 @@ class FiltresOrdres:
     # Bornes sur la date d'ouverture, en UTC (jours de Paris convertis par l'appelant).
     ouvert_depuis: datetime | None = None
     ouvert_avant: datetime | None = None
+    # Vue « atelier » (kanban) : OT non livrés, plus ceux livrés depuis cet instant.
+    livres_depuis: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -215,6 +224,11 @@ def _filtrer(
         requete = requete.where(OrdreTravail.ouvert_le >= filtres.ouvert_depuis)
     if filtres.ouvert_avant is not None:
         requete = requete.where(OrdreTravail.ouvert_le < filtres.ouvert_avant)
+    if filtres.livres_depuis is not None:
+        requete = requete.where(
+            (OrdreTravail.statut != StatutOT.LIVRE)
+            | (OrdreTravail.cloture_le >= filtres.livres_depuis)
+        )
     return requete
 
 

@@ -137,6 +137,22 @@ class TacheSortie(BaseModel):
     terminee_par: UtilisateurResume | None = Field(validation_alias="terminee_par_utilisateur")
 
 
+class HistoriqueSortie(BaseModel):
+    """Ligne du suivi : `ancien` vaut null pour l'ouverture de l'OT."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    ancien: StatutOT | None
+    nouveau: StatutOT
+    change_le: datetime
+    utilisateur: UtilisateurResume
+
+
+class ChangementStatutEntree(BaseModel):
+    nouveau: StatutOT
+
+
 class OrdreResume(BaseModel):
     """Carte d'un OT (listes, kanban, planning)."""
 
@@ -163,6 +179,8 @@ class OrdreDetail(OrdreResume):
     kilometrage_entree: int | None
     cree_par: UtilisateurResume
     taches: list[TacheSortie]
+    # Suivi chronologique des statuts (le plus ancien d'abord).
+    historique: list[HistoriqueSortie]
 
 
 def _client(ordre: OrdreTravail, voir_contact: bool) -> ClientOrdre:
@@ -220,6 +238,7 @@ def detail_ordre(ordre: OrdreTravail, maintenant: datetime, *, voir_contact: boo
             "kilometrage_entree": ordre.kilometrage_entree,
             "cree_par": UtilisateurResume.model_validate(ordre.createur),
             "taches": [TacheSortie.model_validate(t) for t in ordre.taches],
+            "historique": [HistoriqueSortie.model_validate(h) for h in ordre.historique],
         }
     )
 

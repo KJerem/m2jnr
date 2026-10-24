@@ -1,7 +1,7 @@
 /** Ordres de travail : types de l'API, formulaire (mêmes règles que l'API) et formats d'affichage. */
 import { z } from "zod";
 import { formatDateHeure, formatHeure, NBSP, TIMEZONE } from "./format";
-import type { StatutOT } from "./statuts";
+import { LIBELLE_OT, STATUTS_OT, type StatutOT } from "./statuts";
 import { aujourdHui } from "./vehicules";
 
 export interface UtilisateurResume {
@@ -57,6 +57,15 @@ export interface OrdreResume {
   en_retard: boolean;
 }
 
+/** Ligne du suivi ; `ancien` vaut null pour l'ouverture de l'OT. */
+export interface Historique {
+  id: number;
+  ancien: StatutOT | null;
+  nouveau: StatutOT;
+  change_le: string;
+  utilisateur: UtilisateurResume;
+}
+
 export interface OrdreDetail extends OrdreResume {
   vehicule: VehiculeOrdreDetail;
   demande_client: string;
@@ -64,6 +73,8 @@ export interface OrdreDetail extends OrdreResume {
   kilometrage_entree: number | null;
   cree_par: UtilisateurResume;
   taches: Tache[];
+  /** Chronologique, le plus ancien d'abord. */
+  historique: Historique[];
 }
 
 export interface TacheEntree {
@@ -209,4 +220,41 @@ export function formatQuand(iso: string, maintenant: Date = new Date()): string 
   const hier = new Date(maintenant.getTime() - 24 * 3600 * 1000);
   if (jour === aujourdHui(hier)) return `hier à ${formatHeure(iso)}`;
   return formatDateHeure(iso);
+}
+
+/** Libellé du bouton qui fait avancer l'OT : « Passer à « En cours » ». */
+export function libellePasserA(statut: StatutOT): string {
+  return `Passer à « ${LIBELLE_OT[statut]} »`;
+}
+
+/** Statut suivant (une étape, sans retour), ou null si l'OT est livré. */
+export function suivant(statut: StatutOT): StatutOT | null {
+  return STATUTS_OT[STATUTS_OT.indexOf(statut) + 1] ?? null;
+}
+
+/**
+ * Mise à jour optimiste d'une tâche cochée ou décochée : la case change tout de suite, la
+ * réponse de l'API remplace ensuite ces données (ou l'état précédent revient en cas d'erreur).
+ */
+export function basculerTache(ordre: OrdreDetail, tacheId: number, terminee: boolean, auteur: UtilisateurResume | null, maintenant: Date = new Date()): OrdreDetail {
+  const taches = ordre.taches.map((t) =>
+    t.id !== tacheId || t.terminee === terminee
+      ? t
+      : { ...t, terminee, terminee_le: terminee ? maintenant.toISOString() : null, terminee_par: terminee ? auteur : null },
+  );
+  return { ...ordre, taches, taches_terminees: taches.filter((t) => t.terminee).length };
+}
+
+/** Échéance d'une carte : « Prêt à 17 h 30 », ou « Livré à 11 h 45 ». */
+export function echeance(ordre: OrdreResume): string | undefined {
+  if (ordre.statut === "livre" && ordre.cloture_le) return `Livré à ${formatRestitution(ordre.cloture_le)}`;
+  return ordre.restitution_prevue ? `Prêt à ${formatRestitution(ordre.restitution_prevue)}` : undefined;
+}
+
+/** Tri des cartes : urgentes d'abord, puis par heure de restitution (sans heure à la fin), puis ouverture. */
+export function trierCartes<T extends OrdreResume>(ordres: T[]): T[] {
+  const rang = (o: OrdreResume) => (o.restitution_prevue ? new Date(o.restitution_prevue).getTime() : Number.POSITIVE_INFINITY);
+  return [...ordres].sort(
+    (a, b) => Number(b.prioritaire) - Number(a.prioritaire) || rang(a) - rang(b) || new Date(a.ouvert_le).getTime() - new Date(b.ouvert_le).getTime() || a.id - b.id,
+  );
 }

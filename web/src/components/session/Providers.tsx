@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { ToastProvider } from "@/components/ui/Toast";
 import { ApiError } from "@/lib/api";
 
 /** Pas de nouvel essai pour une erreur « métier » (droits, validation, conflit) : seulement réseau ou 5xx. */
@@ -21,5 +22,9 @@ export function creerQueryClient() {
 
 export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(creerQueryClient);
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      <ToastProvider>{children}</ToastProvider>
+    </QueryClientProvider>
+  );
 }

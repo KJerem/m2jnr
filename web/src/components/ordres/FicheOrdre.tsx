@@ -4,16 +4,18 @@ import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 import { useSession } from "@/components/session/useSession";
-import { Button } from "@/components/ui/Button";
-import { Icon } from "@/components/ui/Icon";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Plate } from "@/components/ui/Plate";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { apiFetch } from "@/lib/api";
-import { formatDate, formatDateHeure, formatDureeHeures, formatKm, formatTelephone, nomComplet } from "@/lib/format";
-import { formatDureeHM, formatQuand, formatRestitution, modele, prenom, versFormulaireOrdre, type OrdreDetail, type OrdreEntree } from "@/lib/ordres";
+import { formatDate, formatDateHeure, formatKm, formatTelephone, nomComplet } from "@/lib/format";
+import { formatDureeHM, formatRestitution, libellePasserA, modele, prenom, suivant, versFormulaireOrdre, type OrdreDetail, type OrdreEntree } from "@/lib/ordres";
 import { BADGE_OT, LIBELLE_OT } from "@/lib/statuts";
+import { useChangerStatut } from "./actions";
 import { cleOrdre, useMecaniciens, useOrdre } from "./donnees";
 import { OrdreForm } from "./OrdreForm";
+import { Suivi } from "./Suivi";
+import { TachesCochables } from "./TachesCochables";
 
 /** Fiche d'un ordre de travail (maquette « détail d'un OR ») : demande, travaux, véhicule, client. */
 export function FicheOrdre({ ordreId }: { ordreId: number }) {
@@ -24,6 +26,7 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
   const [message, setMessage] = useState<string | null>(null);
   const { data: ordre, isPending, isError, error } = useOrdre(ordreId);
   const mecaniciens = useMecaniciens();
+  const avancer = useChangerStatut();
 
   if (isPending) {
     return (
@@ -50,6 +53,7 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
   }
 
   const modifiable = gerant && ordre.statut !== "livre";
+  const prochain = suivant(ordre.statut);
 
   return (
     <>
@@ -71,6 +75,7 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
           </p>
         </div>
         <div className="actions">
+          {ordre.statut !== "livre" ? <ButtonLink href={`/ordres/${ordre.id}/tablette`}>Vue tablette atelier</ButtonLink> : null}
           {modifiable && !edition ? (
             <Button
               onClick={() => {
@@ -79,6 +84,11 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
               }}
             >
               Modifier
+            </Button>
+          ) : null}
+          {prochain && !edition ? (
+            <Button variant="primary" loading={avancer.isPending} onClick={() => avancer.mutate({ ordreId: ordre.id, nouveau: prochain })}>
+              {libellePasserA(prochain)}
             </Button>
           ) : null}
         </div>
@@ -128,6 +138,7 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
         <aside className="stack" aria-label="Véhicule et client">
           <CarteVehicule ordre={ordre} lienFiche />
           <CarteClient ordre={ordre} />
+          <Suivi historique={ordre.historique} />
         </aside>
       </div>
     </>
@@ -171,7 +182,7 @@ export function resumeTravaux(ordre: Pick<OrdreDetail, "taches_terminees" | "tac
   return `${fait} · ${formatDureeHM(ordre.duree_prevue_minutes)} prévues`;
 }
 
-/** Travaux en lecture : la case cochée indique une tâche terminée (cochable à partir de S3.2). */
+/** Travaux cochables par les deux rôles (mise à jour optimiste). */
 export function Travaux({ ordre }: { ordre: OrdreDetail }) {
   return (
     <section className="panel" aria-labelledby="titre-travaux">
@@ -179,26 +190,7 @@ export function Travaux({ ordre }: { ordre: OrdreDetail }) {
         <h2 id="titre-travaux">Travaux à réaliser</h2>
         {ordre.taches_total > 0 ? <span className="caption">{resumeTravaux(ordre)}</span> : null}
       </div>
-      {ordre.taches.length === 0 ? (
-        <p className="empty">Aucune tâche prévue.</p>
-      ) : (
-        <ul className="taches">
-          {ordre.taches.map((t) => (
-            <li key={t.id} className={`tache${t.terminee ? " tache-faite" : ""}`}>
-              <span className={`tache-etat${t.terminee ? " tache-etat-faite" : ""}`} aria-hidden="true">
-                {t.terminee ? <Icon name="check" size={18} /> : null}
-              </span>
-              <span className="tache-texte">
-                <span className="tache-libelle">{t.libelle}</span>
-                <span className="caption">
-                  {t.terminee && t.terminee_le ? `Terminé ${formatQuand(t.terminee_le)}${t.terminee_par ? ` par ${t.terminee_par.nom}` : ""}` : "À faire"}
-                </span>
-              </span>
-              <span className="tache-duree mono">{formatDureeHeures(t.duree_prevue_minutes)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <TachesCochables ordre={ordre} />
     </section>
   );
 }

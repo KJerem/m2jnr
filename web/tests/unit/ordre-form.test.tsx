@@ -46,7 +46,8 @@ function rendre(envoyer = vi.fn<(e: OrdreEntree) => Promise<OrdreDetail>>().mock
   return { envoyer, onSucces, user: userEvent.setup() };
 }
 
-describe("lignes de tâches du formulaire d'ordre de travail", () => {
+// Beaucoup de saisie au clavier simulée : délai élargi quand toute la suite tourne en parallèle.
+describe("lignes de tâches du formulaire d'ordre de travail", { timeout: 20_000 }, () => {
   it("ajoute des lignes, totalise les durées et envoie les tâches dans l'ordre", async () => {
     const { envoyer, onSucces, user } = rendre();
     await user.type(screen.getByLabelText(/demande du client/i), "Bruit au freinage");
