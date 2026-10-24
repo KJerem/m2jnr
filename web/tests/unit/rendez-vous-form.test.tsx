@@ -1,0 +1,151 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { estVueTablette } from "@/components/layout/AppShell";
+import { RendezVousForm } from "@/components/rendez-vous/RendezVousForm";
+import { ApiError } from "@/lib/api";
+import { decalerJour, elementSuivant, estDansLePasse, formatCreneau, formatJour, grouperParJour, MESSAGE_PASSE, type Planning, type RendezVous, type RendezVousEntree } from "@/lib/rendezvous";
+import type { Vehicule } from "@/lib/vehicules";
+
+vi.mock("next/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
+
+const VEHICULES: Vehicule[] = [
+  {
+    id: 4,
+    client_id: 9,
+    immatriculation: "GH-482-KL",
+    marque: "Peugeot",
+    modele: "308 SW",
+    kilometrage: 84312,
+    vin: null,
+    date_mise_en_circulation: null,
+    proprietaire: { id: 9, nom: "Laurent", prenom: "Claire" },
+    cree_le: "2026-11-09T09:00:00Z",
+    modifie_le: "2026-11-09T09:00:00Z",
+  },
+];
+const PONTS = [
+  { id: 1, nom: "Pont 1" },
+  { id: 2, nom: "Pont 2" },
+];
+// Lundi 16 novembre 2026, 10 h 00 à Paris.
+const MAINTENANT = () => new Date("2026-11-16T09:00:00Z");
+
+function rdv(id: number, debut: string, fin: string, pont = PONTS[0]!): RendezVous {
+  return {
+    id,
+    debut,
+    fin,
+    duree_minutes: 60,
+    motif: "Vidange",
+    pont,
+    vehicule: { id: 4, immatriculation: "GH-482-KL", marque: "Peugeot", modele: "308 SW", kilometrage: 84312 },
+    client: { id: 9, nom: "Laurent", prenom: "Claire", contact: null },
+    ordre: null,
+  };
+}
+
+function rendre(envoyer = vi.fn<(e: RendezVousEntree) => Promise<RendezVous>>().mockResolvedValue(rdv(1, "2026-11-16T09:30:00Z", "2026-11-16T10:30:00Z"))) {
+  const onSucces = vi.fn();
+  render(<RendezVousForm vehicules={VEHICULES} ponts={PONTS} envoyer={envoyer} onSucces={onSucces} maintenant={MAINTENANT} />);
+  return { envoyer, onSucces, user: userEvent.setup() };
+}
+
+async function remplir(user: ReturnType<typeof userEvent.setup>, jour: string, heure: string) {
+  await user.selectOptions(screen.getByLabelText(/^véhicule/i), "4");
+  await user.selectOptions(screen.getByLabelText(/^pont/i), "2");
+  fireEvent.change(screen.getByLabelText(/^jour/i), { target: { value: jour } });
+  fireEvent.change(screen.getByLabelText(/^heure/i), { target: { value: heure } });
+  await user.selectOptions(screen.getByLabelText(/^durée/i), "90");
+  await user.type(screen.getByLabelText(/^motif/i), "Remplacement des plaquettes avant");
+}
+
+describe("formulaire de rendez-vous", { timeout: 20_000 }, () => {
+  it("exige véhicule, pont, jour, heure et motif", async () => {
+    const { envoyer, user } = rendre();
+
+    await user.click(screen.getByRole("button", { name: "Enregistrer le rendez-vous" }));
+
+    expect(await screen.findAllByText("Champ obligatoire.")).toHaveLength(5);
+    for (const champ of [/^véhicule/i, /^pont/i, /^jour/i, /^heure/i, /^motif/i]) {
+      expect(screen.getByLabelText(champ)).toHaveAttribute("aria-invalid", "true");
+    }
+    expect(envoyer).not.toHaveBeenCalled();
+  });
+
+  it("refuse un créneau déjà passé à l'heure de Paris", async () => {
+    const { envoyer, user } = rendre();
+    await remplir(user, "2026-11-16", "09:45");
+
+    await user.click(screen.getByRole("button", { name: "Enregistrer le rendez-vous" }));
+
+    expect(await screen.findByText(MESSAGE_PASSE)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^jour/i)).toHaveAttribute("aria-invalid", "true");
+    expect(envoyer).not.toHaveBeenCalled();
+  });
+
+  it("envoie le début à l'heure de Paris et garde le pont et le jour pour le suivant", async () => {
+    const { envoyer, onSucces, user } = rendre();
+    await remplir(user, "2026-11-16", "10:30");
+
+    await user.click(screen.getByRole("button", { name: "Enregistrer le rendez-vous" }));
+
+    await vi.waitFor(() => expect(onSucces).toHaveBeenCalled());
+    expect(envoyer).toHaveBeenCalledWith({ vehicule_id: 4, pont_id: 2, debut: "2026-11-16T10:30", duree_minutes: 90, motif: "Remplacement des plaquettes avant" });
+    expect(screen.getByLabelText(/^pont/i)).toHaveValue("2");
+    expect(screen.getByLabelText(/^jour/i)).toHaveValue("2026-11-16");
+    expect(screen.getByLabelText(/^motif/i)).toHaveValue("");
+  });
+
+  it("rattache le créneau occupé au champ heure", async () => {
+    const envoyer = vi.fn().mockRejectedValue(new ApiError(409, "creneau_occupe", "Le Pont 2 est déjà occupé de 9 h 00 à 10 h 30.", {}, { rendez_vous_id: 3 }));
+    const { user } = rendre(envoyer);
+    await remplir(user, "2026-11-17", "09:30");
+
+    await user.click(screen.getByRole("button", { name: "Enregistrer le rendez-vous" }));
+
+    expect(await screen.findByText("Le Pont 2 est déjà occupé de 9 h 00 à 10 h 30.")).toBeInTheDocument();
+    expect(screen.getByLabelText(/^heure/i)).toHaveAttribute("aria-invalid", "true");
+  });
+});
+
+describe("outils du planning", () => {
+  it("compare le créneau saisi à l'heure de Paris", () => {
+    const maintenant = new Date("2026-11-16T09:00:00Z");
+    expect(estDansLePasse("2026-11-16", "09:59", maintenant)).toBe(true);
+    expect(estDansLePasse("2026-11-16", "10:00", maintenant)).toBe(false);
+    expect(estDansLePasse("2026-11-15", "23:00", maintenant)).toBe(true);
+  });
+
+  it("navigue de jour en jour, changements de mois et d'heure compris", () => {
+    expect(decalerJour("2026-10-31", 1)).toBe("2026-11-01");
+    expect(decalerJour("2026-10-25", -1)).toBe("2026-10-24");
+    expect(decalerJour("2027-01-01", -1)).toBe("2026-12-31");
+    expect(formatJour("2026-10-22")).toBe("jeu. 22 oct.");
+    expect(formatCreneau("2026-11-16T08:00:00Z", "2026-11-16T09:30:00Z")).toBe("9 h 00 – 10 h 30");
+  });
+
+  it("groupe par jour de Paris : 23 h 30 appartient au jour même", () => {
+    const groupes = grouperParJour([rdv(1, "2026-11-16T22:30:00Z", "2026-11-16T23:00:00Z"), rdv(2, "2026-11-16T23:30:00Z", "2026-11-17T00:00:00Z")]);
+    expect(groupes.map((g) => [g.jour, g.rendezVous.map((r) => r.id)])).toEqual([
+      ["2026-11-16", [1]],
+      ["2026-11-17", [2]],
+    ]);
+  });
+
+  it("trouve l'élément suivant sur le même pont", () => {
+    const element = (r: RendezVous) => ({ type: "rendez_vous" as const, heure: r.debut, rendez_vous: r, ordre: null });
+    const a = rdv(1, "2026-11-16T07:00:00Z", "2026-11-16T09:30:00Z");
+    const b = rdv(2, "2026-11-16T09:30:00Z", "2026-11-16T13:30:00Z");
+    const planning: Planning = { jour: "2026-11-16", a_planifier: [], ponts: [{ ...PONTS[0]!, charge_minutes: 390, capacite_minutes: 480, elements: [element(a), element(b)] }] };
+    expect(elementSuivant(planning, 1, 1)?.rendez_vous.id).toBe(2);
+    expect(elementSuivant(planning, 1, 2)).toBeNull();
+    expect(elementSuivant(planning, 2, 1)).toBeNull();
+  });
+
+  it("reconnaît la route de la vue tablette (sans barre latérale)", () => {
+    expect(estVueTablette("/ordres/12/tablette")).toBe(true);
+    expect(estVueTablette("/ordres/12")).toBe(false);
+    expect(estVueTablette("/ordres/nouveau/tablette")).toBe(false);
+  });
+});
