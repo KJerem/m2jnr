@@ -13,7 +13,13 @@ from pydantic import (
 )
 
 from app.models.ordre_travail import OrdreTravail, StatutOT, TacheOT
-from app.schemas.commun import FactureLien, Identifiant, InstantFacultatif, vide_vers_none
+from app.schemas.commun import (
+    FactureLien,
+    Identifiant,
+    InstantFacultatif,
+    SansControle,
+    vide_vers_none,
+)
 from app.schemas.vehicule import Kilometrage
 from app.services.delais import est_en_retard
 
@@ -30,12 +36,14 @@ def _vehicule_obligatoire(valeur: int | None) -> int:
     return valeur
 
 
-Libelle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+Libelle = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200), SansControle
+]
 DemandeClient = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000), SansControle
 ]
 Diagnostic = Annotated[
-    Annotated[str, StringConstraints(strip_whitespace=True, max_length=4000)] | None,
+    Annotated[str, StringConstraints(strip_whitespace=True, max_length=4000), SansControle] | None,
     BeforeValidator(vide_vers_none),
 ]
 DureeTache = Annotated[int, Field(strict=True, ge=1, le=DUREE_TACHE_MAX)]

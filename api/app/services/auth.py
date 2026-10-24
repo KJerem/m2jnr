@@ -56,7 +56,11 @@ def normaliser_email(email: str) -> str:
 
 
 def trouver_par_email(db: Session, email: str, *, verrouiller: bool = False) -> Utilisateur | None:
-    requete = select(Utilisateur).where(Utilisateur.email == normaliser_email(email))
+    adresse = normaliser_email(email)
+    if "\x00" in adresse:
+        # PostgreSQL refuse NUL dans un texte (erreur 500) : aucun compte n'a cette adresse.
+        return None
+    requete = select(Utilisateur).where(Utilisateur.email == adresse)
     if verrouiller:
         requete = requete.with_for_update()
     return db.scalars(requete).one_or_none()

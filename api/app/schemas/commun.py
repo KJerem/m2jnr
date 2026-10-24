@@ -1,5 +1,6 @@
 """Types partagés par les schémas : textes nettoyés, e-mail facultatif, dates, pagination."""
 
+import re
 from datetime import date, datetime
 from typing import Annotated
 
@@ -10,6 +11,22 @@ from app.config import get_settings
 from app.db import ID_MAX
 from app.services.courriel import normaliser_courriel
 
+MESSAGE_CARACTERE_INTERDIT = "Caractère non autorisé."
+# Caractères de contrôle (C0, DEL, C1) sauf tabulation et retours à la ligne. PostgreSQL
+# refuse NUL dans un champ texte (erreur 500 avant la revue du sprint 3) ; les autres
+# n'ont rien à faire dans une fiche, un devis ou une facture.
+_CARACTERES_DE_CONTROLE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")
+
+
+def refuser_caracteres_de_controle(valeur: str) -> str:
+    if _CARACTERES_DE_CONTROLE.search(valeur):
+        raise ValueError(MESSAGE_CARACTERE_INTERDIT)
+    return valeur
+
+
+# À ajouter à tout texte libre saisi (après StringConstraints) : 422 sur le champ.
+SansControle = AfterValidator(refuser_caracteres_de_controle)
+
 
 def vide_vers_none(valeur: object) -> object:
     """Un champ texte facultatif laissé vide (ou fait d'espaces) vaut « non renseigné »."""
@@ -19,10 +36,10 @@ def vide_vers_none(valeur: object) -> object:
 
 
 TexteObligatoire100 = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100), SansControle
 ]
 TexteFacultatif100 = Annotated[
-    Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None,
+    Annotated[str, StringConstraints(strip_whitespace=True, max_length=100), SansControle] | None,
     BeforeValidator(vide_vers_none),
 ]
 EmailFacultatif = Annotated[
