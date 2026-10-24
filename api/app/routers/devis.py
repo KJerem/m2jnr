@@ -1,22 +1,80 @@
-"""Devis : réservés au gérant.
+"""Devis : réservés au gérant (403 pour le mécanicien sur toutes les routes).
 
-Le contenu (lignes, calcul HT/TVA/TTC) arrive au sprint 3 (story S4.1) ; le contrat d'accès
-est posé dès le sprint 1 pour que la matrice des rôles soit testée tôt.
+Le mécanicien ne reçoit jamais de montant : aucune route de ce routeur ne lui répond, et la
+fiche de l'OT qu'il lit ne contient aucun prix.
 """
 
-from typing import Any
+from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, status
 
-from app.models.utilisateur import Role
+from app.clock import get_now
+from app.db import DbSession
+from app.errors import not_found
+from app.models.utilisateur import Role, Utilisateur
+from app.schemas.commun import PAGE_MAX, Page
+from app.schemas.devis import DevisDetail, DevisEntree, DevisResume, detail_devis, resume_devis
 from app.security.dependances import require_role
+from app.services import devis as service
+from app.services import ordres as service_ordres
 
-router = APIRouter(
-    prefix="/devis", tags=["devis"], dependencies=[Depends(require_role(Role.GERANT))]
-)
+gerant_seul = require_role(Role.GERANT)
+
+router = APIRouter(tags=["devis"], dependencies=[Depends(gerant_seul)])
 
 
-@router.get("")
-def lister_devis() -> list[dict[str, Any]]:
-    # Sprint 3 : liste des devis.
-    return []
+@router.post("/ordres/{ordre_id}/devis", status_code=status.HTTP_201_CREATED)
+def creer(
+    ordre_id: int,
+    entree: DevisEntree,
+    db: DbSession,
+    utilisateur: Utilisateur = Depends(gerant_seul),
+    maintenant: datetime = Depends(get_now),
+) -> DevisDetail:
+    # Verrou de l'OT : deux créations simultanées ne donnent pas deux devis.
+    ordre = service_ordres.obtenir_ordre(db, ordre_id, verrouiller=True)
+    devis = service.creer_devis(db, ordre, entree.lignes, utilisateur, maintenant)
+    return detail_devis(service.obtenir_devis(db, devis.id))
+
+
+@router.get("/ordres/{ordre_id}/devis")
+def devis_de_l_ordre(ordre_id: int, db: DbSession) -> DevisDetail:
+    ordre = service_ordres.obtenir_ordre(db, ordre_id)
+    devis = service.devis_courant(db, ordre.id)
+    if devis is None:
+        raise not_found(service.MESSAGE_AUCUN_DEVIS)
+    return detail_devis(devis)
+
+
+@router.get("/devis")
+def lister(
+    db: DbSession,
+    page: int = Query(1, ge=1, le=PAGE_MAX),
+    taille: int = Query(50, ge=1, le=200),
+) -> Page[DevisResume]:
+    resultat = service.lister_devis(db, page, taille)
+    return Page[DevisResume](
+        elements=[resume_devis(d) for d in resultat.elements],
+        total=resultat.total,
+        page=page,
+        taille=taille,
+    )
+
+
+@router.get("/devis/{devis_id}")
+def consulter(devis_id: int, db: DbSession) -> DevisDetail:
+    return detail_devis(service.obtenir_devis(db, devis_id))
+
+
+@router.put("/devis/{devis_id}")
+def modifier(
+    devis_id: int,
+    entree: DevisEntree,
+    db: DbSession,
+    maintenant: datetime = Depends(get_now),
+) -> DevisDetail:
+    # Verrou du devis : deux enregistrements simultanés s'appliquent l'un après l'autre (et,
+    # à la story S4.3, la facturation attend la fin d'une modification en cours).
+    devis = service.obtenir_devis(db, devis_id, verrouiller=True)
+    devis = service.modifier_devis(db, devis, entree.lignes, maintenant)
+    return detail_devis(devis)
