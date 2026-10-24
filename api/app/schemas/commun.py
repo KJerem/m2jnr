@@ -1,9 +1,13 @@
-"""Types partagés par les schémas : textes nettoyés, e-mail facultatif, pagination."""
+"""Types partagés par les schémas : textes nettoyés, e-mail facultatif, dates, pagination."""
 
+from datetime import datetime
 from typing import Annotated
 
-from pydantic import AfterValidator, BaseModel, BeforeValidator, StringConstraints
+from pydantic import AfterValidator, BaseModel, BeforeValidator, Field, StringConstraints
 
+from app.clock import instant_local
+from app.config import get_settings
+from app.db import ID_MAX
 from app.services.courriel import normaliser_courriel
 
 
@@ -25,6 +29,20 @@ EmailFacultatif = Annotated[
     Annotated[str, StringConstraints(max_length=254), AfterValidator(normaliser_courriel)] | None,
     BeforeValidator(vide_vers_none),
 ]
+
+
+def _instant_garage(valeur: datetime) -> datetime:
+    return instant_local(valeur, get_settings().timezone)
+
+
+# Date et heure : avec fuseau (ISO 8601 « 2026-11-16T17:30:00+01:00 ») ou sans, lue alors à
+# l'heure du garage (« 2026-11-16T17:30 », valeur d'un champ datetime-local). Rendue en UTC.
+Instant = Annotated[datetime, AfterValidator(_instant_garage)]
+InstantFacultatif = Annotated[Instant | None, BeforeValidator(vide_vers_none)]
+
+# Identifiant envoyé par le client : entier JSON strict (ni « 3 », ni true), dans les limites
+# d'une clé INTEGER (au-delà, la base lèverait une erreur de type au lieu de ne rien trouver).
+Identifiant = Annotated[int, Field(strict=True, ge=1, le=ID_MAX)]
 
 
 # Borne haute du numéro de page : au-delà, le décalage SQL (page - 1) × taille déborde.

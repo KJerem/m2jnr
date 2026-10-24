@@ -10,3 +10,8 @@ def formater_heure(instant: datetime, fuseau: str = "Europe/Paris") -> str:
     """« 15 h 02 » dans le fuseau du garage, espaces insécables comme dans l'interface."""
     local = instant.astimezone(ZoneInfo(fuseau))
     return f"{local.hour}{NBSP}h{NBSP}{local.minute:02d}"
+
+
+def formater_km(kilometres: int) -> str:
+    """« 84 312 km » : milliers séparés par une espace insécable."""
+    return f"{kilometres:,}".replace(",", NBSP) + f"{NBSP}km"
