@@ -2,7 +2,9 @@
  * Mise en page à 1024 px (règle « utilisable à 1024 px ») et sur grand écran, en thème clair
  * et en thème sombre (revue du sprint 4) :
  * - onglets Devis et Factures : le tableau tient dans son cadre, la page ne défile pas à
- *   l'horizontale, les numéros d'OT et de facture et les plaques restent sur une ligne.
+ *   l'horizontale, les numéros d'OT et de facture et les plaques restent sur une ligne ;
+ * - tableau de bord : le champ « Rechercher » et « Nouvelle intervention » sur une même
+ *   ligne (maquette 4).
  */
 import { expect, test, type Page } from "@playwright/test";
 import { GERANT, seConnecter } from "./outils";
@@ -57,6 +59,26 @@ for (const theme of THEMES) {
           expect(mesures.tableau, `${chemin} : le tableau dépasse son cadre`).toBeLessThanOrEqual(mesures.cadre);
           expect(mesures.coupes, `${chemin} : numéros ou plaques coupés`).toEqual([]);
         }
+      });
+
+      test(`tableau de bord : recherche et « Nouvelle intervention » sur une ligne à ${largeur} px`, async ({ page }) => {
+        await page.setViewportSize({ width: largeur, height: 900 });
+        await seConnecter(page, GERANT);
+        await page.goto("/");
+        const champ = page.getByRole("searchbox", { name: "Rechercher" });
+        const bouton = page.getByRole("link", { name: "Nouvelle intervention" });
+        await expect(bouton).toBeVisible();
+        const [boiteChamp, boiteBouton] = await Promise.all([champ.boundingBox(), bouton.boundingBox()]);
+        // Même ligne : le bouton commence à droite du champ, et leurs bas sont alignés.
+        expect(boiteBouton!.x).toBeGreaterThan(boiteChamp!.x + boiteChamp!.width);
+        expect(Math.abs(boiteBouton!.y + boiteBouton!.height - (boiteChamp!.y + boiteChamp!.height))).toBeLessThanOrEqual(2);
+        if (largeur >= 1440) {
+          // Grand écran : à droite du titre, sur sa ligne, comme la maquette 4.
+          const titre = (await page.getByRole("heading", { level: 1 }).boundingBox())!;
+          expect(boiteChamp!.x).toBeGreaterThan(titre.x + titre.width);
+          expect(boiteBouton!.y).toBeLessThan(titre.y + titre.height);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
       });
     }
   });

@@ -297,9 +297,12 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
 .tdb-a-traiter:hover .strong { text-decoration: underline; }
 
 /* Recherche (S1.3) : champ de l'en-tête du tableau de bord et page de résultats. */
-.tdb-entete-actions { display: flex; align-items: flex-end; gap: var(--space-3); flex-wrap: wrap; }
+/* Champ et bouton sur une ligne (maquette 4) : largeur de base fixe du champ. Un width en
+   pourcentage se résolvait mal dans ce bloc dimensionné par son contenu, qui passait à la ligne. */
+.tdb-entete-actions { display: flex; align-items: flex-end; gap: var(--space-3); flex-wrap: nowrap; }
 .recherche-form { min-width: 0; }
-.recherche-tdb { width: min(320px, 100%); }
+.recherche-tdb { width: 320px; flex: 0 1 auto; min-width: 200px; }
+.page-head .tdb-entete-actions { margin-left: auto; }
 .recherche-page { width: min(420px, 100%); }
 .recherche-saisie { display: flex; gap: var(--space-2); }
 .recherche-saisie .et-input { flex: 1; min-width: 0; }
