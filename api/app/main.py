@@ -4,7 +4,7 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.errors import register_error_handlers
-from app.routers import auth, clients, devis, factures, health
+from app.routers import auth, clients, devis, factures, health, vehicules
 from app.security.csrf import CsrfMiddleware
 
 
@@ -21,6 +21,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(clients.router)
+    app.include_router(vehicules.router)
     app.include_router(devis.router)
     app.include_router(factures.router)
     return app

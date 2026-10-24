@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api";
-import { versFormulaire, type Client, type ClientEntree } from "@/lib/clients";
+import { versFormulaire, type Client, type ClientDetail, type ClientEntree } from "@/lib/clients";
 import { formatTelephone, nomComplet } from "@/lib/format";
+import { VehiculesClient } from "@/components/vehicules/VehiculesClient";
 import { ClientForm } from "./ClientForm";
 
 export function FicheClient({ clientId }: { clientId: number }) {
@@ -16,7 +17,7 @@ export function FicheClient({ clientId }: { clientId: number }) {
   const cle = ["clients", "fiche", clientId] as const;
   const { data: client, isPending, isError, error } = useQuery({
     queryKey: cle,
-    queryFn: ({ signal }) => apiFetch<Client>(`/clients/${clientId}`, { signal }),
+    queryFn: ({ signal }) => apiFetch<ClientDetail>(`/clients/${clientId}`, { signal }),
   });
 
   if (isPending) {
@@ -79,7 +80,8 @@ export function FicheClient({ clientId }: { clientId: number }) {
               valeursInitiales={versFormulaire(client)}
               envoyer={modifier}
               onSucces={(maj) => {
-                queryClient.setQueryData(cle, maj);
+                // La réponse ne contient pas les véhicules : on garde ceux déjà chargés.
+                queryClient.setQueryData<ClientDetail>(cle, (ancien) => (ancien ? { ...ancien, ...maj } : undefined));
                 void queryClient.invalidateQueries({ queryKey: ["clients", "liste"] });
                 setEdition(false);
                 setMessage("Fiche enregistrée.");
@@ -104,6 +106,15 @@ export function FicheClient({ clientId }: { clientId: number }) {
           )}
         </div>
       </section>
+
+      <VehiculesClient
+        clientId={client.id}
+        vehicules={client.vehicules}
+        onAjout={(vehicule) => {
+          void queryClient.invalidateQueries({ queryKey: ["clients"] });
+          setMessage(`Véhicule ${vehicule.immatriculation} ajouté.`);
+        }}
+      />
     </>
   );
 }

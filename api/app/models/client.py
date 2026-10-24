@@ -1,10 +1,15 @@
 """Agrégat client : la personne qui confie ses véhicules au garage (données minimales, RGPD)."""
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, CheckConstraint, Index, String, text
 from sqlalchemy.dialects.postgresql import CITEXT
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.vehicule import Vehicule
 
 
 class Client(TimestampMixin, Base):
@@ -25,6 +30,15 @@ class Client(TimestampMixin, Base):
     consentement_rappels: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )
+
+    # Suppression d'un client refusée tant qu'il a des véhicules (ON DELETE RESTRICT).
+    vehicules: Mapped[list["Vehicule"]] = relationship(
+        back_populates="client", order_by="Vehicule.id", passive_deletes="all"
+    )
+
+    @property
+    def nombre_vehicules(self) -> int:
+        return len(self.vehicules)
 
     def __repr__(self) -> str:
         return f"<Client {self.id}>"

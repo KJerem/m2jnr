@@ -7,7 +7,7 @@ from pydantic import AfterValidator, BaseModel, BeforeValidator, StringConstrain
 from app.services.courriel import normaliser_courriel
 
 
-def _vide_vers_none(valeur: object) -> object:
+def vide_vers_none(valeur: object) -> object:
     """Un champ texte facultatif laissé vide (ou fait d'espaces) vaut « non renseigné »."""
     if isinstance(valeur, str) and not valeur.strip():
         return None
@@ -19,11 +19,11 @@ TexteObligatoire100 = Annotated[
 ]
 TexteFacultatif100 = Annotated[
     Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None,
-    BeforeValidator(_vide_vers_none),
+    BeforeValidator(vide_vers_none),
 ]
 EmailFacultatif = Annotated[
     Annotated[str, StringConstraints(max_length=254), AfterValidator(normaliser_courriel)] | None,
-    BeforeValidator(_vide_vers_none),
+    BeforeValidator(vide_vers_none),
 ]
 
 

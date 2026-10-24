@@ -6,6 +6,7 @@ from typing import Annotated
 from pydantic import AfterValidator, BaseModel, ConfigDict, StringConstraints
 
 from app.schemas.commun import EmailFacultatif, TexteFacultatif100, TexteObligatoire100
+from app.schemas.vehicule import VehiculeResume
 from app.services.telephone import normaliser_telephone
 
 Telephone = Annotated[
@@ -45,6 +46,12 @@ class ClientSortie(BaseModel):
     telephone: str
     email: str | None
     consentement_rappels: bool
-    nombre_vehicules: int = 0
+    nombre_vehicules: int
     cree_le: datetime
     modifie_le: datetime
+
+
+class ClientDetail(ClientSortie):
+    """Fiche complète : coordonnées et véhicules rattachés."""
+
+    vehicules: list[VehiculeResume]
