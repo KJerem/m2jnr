@@ -13,7 +13,8 @@ Une seule saisie, plusieurs lectures (`analyser_requete`, fonction pure) :
   numéro.
 
 La saisie n'entre jamais dans le SQL autrement qu'en paramètre ; dans un motif LIKE, « % »,
-« _ » et « \\ » sont échappés (pris à la lettre). Vingt résultats au plus par rubrique, les
+« _ » et « \\ » sont échappés (pris à la lettre), après la normalisation sans accents pour
+le nom (unaccent change « ％ » en « % »). Vingt résultats au plus par rubrique, les
 plus pertinents d'abord puis par nom ; une requête par rubrique (pas de N+1).
 """
 
@@ -146,13 +147,20 @@ def echapper_like(texte: str) -> str:
     return texte.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def echapper_like_sql(valeur: ColumnElement[str]) -> ColumnElement[str]:
+    """`echapper_like` côté base, à appliquer APRÈS `etabli_normaliser` : unaccent ramène
+    « ％ », « ﹪ », « ＿ » et « ＼ » à « % », « _ » et « \\ », qui seraient sinon des jokers."""
+    sans_barre = func.replace(valeur, "\\", "\\\\")
+    return func.replace(func.replace(sans_barre, "%", "\\%"), "_", "\\_")
+
+
 def _contient(colonne: ColumnElement[Any], valeur: ColumnElement[Any]) -> ColumnElement[bool]:
     return colonne.like(func.concat("%", valeur, "%"), escape="\\")
 
 
 def _nom_contient_chaque_mot(mots: tuple[str, ...]) -> ColumnElement[bool]:
     return and_(
-        *(_contient(NOM_NORMALISE, func.etabli_normaliser(echapper_like(mot))) for mot in mots)
+        *(_contient(NOM_NORMALISE, echapper_like_sql(func.etabli_normaliser(mot))) for mot in mots)
     )
 
 

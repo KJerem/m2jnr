@@ -359,6 +359,14 @@ def test_cent_caracteres_acceptes(client_gerant: TestClient) -> None:
         "\\%",
         "a%",
         "_e",
+        # Formes pleine chasse et petites formes : unaccent les ramène à « % », « _ » et « \ »,
+        # qui doivent rester des caractères ordinaires après la normalisation.
+        "\uff05\uff05",
+        "\uff3f\uff3f",
+        "\ufe6a\ufe6a",
+        "\uff3c\uff05",
+        "\uff3c\uff3c",
+        "l\uff3furent",
     ],
 )
 def test_jokers_like_pris_a_la_lettre(
@@ -372,6 +380,10 @@ def test_jokers_trouves_quand_ils_sont_dans_le_nom(client_gerant: TestClient, db
     _client(db, "Garage_50%", None, "0611111111")
     _client(db, "Garage X 50", None, "0622222222")
     assert [c["nom"] for c in _chercher(client_gerant, "e_50%")["clients"]] == ["Garage_50%"]
+    # Pleine chasse : normalisée en « e_50% », toujours à la lettre.
+    assert [c["nom"] for c in _chercher(client_gerant, "e\uff3f50\uff05")["clients"]] == [
+        "Garage_50%"
+    ]
 
 
 def test_injection_sql_sans_effet(client_gerant: TestClient, fichier: dict[str, Any]) -> None:
