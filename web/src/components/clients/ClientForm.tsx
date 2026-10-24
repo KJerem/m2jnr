@@ -10,7 +10,7 @@ import { CLIENT_VIDE, clientSchema, versEntree, type Client, type ClientEntree, 
 import { appliquerErreursApi } from "@/lib/formulaires";
 import { DoublonDialog } from "./DoublonDialog";
 
-const CHAMPS = ["nom", "prenom", "telephone", "email", "consentement_rappels"] as const;
+const CHAMPS = ["nom", "prenom", "telephone", "email", "adresse", "code_postal", "ville", "consentement_rappels"] as const;
 
 export interface ClientFormProps {
   mode: "creation" | "modification";
@@ -87,6 +87,22 @@ export function ClientForm({ mode, valeursInitiales = CLIENT_VIDE, envoyer, onSu
           {...register("email")}
         />
       </div>
+      <fieldset className="fieldset-adresse">
+        <legend className="caption">Adresse postale, facultative : elle est imprimée sur les factures.</legend>
+        <div className="form-grid">
+          <TextField label="Adresse" autoComplete="street-address" maxLength={200} className="champ-adresse" error={errors.adresse?.message} {...register("adresse")} />
+          <TextField
+            label="Code postal"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            maxLength={5}
+            hint="5 chiffres"
+            error={errors.code_postal?.message}
+            {...register("code_postal")}
+          />
+          <TextField label="Ville" autoComplete="address-level2" maxLength={100} error={errors.ville?.message} {...register("ville")} />
+        </div>
+      </fieldset>
       <label className="et-check">
         <input type="checkbox" {...register("consentement_rappels")} />
         Le client accepte de recevoir des rappels d&apos;entretien

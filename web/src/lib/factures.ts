@@ -42,7 +42,10 @@ export interface FactureResume extends SuiviPaiement {
 
 export interface FactureDetail extends Omit<FactureResume, "client" | "vehicule" | "total_ht_centimes" | "total_ttc_centimes"> {
   devis_id: number;
-  client: { nom: string; prenom: string | null; telephone: string | null; email: string | null };
+  /** Copie figée à l'émission ; l'adresse n'existe que sur les factures émises depuis le sprint 4. */
+  client: { nom: string; prenom: string | null; telephone: string | null; email: string | null; adresse: string | null; code_postal: string | null; ville: string | null };
+  /** Jour « AAAA-MM-JJ » de la fin de la prestation, figé à l'émission (null avant le sprint 4). */
+  date_prestation: string | null;
   vehicule: { immatriculation: string; marque: string; modele: string; kilometrage: number };
   garage: {
     raison_sociale: string;
@@ -165,4 +168,14 @@ export function lireMontant(saisie: string, resteCentimes: number): { centimes: 
   if (centimes <= 0) return { erreur: MESSAGE_MONTANT_NUL };
   if (centimes > resteCentimes) return { erreur: messageTropPercu(resteCentimes) };
   return { centimes };
+}
+
+/**
+ * « Prestation réalisée le 21/12/2026 » quand la prestation s'est terminée un autre jour que
+ * l'émission (jour de Paris), sinon null — même règle que le PDF.
+ */
+export function mentionPrestation(datePrestation: string | null, emiseLe: string): string | null {
+  if (!datePrestation) return null;
+  const emission = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(emiseLe));
+  return datePrestation === emission ? null : `Prestation réalisée le ${formatJour(datePrestation)}`;
 }

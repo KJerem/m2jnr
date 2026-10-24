@@ -12,6 +12,9 @@ const CLIENT: Client = {
   prenom: "Claire",
   telephone: "0612345678",
   email: null,
+  adresse: null,
+  code_postal: null,
+  ville: null,
   consentement_rappels: false,
   nombre_vehicules: 0,
   cree_le: "2026-11-04T09:00:00Z",
@@ -64,7 +67,7 @@ describe("formulaire client", () => {
     await user.click(screen.getByRole("button", { name: "Créer le client" }));
 
     await vi.waitFor(() => expect(onSucces).toHaveBeenCalledWith(CLIENT));
-    expect(envoyer).toHaveBeenCalledWith({ nom: "Laurent", prenom: null, telephone: "06 12 34 56 78", email: null, consentement_rappels: false }, false);
+    expect(envoyer).toHaveBeenCalledWith({ nom: "Laurent", prenom: null, telephone: "06 12 34 56 78", email: null, adresse: null, code_postal: null, ville: null, consentement_rappels: false }, false);
   });
 
   it("rattache les erreurs renvoyées par l'API aux champs", async () => {
@@ -102,7 +105,7 @@ describe("alerte de doublon", () => {
 
   it("se ferme avec Échap, garde le focus à l'intérieur et le rend au bouton", async () => {
     const envoyer = vi.fn().mockRejectedValue(doublon());
-    render(<ClientForm mode="modification" valeursInitiales={{ nom: "Laurent", prenom: "", telephone: "0612345678", email: "", consentement_rappels: false }} envoyer={envoyer} onSucces={vi.fn()} />);
+    render(<ClientForm mode="modification" valeursInitiales={{ nom: "Laurent", prenom: "", telephone: "0612345678", email: "", adresse: "", code_postal: "", ville: "", consentement_rappels: false }} envoyer={envoyer} onSucces={vi.fn()} />);
     const user = userEvent.setup({ delay: null });
     const bouton = screen.getByRole("button", { name: "Enregistrer" });
     await user.click(bouton);

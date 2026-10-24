@@ -127,6 +127,9 @@ def test_facture_168_euros_identique_au_devis(
         "prenom": "Claire",
         "telephone": "0612483075",
         "email": "claire@exemple.test",
+        "adresse": None,
+        "code_postal": None,
+        "ville": None,
     }
     assert facture["vehicule"] == {
         "immatriculation": "GH-482-KL",

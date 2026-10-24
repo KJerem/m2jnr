@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api";
-import { versFormulaire, type Client, type ClientDetail, type ClientEntree } from "@/lib/clients";
+import { lignesAdresse, versFormulaire, type Client, type ClientDetail, type ClientEntree } from "@/lib/clients";
 import { formatTelephone, nomComplet } from "@/lib/format";
 import { VehiculesClient } from "@/components/vehicules/VehiculesClient";
 import { ClientForm } from "./ClientForm";
@@ -101,6 +101,18 @@ export function FicheClient({ clientId }: { clientId: number }) {
               </dd>
               <dt>E-mail</dt>
               <dd>{client.email ? <a href={`mailto:${client.email}`}>{client.email}</a> : <span className="muted">Non renseigné</span>}</dd>
+              <dt>Adresse</dt>
+              <dd>
+                {lignesAdresse(client).length > 0 ? (
+                  <address className="adresse">
+                    {lignesAdresse(client).map((ligne) => (
+                      <span key={ligne}>{ligne}</span>
+                    ))}
+                  </address>
+                ) : (
+                  <span className="muted">Non renseignée</span>
+                )}
+              </dd>
               <dt>Rappels</dt>
               <dd>{client.consentement_rappels ? "Accepte les rappels d'entretien" : "Pas de rappels d'entretien"}</dd>
             </dl>

@@ -1,12 +1,20 @@
-"""Devis et factures de démonstration (story S4.3), sur les OT de la journée de démo.
+"""Devis, factures et paiements de démonstration (stories S4.2 à S4.4), sur les OT de la
+journée de démo.
 
-- devis de la Peugeot du jour : exactement les lignes de la maquette (454,80 € TTC), non
-  facturé (l'intervention est en cours) ;
+- devis de la Peugeot du jour : exactement les lignes de la maquette (454,80 € TTC), envoyé
+  à 9 h 15 et accepté par le client à 9 h 40 (« validé par téléphone »), non facturé
+  (l'intervention est en cours) ;
+- devis de la Renault Clio V : 612,40 € TTC, envoyé au client, en attente de sa réponse
+  (« Devis à faire valider » au tableau de bord) ;
 - devis de la Toyota « Prêt », accepté et non facturé : il apparaît dans « Facture à
   établir » (story S4.2 : seul un devis accepté se facture) ;
 - devis et factures des OT livrés, dans l'ordre chronologique : Peugeot de l'an dernier
   (F-AAAA-001 de l'an dernier), Peugeot d'avril (F-AAAA-001), BMW livrée aujourd'hui
   (F-AAAA-002), pour que « Facturé aujourd'hui » ne soit pas nul.
+
+Paiements (story S4.4) : la facture de l'an dernier réglée par chèque, celle d'avril par
+carte (terminal du garage), celle du jour en partie en espèces ; enregistrés seulement si la
+facture n'a encore aucun paiement.
 
 Statuts : un devis facturé est d'abord envoyé puis accepté (dates entre sa création et
 l'émission de la facture). Rejouable : les lignes d'un devis existant ne sont jamais
@@ -23,15 +31,18 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.models.devis import Devis, StatutDevis
+from app.models.facture import Facture
 from app.models.ordre_travail import OrdreTravail, StatutOT
+from app.models.paiement import ModePaiement
 from app.models.utilisateur import Utilisateur
 from app.models.vehicule import Vehicule
 from app.schemas.devis import LigneEntree
 from app.services import devis as service_devis
 from app.services import factures as service_factures
+from app.services import paiements as service_paiements
 from app.services import statut_devis
 from app.services.format import formater_euros
-from app.services.journee_demo import GERANT
+from app.services.journee_demo import GERANT, JourneeDemo, Moment
 
 
 @dataclass(frozen=True)
@@ -50,6 +61,20 @@ class DevisDemo:
     lignes: tuple[LigneDemo, ...]
     # Statut visé ; un devis d'OT livré (à facturer) est toujours accepté.
     statut: StatutDevis = StatutDevis.BROUILLON
+    # Heures de Paris de l'envoi et de la décision ; à défaut 5 et 20 min après la création.
+    envoi: Moment | None = None
+    decision: Moment | None = None
+
+
+@dataclass(frozen=True)
+class PaiementDemo:
+    demande: str
+    mode: ModePaiement
+    # Montant en centimes ; None pour solder la facture.
+    montant_centimes: int | None
+    # Délai après l'émission de la facture (jamais dans le futur).
+    apres: timedelta
+    reference: str | None = None
 
 
 def _mo(reference: str, designation: str, heures: str, prix: int = 7200) -> LigneDemo:
@@ -102,6 +127,23 @@ DEVIS_DEMO: tuple[DevisDemo, ...] = (
             _piece("HUI-5W30-5L", "Huile moteur 5W30, bidon 5 L", 4290),
             _piece("FLT-H-12PT", "Filtre à huile 1.2 PureTech", 1160),
         ),
+        StatutDevis.ACCEPTE,
+        envoi=Moment(0, 9, 15),
+        decision=Moment(0, 9, 40),
+    ),
+    # 108,00 + 402,33 = 510,33 € HT ; TVA 102,07 € ; 612,40 € TTC.
+    DevisDemo(
+        "FD-119-RT",
+        "Voyant moteur allumé depuis hier, perte de puissance.",
+        (
+            _mo("MO-DIAG-ELEC", "Lecture des codes défaut", "0.5"),
+            _mo("MO-ALLUMAGE", "Remplacement des bobines et des bougies", "1"),
+            _piece("BOB-CLIO-TCE", "Bobine d'allumage 1.0 TCe", 8990, "3"),
+            _piece("BOUG-CLIO-TCE", "Bougie d'allumage", 1321, "3"),
+            _piece("CAPT-MAP-CLIO", "Capteur de pression du collecteur", 9300),
+        ),
+        StatutDevis.ENVOYE,
+        envoi=Moment(0, 12, 40),
     ),
     DevisDemo(
         "HB-205-MZ",
@@ -114,6 +156,17 @@ DEVIS_DEMO: tuple[DevisDemo, ...] = (
             _piece("FLT-H-YARIS", "Filtre à huile", 980),
         ),
         StatutDevis.ACCEPTE,
+    ),
+)
+
+
+PAIEMENTS_DEMO: tuple[PaiementDemo, ...] = (
+    PaiementDemo(
+        "Révision des 75 000 km.", ModePaiement.CHEQUE, None, timedelta(days=2), "0004512"
+    ),
+    PaiementDemo("Remplacement des pneus avant.", ModePaiement.CARTE, None, timedelta(0)),
+    PaiementDemo(
+        "Vidange et contrôle avant un long trajet.", ModePaiement.ESPECES, 5000, timedelta(0)
     ),
 )
 
@@ -141,22 +194,33 @@ def _lignes(demo: DevisDemo) -> list[LigneEntree]:
     ]
 
 
-def _faire_avancer(devis: Devis, vise: StatutDevis, gerant: Utilisateur, limite: datetime) -> None:
-    """Avance le devis jusqu'au statut visé (jamais en arrière) : envoyé 5 min après sa
-    création, décidé 15 min plus tard, sans dépasser `limite` (livraison ou maintenant)."""
+def _faire_avancer(
+    devis: Devis,
+    vise: StatutDevis,
+    gerant: Utilisateur,
+    limite: datetime,
+    envoi_prevu: datetime | None = None,
+    decision_prevue: datetime | None = None,
+) -> None:
+    """Avance le devis jusqu'au statut visé (jamais en arrière) : envoyé à l'heure prévue (à
+    défaut 5 min après sa création), décidé à l'heure prévue (à défaut 15 min plus tard),
+    jamais avant sa création ni après `limite` (livraison ou maintenant)."""
     if vise == StatutDevis.BROUILLON or devis.statut == vise:
         return
     if devis.statut == StatutDevis.BROUILLON:
-        envoi = min(devis.cree_le + timedelta(minutes=5), limite)
+        envoi = envoi_prevu or devis.cree_le + timedelta(minutes=5)
+        envoi = max(min(envoi, limite), devis.cree_le)
         statut_devis.changer_statut_devis(devis, StatutDevis.ENVOYE, gerant, envoi)
     if vise != StatutDevis.ENVOYE and devis.statut == StatutDevis.ENVOYE and devis.envoye_le:
-        decision = max(min(devis.envoye_le + timedelta(minutes=15), limite), devis.envoye_le)
+        decision = decision_prevue or devis.envoye_le + timedelta(minutes=15)
+        decision = max(min(decision, limite), devis.envoye_le)
         statut_devis.changer_statut_devis(devis, vise, gerant, decision)
 
 
 def semer_facturation(db: Session, maintenant: datetime, settings: Settings) -> list[str]:
     """Crée les devis puis les factures de démonstration manquants ; renvoie un compte rendu."""
     gerant = db.scalars(select(Utilisateur).where(Utilisateur.email == GERANT)).one()
+    journee = JourneeDemo(db, maintenant, settings.timezone)
     rapport: list[str] = []
     a_facturer: list[tuple[OrdreTravail, Devis]] = []
     for demo in DEVIS_DEMO:
@@ -173,7 +237,14 @@ def semer_facturation(db: Session, maintenant: datetime, settings: Settings) -> 
             )
         livre = ordre.statut == StatutOT.LIVRE and ordre.cloture_le is not None
         vise = StatutDevis.ACCEPTE if livre else demo.statut
-        _faire_avancer(devis, vise, gerant, min(ordre.cloture_le or maintenant, maintenant))
+        _faire_avancer(
+            devis,
+            vise,
+            gerant,
+            min(ordre.cloture_le or maintenant, maintenant),
+            journee.instant(demo.envoi) if demo.envoi else None,
+            journee.instant(demo.decision) if demo.decision else None,
+        )
         db.flush()
         rapport.append(
             f"{'Créé' if cree else 'À jour'} : devis {ordre.numero}"
@@ -194,4 +265,41 @@ def semer_facturation(db: Session, maintenant: datetime, settings: Settings) -> 
             f"{'Créé' if cree else 'À jour'} : facture {facture.numero} {ordre.numero}"
             f" ({formater_euros(facture.total_ttc_centimes)} TTC)"
         )
+    rapport += _semer_paiements(db, gerant, maintenant, settings)
+    return rapport
+
+
+def _semer_paiements(
+    db: Session, gerant: Utilisateur, maintenant: datetime, settings: Settings
+) -> list[str]:
+    """Paiements des factures de démonstration, seulement sur une facture sans paiement."""
+    rapport: list[str] = []
+    for demo in PAIEMENTS_DEMO:
+        facture_id = db.scalar(
+            select(Facture.id)
+            .join(Facture.ordre)
+            .where(OrdreTravail.demande_client == demo.demande)
+            .order_by(Facture.id)
+            .limit(1)
+        )
+        if facture_id is None:
+            continue
+        facture = service_factures.obtenir_facture(db, facture_id, verrouiller=True)
+        if facture.paiements:
+            rapport.append(f"À jour : paiements de {facture.numero}")
+            continue
+        montant = demo.montant_centimes or facture.total_ttc_centimes
+        service_paiements.enregistrer_paiement(
+            db,
+            facture,
+            montant_centimes=montant,
+            mode=demo.mode,
+            recu_le=max(min(facture.emise_le + demo.apres, maintenant), facture.emise_le),
+            reference=demo.reference,
+            auteur=gerant,
+            maintenant=max(maintenant, facture.emise_le),
+            fuseau=settings.timezone,
+        )
+        db.expire(facture, ["paiements"])
+        rapport.append(f"Créé : paiement de {formater_euros(montant)} sur {facture.numero}")
     return rapport

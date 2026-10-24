@@ -168,7 +168,7 @@ def test_facturation_de_demonstration_rejouable(db: Session) -> None:
     _semer(db)
     rapport = _semer(db)
 
-    assert db.scalar(select(func.count()).select_from(Devis)) == 5
+    assert db.scalar(select(func.count()).select_from(Devis)) == 6  # dont la Clio (sprint 4)
     assert db.scalar(select(func.count()).select_from(Facture)) == 3
     assert [ligne for ligne in rapport if "facture" in ligne] == [
         f"À jour : facture F-2025-001 OT-2025-001 ({formater_euros(17_112)} TTC)",

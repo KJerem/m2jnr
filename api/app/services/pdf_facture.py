@@ -6,6 +6,10 @@
 - en-tête du garage, numéro, dates d'émission et d'échéance, client, véhicule, ordre de
   travail, lignes, totaux, mentions légales (SIRET, TVA intracommunautaire, capital, RCS,
   pénalités de retard, indemnité forfaitaire de 40 €, escompte) ;
+- art. 242 nonies A du CGI (sprint 4) : adresse du client sous son nom quand la copie figée
+  en a une, « Prestation réalisée le jj/mm/aaaa » quand la prestation s'est terminée un autre
+  jour que l'émission ; une facture émise avant (ni adresse ni date de prestation) donne
+  exactement le même PDF qu'avant ;
 - montants au format français (« 454,80 € ») ; les espaces insécables de l'interface sont
   remplacées par des espaces simples, que toutes les visionneuses affichent ;
 - document « invariant » : ni date de production ni identifiant aléatoire, le même contenu
@@ -101,6 +105,21 @@ def _nom_client(client: dict[str, Any]) -> str:
     return " ".join(part for part in (client.get("prenom"), client.get("nom")) if part)
 
 
+def lignes_adresse(client: dict[str, Any]) -> list[str]:
+    """« 12 rue des Tilleuls », « 69003 Lyon » : lignes renseignées de l'adresse figée."""
+    ville = " ".join(part for part in (client.get("code_postal"), client.get("ville")) if part)
+    return [ligne for ligne in (client.get("adresse"), ville) if ligne]
+
+
+def mention_prestation(facture: Facture, fuseau: str) -> str | None:
+    """« Prestation réalisée le 21/12/2026 » si elle diffère du jour d'émission (Paris)."""
+    if facture.date_prestation is None:
+        return None
+    if facture.date_prestation == date_locale(facture.emise_le, fuseau):
+        return None
+    return f"Prestation réalisée le {formater_date(facture.date_prestation)}"
+
+
 def _en_tete(facture: Facture, fuseau: str) -> Table:
     garage = facture.garage_fige
     gauche = [
@@ -117,6 +136,9 @@ def _en_tete(facture: Facture, fuseau: str) -> Table:
         _p(f"Date d'échéance : {formater_date(facture.echeance)}", STYLE_DROITE),
         _p(f"Ordre de travail : {facture.ordre.numero}", STYLE_DROITE),
     ]
+    prestation = mention_prestation(facture, fuseau)
+    if prestation:
+        droite.insert(2, _p(prestation, STYLE_DROITE))
     tableau = Table([[gauche, droite]], colWidths=[LARGEUR_UTILE * 0.55, LARGEUR_UTILE * 0.45])
     tableau.setStyle(
         TableStyle(
@@ -134,6 +156,7 @@ def _parties(facture: Facture) -> Table:
     client = facture.client_fige
     vehicule = facture.vehicule_fige
     bloc_client = [_p("CLIENT", STYLE_ETIQUETTE), _p(_nom_client(client), STYLE_GRAS)]
+    bloc_client += [_p(ligne) for ligne in lignes_adresse(client)]
     if client.get("telephone"):
         bloc_client.append(_p(f"Tél. {formater_telephone(client['telephone'])}"))
     if client.get("email"):

@@ -15,6 +15,10 @@ Règles :
 - le client, le véhicule, les mentions du garage, les lignes et les montants sont recopiés ;
   les totaux sont recalculés à partir des lignes figées et doivent égaler ceux du devis ;
 - échéance = jour d'émission à Paris + délai de paiement (GARAGE_DELAI_PAIEMENT_JOURS) ;
+- mentions de l'art. 242 nonies A du CGI (sprint 4) : l'adresse du client est recopiée avec
+  son identité, et la date de la prestation est figée : jour de Paris du dernier passage de
+  l'OT à « Prêt » (fin des travaux), à défaut de sa clôture ; les factures émises avant
+  gardent leur copie sans adresse ni date de prestation ;
 - une fois facturé, le devis n'est plus modifiable (409 « devis_facture »).
 
 Verrous, toujours dans cet ordre : le devis (SELECT … FOR UPDATE, posé par l'appelant), puis
@@ -23,7 +27,7 @@ voit la facture de la première et répond 409.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from psycopg import errors as erreurs_pg
@@ -37,7 +41,7 @@ from app.db import id_possible
 from app.errors import conflict, not_found
 from app.models.devis import Devis
 from app.models.facture import Facture, LigneFacture
-from app.models.ordre_travail import OrdreTravail, StatutOT
+from app.models.ordre_travail import HistoriqueStatut, OrdreTravail, StatutOT
 from app.models.paiement import Paiement
 from app.models.utilisateur import Utilisateur
 from app.services import calcul_devis
@@ -109,7 +113,23 @@ def client_fige(ordre: OrdreTravail) -> dict[str, Any]:
         "prenom": client.prenom,
         "telephone": client.telephone,
         "email": client.email,
+        "adresse": client.adresse,
+        "code_postal": client.code_postal,
+        "ville": client.ville,
     }
+
+
+def date_de_prestation(db: Session, ordre: OrdreTravail, fuseau: str) -> date | None:
+    """Jour de Paris de la fin de la prestation : dernier passage à « Prêt », à défaut la
+    clôture de l'OT (livraison), à défaut None."""
+    pret = db.scalar(
+        select(func.max(HistoriqueStatut.change_le)).where(
+            HistoriqueStatut.ordre_travail_id == ordre.id,
+            HistoriqueStatut.nouveau == StatutOT.TERMINE,
+        )
+    )
+    fin = pret or ordre.cloture_le
+    return date_locale(fin, fuseau) if fin is not None else None
 
 
 def vehicule_fige(ordre: OrdreTravail) -> dict[str, Any]:
@@ -180,6 +200,7 @@ def etablir_facture(
         ordre_travail_id=ordre.id,
         emise_le=maintenant,
         echeance=jour + timedelta(days=settings.garage_delai_paiement_jours),
+        date_prestation=date_de_prestation(db, ordre, settings.timezone),
         client_fige=client_fige(ordre),
         vehicule_fige=vehicule_fige(ordre),
         garage_fige=garage_fige(settings),

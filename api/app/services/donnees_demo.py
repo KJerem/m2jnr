@@ -2,7 +2,9 @@
 
 Les mots de passe viennent du fichier .env (DEMO_PASSWORD_GERANT, DEMO_PASSWORD_MECANICIEN) :
 aucun secret n'est écrit dans le code. Les clients et véhicules reprennent ceux des maquettes ;
-téléphones et e-mails sont inventés (domaine réservé exemple.test). La journée d'atelier
+téléphones, e-mails (domaine réservé exemple.test) et adresses (rues inventées de
+l'agglomération lyonnaise) sont fictifs. Relancer le seed remet les fiches à jour (adresse
+comprise) mais ne touche jamais une facture émise. La journée d'atelier
 (ordres de travail, rendez-vous, historique) est décrite dans journee_demo.py, ses devis et
 factures dans facturation_demo.py.
 """
@@ -43,6 +45,7 @@ def _fiche(
     prenom: str,
     telephone: str,
     consentement: bool,
+    adresse: tuple[str, str, str],
     immatriculation: str,
     marque: str,
     modele: str,
@@ -51,12 +54,16 @@ def _fiche(
     vin: str | None = None,
 ) -> FicheDemo:
     email = f"{prenom}.{nom}".lower().replace(" ", "-") + "@exemple.test"
+    rue, code_postal, ville = adresse
     return FicheDemo(
         client=ClientEntree(
             nom=nom,
             prenom=prenom,
             telephone=telephone,
             email=email,
+            adresse=rue,
+            code_postal=code_postal,
+            ville=ville,
             consentement_rappels=consentement,
         ),
         vehicule=VehiculeEntree(
@@ -73,21 +80,29 @@ def _fiche(
 FICHES_DEMO: tuple[FicheDemo, ...] = (
     _fiche(
         "Laurent", "Claire", "06 12 48 30 75", True,
+        ("14 rue des Établis", "69003", "Lyon"),
         "GH-482-KL", "Peugeot", "308 SW", 84_312, date(2019, 3, 1), vin="VF3LCYHZPKS123456",
     ),
     _fiche("Petit", "Thomas", "06 23 59 41 86", False,
+           ("7 impasse du Pont-Levis", "69100", "Villeurbanne"),
            "EK-730-PA", "Volkswagen", "Golf 7", 112_450, date(2017, 6, 12)),
     _fiche("Kone", "Aminata", "06 34 60 52 97", True,
+           ("22 allée des Mésanges-Bleues", "69500", "Bron"),
            "GA-664-SN", "Dacia", "Sandero", 45_210, date(2021, 9, 3)),
     _fiche("Diallo", "Moussa", "06 45 71 63 08", False,
+           ("5 chemin du Vieux-Garage", "69200", "Vénissieux"),
            "FD-119-RT", "Renault", "Clio V", 38_900, date(2019, 11, 20)),
     _fiche("Moreau", "Julien", "06 56 82 74 19", True,
+           ("31 rue de la Clé-de-Douze", "69007", "Lyon"),
            "CZ-918-LE", "Citroën", "C3", 97_340, date(2013, 4, 8)),
     _fiche("Roux", "Isabelle", "06 67 93 85 20", False,
+           ("9 place des Bielles", "69300", "Caluire-et-Cuire"),
            "DL-552-VK", "Renault", "Megane IV", 76_120, None),
     _fiche("Nguyen", "Linh", "06 78 04 96 31", True,
+           ("48 avenue des Cardans", "69008", "Lyon"),
            "HB-205-MZ", "Toyota", "Yaris", 15_800, date(2021, 12, 2)),
     _fiche("Garcia", "Antoine", "06 89 15 07 42", False,
+           ("3 quai des Pistons", "69005", "Lyon"),
            "FS-341-RD", "BMW", "Série 1", 52_600, date(2019, 8, 27)),
 )  # fmt: skip
 
@@ -101,6 +116,9 @@ def _copier_client(client: Client, donnees: ClientEntree) -> None:
     client.prenom = donnees.prenom
     client.telephone = donnees.telephone
     client.email = donnees.email
+    client.adresse = donnees.adresse
+    client.code_postal = donnees.code_postal
+    client.ville = donnees.ville
     client.consentement_rappels = donnees.consentement_rappels
 
 

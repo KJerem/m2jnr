@@ -18,6 +18,9 @@ class Client(TimestampMixin, Base):
         CheckConstraint("char_length(btrim(nom)) > 0", name="nom_non_vide"),
         # Téléphone normalisé par l'application : 10 chiffres commençant par 0.
         CheckConstraint("telephone ~ '^0[1-9][0-9]{8}$'", name="telephone_normalise"),
+        CheckConstraint(
+            "code_postal IS NULL OR code_postal ~ '^[0-9]{5}$'", name="code_postal_format"
+        ),
         # Index non unique : deux clients peuvent partager un numéro (alerte, pas interdiction).
         Index("ix_client_telephone", "telephone"),
         # Recherche (story S1.3, migration 0013) : trigrammes du nom et du prénom sans accents
@@ -46,6 +49,11 @@ class Client(TimestampMixin, Base):
     prenom: Mapped[str | None] = mapped_column(String(100))
     telephone: Mapped[str] = mapped_column(String(10), nullable=False)
     email: Mapped[str | None] = mapped_column(CITEXT())
+    # Adresse postale, facultative (mention obligatoire de la facture quand elle est connue,
+    # art. 242 nonies A du CGI) ; jamais transmise au mécanicien.
+    adresse: Mapped[str | None] = mapped_column(String(200))
+    code_postal: Mapped[str | None] = mapped_column(String(5))
+    ville: Mapped[str | None] = mapped_column(String(100))
     consentement_rappels: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )

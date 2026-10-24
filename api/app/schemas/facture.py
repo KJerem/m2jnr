@@ -64,6 +64,10 @@ class ClientFige(BaseModel):
     prenom: str | None
     telephone: str | None
     email: str | None
+    # Absentes des copies figées avant le sprint 4 (mentions de la facture).
+    adresse: str | None = None
+    code_postal: str | None = None
+    ville: str | None = None
 
 
 class ClientFigeResume(BaseModel):
@@ -114,6 +118,8 @@ class FactureDetail(SuiviPaiement):
     numero: str
     emise_le: datetime
     echeance: date
+    # Fin de la prestation (jour de Paris), figée à l'émission ; None avant le sprint 4.
+    date_prestation: date | None
     devis_id: int
     ordre: OrdreDeLaFacture
     client: ClientFige
@@ -198,6 +204,7 @@ def detail_facture(facture: Facture, aujourd_hui: date) -> FactureDetail:
         numero=facture.numero,
         emise_le=facture.emise_le,
         echeance=facture.echeance,
+        date_prestation=facture.date_prestation,
         devis_id=facture.devis_id,
         ordre=_ordre(facture),
         client=ClientFige.model_validate(facture.client_fige),

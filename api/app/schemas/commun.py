@@ -42,6 +42,10 @@ TexteFacultatif100 = Annotated[
     Annotated[str, StringConstraints(strip_whitespace=True, max_length=100), SansControle] | None,
     BeforeValidator(vide_vers_none),
 ]
+TexteFacultatif200 = Annotated[
+    Annotated[str, StringConstraints(strip_whitespace=True, max_length=200), SansControle] | None,
+    BeforeValidator(vide_vers_none),
+]
 EmailFacultatif = Annotated[
     Annotated[str, StringConstraints(max_length=254), AfterValidator(normaliser_courriel)] | None,
     BeforeValidator(vide_vers_none),
