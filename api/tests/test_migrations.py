@@ -10,6 +10,7 @@ PostgreSQL est transactionnel) : la base de test reste intacte.
 """
 
 import importlib.util
+from itertools import pairwise
 from pathlib import Path
 from types import ModuleType
 
@@ -36,7 +37,7 @@ def _migrations() -> list[ModuleType]:
 def test_les_migrations_sont_chainees_dans_l_ordre_des_fichiers() -> None:
     modules = _migrations()
     assert modules[0].down_revision is None
-    for precedente, suivante in zip(modules, modules[1:], strict=False):
+    for precedente, suivante in pairwise(modules):
         assert suivante.down_revision == precedente.revision
 
 
