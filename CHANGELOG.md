@@ -2,6 +2,11 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une entrée par sprint.
 
+## [Non publié]
+
+### Ajouté
+- S8.1 Connexion et rôles : connexion par e-mail et mot de passe (argon2id), blocage 15 min après 5 échecs avec l'heure de déblocage, session en cookie httpOnly, protection CSRF, accès du mécanicien refusé sur les devis et les factures, page `/connexion` et menu selon le rôle, comptes de démonstration (`python -m app.cli seed`) et `create-user`.
+
 ## [sprint-0] — Initiation (26 au 30 octobre 2026)
 
 ### Ajouté

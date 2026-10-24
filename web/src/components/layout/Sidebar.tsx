@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import type { Role } from "@/lib/session";
 import { ThemeToggle } from "./ThemeToggle";
 
-export type Role = "gerant" | "mecanicien";
+export type { Role };
 
 interface NavItem {
   href: string;
