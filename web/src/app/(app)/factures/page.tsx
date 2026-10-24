@@ -1,21 +1,16 @@
 import type { Metadata } from "next";
+import { DevisFactures } from "@/components/facturation/DevisFactures";
 import { RequireRole } from "@/components/session/RequireRole";
+import { numeroDePage, type Recherche } from "@/lib/pages";
 
-export const metadata: Metadata = { title: "Factures" };
+export const metadata: Metadata = { title: "Devis & factures" };
 
-// Page réservée au gérant ; la liste des factures arrive au sprint 3 (story S4.3).
-export default function Factures() {
+// Page réservée au gérant (l'API répond 403 au mécanicien) : onglet « Factures ».
+export default async function Factures({ searchParams }: { searchParams: Promise<Recherche> }) {
+  const page = numeroDePage((await searchParams).page);
   return (
     <RequireRole roles={["gerant"]}>
-      <header className="page-head">
-        <div>
-          <h1 className="display">Factures</h1>
-          <p className="caption sub">Les factures émises apparaîtront ici.</p>
-        </div>
-      </header>
-      <section className="panel">
-        <p className="empty">Aucune facture pour l&apos;instant.</p>
-      </section>
+      <DevisFactures key={`factures-${page}`} onglet="factures" page={page} />
     </RequireRole>
   );
 }

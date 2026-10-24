@@ -14,6 +14,8 @@ interface NavItem {
   label: string;
   icon: IconName;
   roles: Role[];
+  /** Autres chemins qui rendent l'entrée active (onglets d'une même page). */
+  aussi?: string[];
 }
 
 /** Menu selon le rôle : le mécanicien ne voit ni les clients en écriture, ni les factures. */
@@ -24,11 +26,15 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/ordres", label: "Ordres de travail", icon: "wrench", roles: ["gerant", "mecanicien"] },
   { href: "/rendez-vous", label: "Rendez-vous", icon: "clock", roles: ["gerant"] },
   { href: "/clients", label: "Clients & véhicules", icon: "users", roles: ["gerant"] },
-  { href: "/factures", label: "Factures", icon: "file", roles: ["gerant"] },
+  { href: "/devis", label: "Devis & factures", icon: "file", roles: ["gerant"], aussi: ["/factures"] },
 ];
 
 export function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function itemActif(pathname: string, item: NavItem) {
+  return [item.href, ...(item.aussi ?? [])].some((href) => isActive(pathname, href));
 }
 
 export function Sidebar({ role, garageName, footer }: { role: Role; garageName: string; footer?: ReactNode }) {
@@ -41,7 +47,7 @@ export function Sidebar({ role, garageName, footer }: { role: Role; garageName: 
       </Link>
       <div className="nav">
         {NAV_ITEMS.filter((item) => item.roles.includes(role)).map((item) => (
-          <Link key={item.href} href={item.href} aria-current={isActive(pathname, item.href) ? "page" : undefined} title={item.label}>
+          <Link key={item.href} href={item.href} aria-current={itemActif(pathname, item) ? "page" : undefined} title={item.label}>
             <Icon name={item.icon} size={22} />
             <span>{item.label}</span>
           </Link>
