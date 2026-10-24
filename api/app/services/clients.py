@@ -35,6 +35,9 @@ def _appliquer(client: Client, donnees: ClientEntree) -> None:
     client.prenom = donnees.prenom
     client.telephone = donnees.telephone
     client.email = donnees.email
+    client.adresse = donnees.adresse
+    client.code_postal = donnees.code_postal
+    client.ville = donnees.ville
     client.consentement_rappels = donnees.consentement_rappels
 
 
