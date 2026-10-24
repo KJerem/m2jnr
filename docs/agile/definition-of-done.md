@@ -6,6 +6,8 @@ liste avant le passage en colonne « Terminé ».
 ## Code
 - [ ] Le code est sur une branche `feature/<id-story>-<slug>` issue de `develop`.
 - [ ] Un commit par tâche du backlog, au format Conventional Commits, avec l'identifiant de la story (`[S1.1]`).
+- [ ] Un correctif de code découvert en écrivant les tests part dans son propre commit `fix(api)` ou
+      `fix(front)` (avec l'identifiant de la story), avant le commit `test:`, qui ne contient que des tests.
 - [ ] `ruff check`, `ruff format --check` et `mypy app` passent côté API.
 - [ ] `npm run lint` et `npm run typecheck` passent côté web.
 - [ ] Aucun secret ni donnée réelle dans le dépôt (seulement `.env.example` et des données fictives).
