@@ -82,7 +82,9 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_devis_statut", table_name="devis")
     op.drop_index("uq_devis_ordre_non_refuse", table_name="devis")
-    op.drop_constraint("ck_devis_statut_coherent", "devis", type_="check")
+    # op.f : nom déjà complet, sans repasser par la convention de nommage (qui doublerait
+    # le préfixe en « ck_devis_ck_devis_… » sous `alembic downgrade`).
+    op.drop_constraint(op.f("ck_devis_statut_coherent"), "devis", type_="check")
     op.drop_constraint("fk_devis_decide_par_utilisateur", "devis", type_="foreignkey")
     op.drop_column("devis", "decide_par")
     op.drop_column("devis", "decide_le")
