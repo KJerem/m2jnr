@@ -122,6 +122,33 @@ describe("alerte de doublon", () => {
     expect(bouton).toHaveFocus();
     expect(envoyer).toHaveBeenCalledTimes(1);
   });
+
+  it("rend le focus au bouton d'envoi même si le navigateur le lui a retiré pendant l'envoi", async () => {
+    // Un navigateur retire le focus d'un bouton désactivé (pendant l'envoi) : il part sur <body>
+    // avant l'ouverture de la fenêtre. jsdom ne le fait pas (et ignore blur() sur un élément
+    // désactivé) : on le simule.
+    const envoyer = vi.fn().mockImplementation(async () => {
+      const actif = document.activeElement as HTMLButtonElement;
+      expect(actif).toBeDisabled();
+      actif.disabled = false;
+      actif.blur();
+      actif.disabled = true;
+      expect(document.activeElement).toBe(document.body);
+      throw doublon();
+    });
+    render(<ClientForm mode="creation" envoyer={envoyer} onSucces={vi.fn()} />);
+    const user = await remplir("Laurent", "0612345678");
+    const bouton = screen.getByRole("button", { name: "Créer le client" });
+    bouton.focus();
+    await user.keyboard("{Enter}");
+    await screen.findByRole("dialog");
+    expect(envoyer).toHaveBeenCalledTimes(1);
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(bouton).toHaveFocus();
+  });
 });
 
 describe("téléphone", () => {

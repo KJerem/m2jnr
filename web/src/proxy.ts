@@ -16,6 +16,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Ni l'API (/api/*, protégée par FastAPI), ni les fichiers de Next, ni les fichiers statiques.
-  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)"],
+  // Ni l'API (/api/*, protégée par FastAPI), ni tout /_next (fichiers, images, rechargement à
+  // chaud du serveur de dev…), ni les fichiers statiques.
+  matcher: ["/((?!api/|_next/|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)"],
 };

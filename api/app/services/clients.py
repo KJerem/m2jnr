@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.db import id_possible
 from app.errors import conflict, not_found
 from app.models.client import Client
 from app.schemas.client import ClientEntree
@@ -23,7 +24,7 @@ class PageClients:
 
 
 def obtenir_client(db: Session, client_id: int) -> Client:
-    client = db.get(Client, client_id)
+    client = db.get(Client, client_id) if id_possible(client_id) else None
     if client is None:
         raise not_found("Client introuvable.")
     return client

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useId, useRef, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useId, useRef, type ReactNode, type RefObject } from "react";
 
 const FOCUSABLES = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -10,17 +10,29 @@ export interface ModalProps {
   children: ReactNode;
   /** Boutons du pied de la fenêtre. */
   actions?: ReactNode;
+  /**
+   * Élément qui reçoit le focus à la fermeture, en général le bouton qui a déclenché
+   * l'ouverture. À fournir quand ce bouton est désactivé pendant un envoi : le navigateur lui
+   * retire alors le focus (qui part sur <body>) avant que la fenêtre ne s'ouvre.
+   */
+  retourFocus?: RefObject<HTMLElement | null>;
 }
 
 /**
  * Fenêtre modale accessible : role="dialog" et aria-modal, titre annoncé, focus placé dans la
  * fenêtre et gardé à l'intérieur (Tab et Maj+Tab bouclent), Échap ferme, et le focus revient
- * à l'élément qui l'a ouverte.
+ * à l'élément qui l'a ouverte (`retourFocus`, sinon l'élément actif à l'ouverture s'il n'est
+ * pas <body>).
  */
-export function Modal({ titre, onClose, children, actions }: ModalProps) {
+export function Modal({ titre, onClose, children, actions, retourFocus }: ModalProps) {
   const ref = useRef<HTMLDivElement>(null);
   const titreId = useId();
   const fermer = useEffectEvent(onClose);
+  const cibleDeRetour = useEffectEvent((precedent: HTMLElement | null) => {
+    const cible = retourFocus?.current;
+    if (cible && cible.isConnected) return cible;
+    return precedent && precedent !== document.body && precedent.isConnected ? precedent : null;
+  });
 
   useEffect(() => {
     const dialogue = ref.current;
@@ -53,7 +65,7 @@ export function Modal({ titre, onClose, children, actions }: ModalProps) {
     document.addEventListener("keydown", surTouche);
     return () => {
       document.removeEventListener("keydown", surTouche);
-      precedent?.focus();
+      cibleDeRetour(precedent)?.focus();
     };
   }, []);
 

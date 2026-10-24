@@ -10,6 +10,7 @@ export interface PaginationProps {
   libelle: string;
 }
 
+/** Boutons en taille md (44 px) : la liste est aussi utilisée sur tablette (cibles tactiles). */
 export function Pagination({ page, taille, total, lien, libelle }: PaginationProps) {
   const pages = Math.max(1, Math.ceil(total / taille));
   return (
@@ -19,20 +20,20 @@ export function Pagination({ page, taille, total, lien, libelle }: PaginationPro
       </span>
       <div className="actions">
         {page > 1 ? (
-          <ButtonLink href={lien(page - 1)} size="sm" rel="prev">
+          <ButtonLink href={lien(page - 1)} rel="prev">
             Précédent
           </ButtonLink>
         ) : (
-          <Button size="sm" disabled>
+          <Button disabled>
             Précédent
           </Button>
         )}
         {page < pages ? (
-          <ButtonLink href={lien(page + 1)} size="sm" rel="next">
+          <ButtonLink href={lien(page + 1)} rel="next">
             Suivant
           </ButtonLink>
         ) : (
-          <Button size="sm" disabled>
+          <Button disabled>
             Suivant
           </Button>
         )}

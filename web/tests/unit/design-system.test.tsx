@@ -1,9 +1,15 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { AppShell } from "@/components/layout/AppShell";
+import { SESSION_KEY } from "@/components/session/useSession";
 import { KpiTile } from "@/components/ui/KpiTile";
+import { Pagination } from "@/components/ui/Pagination";
 import { Plate } from "@/components/ui/Plate";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { BADGE_OT, statutSuivant } from "@/lib/statuts";
+
+vi.mock("next/navigation", () => ({ usePathname: () => "/clients", useRouter: () => ({ replace: vi.fn() }) }));
 
 describe("StatusBadge", () => {
   it("affiche la pastille et le mot, jamais la couleur seule", () => {
@@ -50,5 +56,34 @@ describe("statuts d'OT", () => {
     expect(statutSuivant("a_faire")).toBe("en_cours");
     expect(statutSuivant("termine")).toBe("livre");
     expect(statutSuivant("livre")).toBeNull();
+  });
+});
+
+describe("cibles tactiles de 44 px", () => {
+  // « sm » (36 px) est réservé au desktop : ces boutons restent utilisés à 1024 px (tablette).
+  it("pagination en taille md", () => {
+    render(<Pagination page={2} taille={20} total={60} lien={(p) => `/clients?page=${p}`} libelle="clients" />);
+    for (const nom of ["Précédent", "Suivant"]) {
+      const bouton = screen.getByRole("link", { name: nom });
+      expect(bouton).toHaveClass("et-btn");
+      expect(bouton).not.toHaveClass("et-btn-sm");
+    }
+  });
+
+  it("déconnexion et bascule de thème en taille md", () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    const client = new QueryClient();
+    client.setQueryData(SESSION_KEY, { utilisateur: { id: 1, email: "nadia@garage.test", nom: "Nadia Benali", role: "gerant" } });
+    render(
+      <QueryClientProvider client={client}>
+        <AppShell>contenu</AppShell>
+      </QueryClientProvider>,
+    );
+    for (const nom of [/Se déconnecter/, /Passer au thème/]) {
+      const bouton = screen.getByRole("button", { name: nom });
+      expect(bouton).toHaveClass("et-btn");
+      expect(bouton).not.toHaveClass("et-btn-sm");
+    }
+    vi.unstubAllGlobals();
   });
 });

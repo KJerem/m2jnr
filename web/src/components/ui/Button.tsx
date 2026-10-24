@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode, Ref } from "react";
 
 type Variant = "primary" | "secondary" | "quiet" | "danger";
 type Size = "sm" | "md" | "lg";
@@ -17,6 +17,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: Size;
   block?: boolean;
   loading?: boolean;
+  ref?: Ref<HTMLButtonElement>;
 }
 
 export function Button({ variant = "secondary", size = "md", block, loading, className, children, disabled, type = "button", ...rest }: ButtonProps) {

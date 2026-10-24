@@ -47,7 +47,17 @@ def test_normalisation_des_variantes_de_telephone(saisie: str) -> None:
 
 @pytest.mark.parametrize(
     "saisie",
-    ["", "12345", "061234567", "06123456789", "0012345678", "+44 7911 123456", "06 12 AB 56 78"],
+    [
+        "",
+        "12345",
+        "061234567",
+        "06123456789",
+        "0012345678",
+        "+44 7911 123456",
+        "06 12 AB 56 78",
+        "06١٢٣٤٥٦٧٨",  # chiffres arabes orientaux
+        "０６１２３４５６７８",  # pleine chasse
+    ],
 )
 def test_telephone_invalide(saisie: str) -> None:
     with pytest.raises(ValueError, match=MESSAGE_TELEPHONE_INVALIDE):
@@ -120,6 +130,16 @@ def test_telephone_invalide_refuse(client_gerant: TestClient) -> None:
 
     assert reponse.status_code == 422
     assert reponse.json()["champs"] == {"telephone": "Numéro de téléphone français invalide."}
+
+
+def test_telephone_en_chiffres_non_ascii_refuse_en_422(client_gerant: TestClient) -> None:
+    reponse = client_gerant.post(
+        "/clients?confirmer_doublon=true",
+        json=_client(telephone="06١٢٣٤٥٦٧٨"),
+    )
+
+    assert reponse.status_code == 422
+    assert reponse.json()["champs"]["telephone"] == MESSAGE_TELEPHONE_INVALIDE
 
 
 def test_email_invalide_refuse(client_gerant: TestClient) -> None:
@@ -214,6 +234,17 @@ def test_client_inconnu_404(client_gerant: TestClient) -> None:
     assert client_gerant.put("/clients/999999", json=_client()).status_code == 404
 
 
+@pytest.mark.parametrize("identifiant", ["2147483648", "99999999999", "-99999999999"])
+def test_identifiant_hors_limites_404(client_gerant: TestClient, identifiant: str) -> None:
+    for reponse in (
+        client_gerant.get(f"/clients/{identifiant}"),
+        client_gerant.put(f"/clients/{identifiant}", json=_client()),
+        client_gerant.get(f"/clients/{identifiant}/vehicules"),
+    ):
+        assert reponse.status_code == 404
+        assert reponse.json()["message"] == "Client introuvable."
+
+
 # --- Liste paginée --------------------------------------------------------------------------
 
 
@@ -241,6 +272,9 @@ def test_pagination_par_defaut_et_bornes(client_gerant: TestClient) -> None:
     assert (defaut["page"], defaut["taille"], defaut["total"]) == (1, 20, 0)
 
     assert client_gerant.get("/clients?page=0").status_code == 422
+    assert client_gerant.get("/clients?page=100000").status_code == 200
+    assert client_gerant.get("/clients?page=100001").status_code == 422
+    assert client_gerant.get("/clients?page=99999999999999999999").status_code == 422
     assert client_gerant.get("/clients?taille=101").status_code == 422
 
 

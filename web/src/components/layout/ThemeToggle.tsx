@@ -41,7 +41,7 @@ export function ThemeToggle() {
 
   const label = theme === "dark" ? "Passer au thème clair" : "Passer au thème sombre";
   return (
-    <button type="button" className="et-btn et-btn-sm" onClick={toggle} aria-label={label} title={label}>
+    <button type="button" className="et-btn" onClick={toggle} aria-label={label} title={label}>
       <Icon name={theme === "dark" ? "sun" : "moon"} />
       <span className="theme-label">{theme === "dark" ? "Thème clair" : "Thème sombre"}</span>
     </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { PAGE_CONNEXION, type SessionReponse } from "@/lib/session";
@@ -17,13 +17,17 @@ export function useSession() {
   return { ...query, utilisateur: query.data?.utilisateur ?? null };
 }
 
+/**
+ * Déconnexion : on quitte d'abord les pages connectées, le cache est vidé à l'arrivée sur
+ * /connexion (voir LoginForm). Vider le cache ici relancerait les requêtes encore affichées,
+ * dont /auth/me : le 401 renverrait vers /connexion?suivant=<page quittée>, et la personne
+ * suivante atterrirait sur la page de l'utilisateur précédent.
+ */
 export function useDeconnexion() {
-  const client = useQueryClient();
   const router = useRouter();
   return useMutation({
     mutationFn: () => apiFetch<void>("/auth/logout", { method: "POST", redirigerSi401: false }),
     onSettled: () => {
-      client.clear();
       router.replace(PAGE_CONNEXION);
     },
   });

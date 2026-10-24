@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LoginForm } from "@/components/auth/LoginForm";
+import { SESSION_KEY, useDeconnexion, useSession } from "@/components/session/useSession";
 import { ApiError, apiFetch } from "@/lib/api";
 import { cheminDeRetour } from "@/lib/session";
 
@@ -14,8 +15,7 @@ function json(status: number, corps: unknown) {
   return new Response(JSON.stringify(corps), { status, headers: { "Content-Type": "application/json" } });
 }
 
-function avecQuery(children: ReactNode) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function avecQuery(children: ReactNode, client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
@@ -81,6 +81,46 @@ describe("formulaire de connexion", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("Saisissez votre e-mail et votre mot de passe.");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("déconnexion", () => {
+  const SESSION = { utilisateur: { id: 1, email: "nadia@garage.test", nom: "Nadia Benali", role: "gerant" } };
+
+  function PiedDeMenu() {
+    const { utilisateur } = useSession();
+    const deconnexion = useDeconnexion();
+    return (
+      <button type="button" onClick={() => deconnexion.mutate()}>
+        Se déconnecter ({utilisateur?.nom})
+      </button>
+    );
+  }
+
+  it("va exactement sur /connexion sans relancer /auth/me", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(SESSION_KEY, SESSION);
+    client.setQueryData(["clients", 1], { elements: [], total: 0, page: 1, taille: 20 });
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    render(avecQuery(<PiedDeMenu />, client));
+
+    await userEvent.setup().click(screen.getByRole("button", { name: /Se déconnecter/ }));
+
+    await vi.waitFor(() => expect(routeur.replace).toHaveBeenCalledWith("/connexion"));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![0]).toBe("/api/auth/logout");
+    expect(routeur.replace).toHaveBeenCalledTimes(1);
+  });
+
+  it("vide le cache à l'arrivée sur la page de connexion", () => {
+    const client = new QueryClient();
+    client.setQueryData(SESSION_KEY, SESSION);
+    client.setQueryData(["clients", 1], { elements: [], total: 0, page: 1, taille: 20 });
+
+    render(avecQuery(<LoginForm suivant="/" />, client));
+
+    expect(client.getQueryCache().getAll()).toHaveLength(0);
   });
 });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type { RefObject } from "react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import type { ClientResume } from "@/lib/clients";
@@ -11,14 +12,17 @@ export interface DoublonDialogProps {
   envoi: boolean;
   onConfirmer: () => void;
   onAnnuler: () => void;
+  /** Bouton d'envoi du formulaire, qui reprend le focus à la fermeture. */
+  retourFocus?: RefObject<HTMLElement | null>;
 }
 
 /** Alerte de doublon : le téléphone saisi appartient déjà à un ou plusieurs clients. */
-export function DoublonDialog({ clients, libelleConfirmer, envoi, onConfirmer, onAnnuler }: DoublonDialogProps) {
+export function DoublonDialog({ clients, libelleConfirmer, envoi, onConfirmer, onAnnuler, retourFocus }: DoublonDialogProps) {
   return (
     <Modal
       titre="Téléphone déjà enregistré"
       onClose={onAnnuler}
+      retourFocus={retourFocus}
       actions={
         <>
           <Button onClick={onAnnuler}>Annuler</Button>

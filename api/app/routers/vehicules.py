@@ -7,11 +7,10 @@ propriétaire ne lui est montré que par son nom.
 from datetime import datetime
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
 from app.clock import date_locale, get_now
 from app.config import Settings, get_settings
-from app.db import get_db
+from app.db import DbSession
 from app.models.utilisateur import Role
 from app.schemas.vehicule import VehiculeEntree, VehiculeSortie
 from app.security.dependances import require_role
@@ -21,7 +20,7 @@ router = APIRouter(prefix="/vehicules", tags=["véhicules"])
 
 
 @router.get("/{vehicule_id}", dependencies=[Depends(require_role(Role.GERANT, Role.MECANICIEN))])
-def consulter(vehicule_id: int, db: Session = Depends(get_db)) -> VehiculeSortie:
+def consulter(vehicule_id: int, db: DbSession) -> VehiculeSortie:
     return VehiculeSortie.model_validate(service.obtenir_vehicule(db, vehicule_id))
 
 
@@ -29,7 +28,7 @@ def consulter(vehicule_id: int, db: Session = Depends(get_db)) -> VehiculeSortie
 def modifier(
     vehicule_id: int,
     entree: VehiculeEntree,
-    db: Session = Depends(get_db),
+    db: DbSession,
     maintenant: datetime = Depends(get_now),
     settings: Settings = Depends(get_settings),
 ) -> VehiculeSortie:

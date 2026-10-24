@@ -70,6 +70,8 @@ def test_normalisation_de_l_immatriculation(saisie: str) -> None:
         "GH-482-KU",
         "123-AB-45",
         "GH_482_KL",
+        "GH-٤٨٢-KL",  # chiffres arabes orientaux
+        "GH-４８２-KL",  # chiffres pleine chasse
     ],
 )
 def test_immatriculation_invalide(saisie: str) -> None:
@@ -146,8 +148,11 @@ def test_immatriculation_en_double_casse_et_tirets_ignores(
     }
 
 
-def test_format_d_immatriculation_invalide(client_gerant: TestClient, client_id: int) -> None:
-    reponse = _ajouter(client_gerant, client_id, immatriculation="AB-000-CD")
+@pytest.mark.parametrize("plaque", ["AB-000-CD", "GH-٤٨٢-KL"])
+def test_format_d_immatriculation_invalide(
+    client_gerant: TestClient, client_id: int, plaque: str
+) -> None:
+    reponse = _ajouter(client_gerant, client_id, immatriculation=plaque)
 
     assert reponse.status_code == 422
     assert reponse.json()["champs"] == {"immatriculation": MESSAGE_IMMATRICULATION_INVALIDE}
@@ -271,6 +276,21 @@ def test_modification_vers_une_plaque_deja_prise(client_gerant: TestClient, clie
 def test_vehicule_inconnu_404(client_gerant: TestClient) -> None:
     assert client_gerant.get("/vehicules/999999").status_code == 404
     assert client_gerant.put("/vehicules/999999", json=_vehicule()).status_code == 404
+
+
+@pytest.mark.parametrize("identifiant", ["2147483648", "99999999999", "-99999999999"])
+def test_identifiant_hors_limites_404(
+    client_gerant: TestClient, client_mecanicien: TestClient, identifiant: str
+) -> None:
+    for reponse in (
+        client_mecanicien.get(f"/vehicules/{identifiant}"),
+        client_gerant.get(f"/vehicules/{identifiant}"),
+        client_gerant.put(f"/vehicules/{identifiant}", json=_vehicule()),
+    ):
+        assert reponse.status_code == 404
+        assert reponse.json()["message"] == "Véhicule introuvable."
+    ajout = client_gerant.post(f"/clients/{identifiant}/vehicules", json=_vehicule())
+    assert ajout.status_code == 404
 
 
 # --- Accès ----------------------------------------------------------------------------------

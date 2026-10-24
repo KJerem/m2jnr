@@ -9,6 +9,9 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une
 - S1.1 Fiche client : création, modification et liste paginée des clients (gérant), nom et téléphone obligatoires, téléphone français normalisé, alerte de doublon de téléphone avec confirmation, consentement aux rappels explicite.
 - S1.2 Fiche véhicule : véhicule rattaché à un client existant, immatriculation SIV normalisée et unique (casse et tirets ignorés), kilométrage entier positif, fiche véhicule lisible par le mécanicien, clients et véhicules de démonstration des maquettes.
 
+### Corrigé
+- Revue du sprint 1 : un compte désactivé n'est plus jamais bloqué (même réponse qu'un e-mail inconnu) ; la transaction est validée avant l'envoi de la réponse ; chiffres non ASCII refusés en 422 pour le téléphone et l'immatriculation ; identifiants et numéro de page hors limites en 404 ou 422 au lieu de 500 ; contraintes CHECK renommées sans double préfixe (migration 0005) ; relancer le seed débloque les comptes de démonstration ; la fenêtre de doublon rend le focus au bouton d'envoi ; la déconnexion mène exactement à `/connexion` ; le proxy exclut tout `/_next` ; cibles de 44 px pour la déconnexion, le thème et la pagination.
+
 ## [sprint-0] — Initiation (26 au 30 octobre 2026)
 
 ### Ajouté
