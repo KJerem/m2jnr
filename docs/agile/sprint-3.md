@@ -1,4 +1,35 @@
-# Sprint 3 — Facturation
+# Sprint 3 — Facturation, MVP complet
+
+**Dates** : 30 novembre au 11 décembre 2026 · **Engagé** : 10 points · **Livré** : 10 points · **Tag** : `sprint-3`
+
+## Objectif
+Le garage chiffre et facture : le gérant établit le devis d'un ordre de travail, calculé
+automatiquement, puis émet une facture PDF numérotée sans trou et non modifiable. Le tableau de bord
+lui donne la journée de l'atelier d'un coup d'œil. Le parcours du MVP est complet, du client à la facture.
+
+## Stories livrées
+| Story | Pts | Branche | Résultat |
+| --- | --- | --- | --- |
+| S4.1 Devis | 5 | `feature/S4.1-devis` | lignes pièces et main-d'œuvre, HT, TVA 20 % et TTC en centimes (arrondi au demi-centime supérieur, identique côté API et côté écran), quantité nulle, négative ou à plus de 2 décimales refusée, gérant seul ; section « Devis — pièces & main-d'œuvre » de la fiche OT (maquette 2), onglets « Devis & factures » |
+| S4.3 Facture PDF | 5 | `feature/S4.3-facture-pdf` | numéro `F-AAAA-nnn` sans trou (compteur verrouillé, testé en concurrence), client, véhicule, garage et lignes figés à l'émission, triggers PostgreSQL d'immuabilité (UPDATE, DELETE, TRUNCATE, INSERT après coup), PDF reportlab avec mentions légales, devis verrouillé une fois facturé |
+| Tableau de bord gérant | — | `feature/tableau-de-bord` | écran de la maquette 4, hors estimation : 5 indicateurs, interventions du jour filtrables, arrivées prévues, « À traiter maintenant » ; rafraîchi toutes les minutes et après chaque action |
+
+Migrations : `0009` (devis, ligne_devis), `0010` (facture, ligne_facture, triggers), `0011`
+(lignes de facture figées). Aller-retour `downgrade base` → `upgrade head` vérifié, `alembic check` sans écart.
+
+Les trois indicateurs de la maquette que l'application ne suit pas (attente pièces, clients sur
+place, clients prévenus) sont remplacés par des données réelles : en retard, rendez-vous du jour,
+prêts à restituer. Le champ de recherche de l'en-tête arrive avec S1.3 (sprint 4).
+
+## Definition of Done
+- [x] Un commit par tâche du backlog, branches fusionnées en `--no-ff`
+- [x] API : 444 tests pytest (255 au sprint 2), ruff, mypy strict — verts, pytest lancé sans pipe
+- [x] Web : 132 tests Vitest (74 au sprint 2), ESLint, TypeScript, build — verts
+- [x] Critères d'acceptation : 168,00 € TTC, maquette 454,80 € TTC, quantité ≤ 0 refusée, mécanicien 403 sur devis, factures, PDF et tableau de bord, aucun montant dans ce qu'il peut lire
+- [x] Facture : totaux identiques au devis, numéros continus, refus de la base vérifié en SQL direct, PDF lu avec pypdf (mentions, montants, caractères)
+- [x] Vérification dans le navigateur à 1024 px, thèmes clair et sombre
+- [x] CHANGELOG à jour
+- [ ] Une tâche par commit : non tenu sur `ba4b16c` et `603ebaf` (correctifs livrés dans des commits `test:`, voir la revue)
 
 ## Revue de code
 Plusieurs relecteurs indépendants (back et sécurité, PDF et conformité, front et accessibilité) ont
@@ -37,3 +68,35 @@ adaptées plutôt que suivies telles quelles :
 Vérifications à la fin de la revue : pytest (444 tests), ruff, ruff format, mypy strict, ESLint,
 TypeScript, Vitest (132 tests), build de production, `alembic check` et aller-retour
 `downgrade base` → `upgrade head` sur la base de test — verts.
+
+## Démo
+1. `nadia@garage.test` : le tableau de bord « Atelier — … » (7 véhicules, 1 prêt à restituer, la
+   Dacia en retard après 12 h 00, « Facturé aujourd'hui » 154,92 € TTC), « À traiter maintenant » :
+   « Facture à établir » pour la Toyota Yaris.
+2. Fiche `OT-2026-003` (Peugeot 308 SW) : le devis de la maquette, 379,00 € HT, 75,80 € de TVA,
+   **454,80 € TTC** ; « Modifier le devis », ajouter une ligne 2 × 40,00 € → totaux recalculés en
+   direct ; quantité « 0 » → « La quantité doit être supérieure à 0. » ; « Générer la facture »
+   désactivé, « Disponible quand l'intervention est « Prêt ». ».
+3. Cas du backlog : sur un OT neuf, devis 2 pièces à 40,00 € + 1 h à 60,00 € → 140,00 € HT,
+   28,00 € de TVA, 168,00 € TTC.
+4. Fiche `OT-2026-006` (Toyota, « Prêt ») : « Générer la facture » → confirmation → `F-2026-003`,
+   devis en lecture seule, « Télécharger le PDF » (mentions légales, échéance à 30 jours,
+   pénalités, indemnité de 40 €).
+5. « Devis & factures », onglet Factures : `F-2025-001`, `F-2026-001` à `F-2026-003`, sans trou.
+6. `karim@garage.test` : pas d'entrée « Devis & factures », fiche OT sans devis ni montant, `/factures` → page 403.
+
+## Rétrospective
+- **Bien** : les montants sont des entiers du début à la fin, avec une seule règle d'arrondi écrite
+  deux fois (Python, TypeScript) et testée sur les mêmes cas ; l'immuabilité de la facture est
+  garantie par la base, pas seulement par l'API. La revue « facturation » a recalculé les montants
+  de son côté et trouvé deux défauts que les tests ne voyaient pas (police du PDF, INSERT de ligne).
+- **À améliorer** : des correctifs trouvés en écrivant les tests sont partis dans les commits
+  `test:` ; la DoD demande désormais un commit `fix(...)` séparé.
+- **À améliorer** : un test Vitest du sprint 1 échouait une fois sur deux (saisie lente dans jsdom) ;
+  corrigé pour toute la suite (`userEvent` sans délai, délai de test global de 20 s) au lieu de
+  rallonges bloc par bloc.
+- **Incident** : la limite d'usage de l'outil a interrompu la revue une fois ; elle a été relancée
+  depuis la reprise du workflow, sans refaire l'implémentation.
+- **Décision pour le sprint 4** : la revue a relevé deux mentions de facture manquantes (adresse du
+  client, date de la prestation, art. 242 nonies A du CGI). Les factures conformes faisant partie
+  des contraintes du projet, elles sont ajoutées au sprint 4 en complément de S4.3.
