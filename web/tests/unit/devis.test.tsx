@@ -1,4 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
@@ -339,5 +341,15 @@ describe("focus clavier de la section devis (revue du sprint 3)", () => {
     const pdf = await screen.findByRole("link", { name: "Télécharger le PDF" });
     expect(pdf).toHaveFocus();
     expect(screen.getByText(/Facture F-2026-001 établie/)).toBeInTheDocument();
+  });
+});
+
+describe("éditeur du devis à 1024 px (revue du sprint 3)", () => {
+  it("garde 168 px au moins à la colonne « Type » : « Main-d'œuvre » n'est plus coupé par le chevron", () => {
+    // Mesuré dans Chromium à 1024 px : le libellé fait 87 px, la flèche native et les marges
+    // du select en prennent environ 70 ; à 140 px, on lisait « Main-d'œuvr ».
+    const css = readFileSync(join(process.cwd(), "src/styles/app.css"), "utf8");
+    const colonnes = /\.devis-ligne \{[^}]*grid-template-columns:\s*minmax\((\d+)px/.exec(css);
+    expect(Number(colonnes?.[1])).toBeGreaterThanOrEqual(168);
   });
 });
