@@ -8,13 +8,14 @@ statut et cochent les tâches ; l'historique enregistre qui a fait quoi.
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy.orm import Session
 
 from app.clock import bornes_jour, date_locale, get_now
 from app.config import Settings, get_settings
 from app.db import ID_MAX, DbSession
-from app.models.ordre_travail import StatutOT
+from app.models.ordre_travail import OrdreTravail, StatutOT
 from app.models.utilisateur import Role, Utilisateur
-from app.schemas.commun import PAGE_MAX, Jour, Page
+from app.schemas.commun import PAGE_MAX, FactureLien, Jour, Page
 from app.schemas.ordre import (
     ChangementStatutEntree,
     OrdreDetail,
@@ -25,6 +26,7 @@ from app.schemas.ordre import (
     resume_ordre,
 )
 from app.security.dependances import require_role
+from app.services import factures as service_factures
 from app.services import ordres as service
 from app.services import transitions
 
@@ -36,6 +38,20 @@ tous_les_roles = require_role(Role.GERANT, Role.MECANICIEN)
 
 def voit_le_contact(utilisateur: Utilisateur) -> bool:
     return utilisateur.role == Role.GERANT
+
+
+def _detail(
+    db: Session, ordre: OrdreTravail, maintenant: datetime, utilisateur: Utilisateur
+) -> OrdreDetail:
+    """Fiche de l'OT ; le gérant y reçoit en plus ses coordonnées client et sa facture."""
+    gerant = utilisateur.role == Role.GERANT
+    facture = service_factures.facture_de_l_ordre(db, ordre.id) if gerant else None
+    return detail_ordre(
+        ordre,
+        maintenant,
+        voir_contact=gerant,
+        facture=FactureLien(id=facture.id, numero=facture.numero) if facture else None,
+    )
 
 
 @router.get("")
@@ -99,8 +115,7 @@ def consulter(
     utilisateur: Utilisateur = Depends(tous_les_roles),
     maintenant: datetime = Depends(get_now),
 ) -> OrdreDetail:
-    ordre = service.obtenir_ordre(db, ordre_id)
-    return detail_ordre(ordre, maintenant, voir_contact=voit_le_contact(utilisateur))
+    return _detail(db, service.obtenir_ordre(db, ordre_id), maintenant, utilisateur)
 
 
 @router.put("/{ordre_id}")
@@ -115,7 +130,7 @@ def modifier(
     # tâche) et « Livré » (plus rien de modifiable) se vérifie sur l'état validé le plus récent.
     ordre = service.obtenir_ordre(db, ordre_id, verrouiller=True)
     ordre = service.modifier_ordre(db, ordre, entree)
-    return detail_ordre(ordre, maintenant, voir_contact=True)
+    return _detail(db, ordre, maintenant, utilisateur)
 
 
 @router.post("/{ordre_id}/statut")
@@ -129,7 +144,7 @@ def changer_statut(
     ordre = service.obtenir_ordre(db, ordre_id, verrouiller=True)
     transitions.changer_statut(ordre, entree.nouveau, utilisateur, maintenant)
     db.flush()
-    return detail_ordre(ordre, maintenant, voir_contact=voit_le_contact(utilisateur))
+    return _detail(db, ordre, maintenant, utilisateur)
 
 
 @router.post("/{ordre_id}/taches/{tache_id}/terminer")
@@ -143,7 +158,7 @@ def terminer_tache(
     ordre = service.obtenir_ordre(db, ordre_id, verrouiller=True)
     transitions.terminer_tache(ordre, tache_id, utilisateur, maintenant)
     db.flush()
-    return detail_ordre(ordre, maintenant, voir_contact=voit_le_contact(utilisateur))
+    return _detail(db, ordre, maintenant, utilisateur)
 
 
 @router.post("/{ordre_id}/taches/{tache_id}/rouvrir")
@@ -157,4 +172,4 @@ def rouvrir_tache(
     ordre = service.obtenir_ordre(db, ordre_id, verrouiller=True)
     transitions.rouvrir_tache(ordre, tache_id)
     db.flush()
-    return detail_ordre(ordre, maintenant, voir_contact=voit_le_contact(utilisateur))
+    return _detail(db, ordre, maintenant, utilisateur)

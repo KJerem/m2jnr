@@ -77,6 +77,8 @@ export interface OrdreDetail extends OrdreResume {
   taches: Tache[];
   /** Chronologique, le plus ancien d'abord. */
   historique: Historique[];
+  /** Facture de l'OT : renseignée pour le gérant seulement (story S4.3). */
+  facture?: { id: number; numero: string } | null;
 }
 
 export interface TacheEntree {

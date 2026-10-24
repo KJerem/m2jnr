@@ -32,6 +32,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 if TYPE_CHECKING:
+    from app.models.facture import Facture
     from app.models.ordre_travail import OrdreTravail
     from app.models.utilisateur import Utilisateur
 
@@ -94,6 +95,11 @@ class Devis(Base):
         order_by="(LigneDevis.position, LigneDevis.id)",
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+    # Facture émise à partir de ce devis (au plus une, story S4.3) : jamais supprimée ni
+    # modifiée par l'ORM (la base refuse UPDATE et DELETE sur une facture).
+    facture: Mapped["Facture | None"] = relationship(
+        back_populates="devis", uselist=False, passive_deletes="all"
     )
 
     def __repr__(self) -> str:

@@ -34,6 +34,7 @@ MESSAGE_DEVIS_EXISTANT = "Cet ordre de travail a déjà un devis : modifiez-le."
 
 CHARGEMENT_DEVIS: tuple[ExecutableOption, ...] = (
     selectinload(Devis.lignes),
+    selectinload(Devis.facture),
     selectinload(Devis.ordre).selectinload(OrdreTravail.vehicule).selectinload(Vehicule.client),
 )
 

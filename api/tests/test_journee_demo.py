@@ -7,8 +7,17 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import HistoriqueStatut, OrdreTravail, RendezVous, StatutOT, Vehicule
+from app.models import (
+    Devis,
+    Facture,
+    HistoriqueStatut,
+    OrdreTravail,
+    RendezVous,
+    StatutOT,
+    Vehicule,
+)
 from app.services.donnees_demo import semer
+from app.services.format import formater_euros
 from tests.conftest import Horloge, connecter
 
 # Lundi 16 novembre 2026, 15 h 00 à Paris.
@@ -113,3 +122,56 @@ def test_planning_et_kanban_de_la_journee(
     assert dacia["en_retard"] is True  # promise à 12 h 00, il est 15 h 00
     atelier = client_gerant.get("/ordres?atelier=true").json()["elements"]
     assert len(atelier) == 8  # les deux révisions de la Peugeot sont livrées d'autres jours
+
+
+# --- Devis et factures de démonstration (story S4.3) ----------------------------------------
+
+
+def test_devis_et_factures_de_demonstration(db: Session) -> None:
+    _semer(db)
+
+    peugeot = _ordre(db, "GH-482-KL", "Bruit au freinage")
+    devis = db.scalars(select(Devis).where(Devis.ordre_travail_id == peugeot.id)).one()
+    assert [(ligne.reference, str(ligne.quantite)) for ligne in devis.lignes] == [
+        ("MO-DIAG", "0.50"),
+        ("MO-FREIN-AV", "1.50"),
+        ("MO-VIDANGE", "0.50"),
+        ("PLQ-308-AV", "1.00"),
+        ("DSQ-308-283", "1.00"),
+        ("HUI-5W30-5L", "1.00"),
+        ("FLT-H-12PT", "1.00"),
+    ]
+    assert (devis.total_ht_centimes, devis.total_tva_centimes, devis.total_ttc_centimes) == (
+        37_900,
+        7_580,
+        45_480,
+    )
+    assert devis.facture is None
+    toyota = _ordre(db, "HB-205-MZ", "Démarrage")
+    assert toyota.statut == StatutOT.TERMINE
+    devis_toyota = db.scalars(select(Devis).where(Devis.ordre_travail_id == toyota.id)).one()
+    assert devis_toyota.facture is None
+
+    factures = db.scalars(select(Facture).order_by(Facture.emise_le)).all()
+    assert [f.numero for f in factures] == ["F-2025-001", "F-2026-001", "F-2026-002"]
+    assert [f.ordre.vehicule.immatriculation for f in factures] == [
+        "GH-482-KL",
+        "GH-482-KL",
+        "FS-341-RD",
+    ]
+    bmw = _ordre(db, "FS-341-RD", "Vidange")
+    assert factures[-1].emise_le == bmw.cloture_le  # facturée à la livraison, aujourd'hui
+    assert all(f.total_ttc_centimes == f.devis.total_ttc_centimes for f in factures)
+
+
+def test_facturation_de_demonstration_rejouable(db: Session) -> None:
+    _semer(db)
+    rapport = _semer(db)
+
+    assert db.scalar(select(func.count()).select_from(Devis)) == 5
+    assert db.scalar(select(func.count()).select_from(Facture)) == 3
+    assert [ligne for ligne in rapport if "facture" in ligne] == [
+        f"À jour : facture F-2025-001 OT-2025-001 ({formater_euros(17_112)} TTC)",
+        f"À jour : facture F-2026-001 OT-2026-001 ({formater_euros(29_820)} TTC)",
+        f"À jour : facture F-2026-002 OT-2026-002 ({formater_euros(15_492)} TTC)",
+    ]

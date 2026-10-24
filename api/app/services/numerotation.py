@@ -19,6 +19,9 @@ from sqlalchemy.orm import Session
 from app.models.compteur import Compteur
 
 TYPE_ORDRE_TRAVAIL = "OT"
+# Factures : compteur de type « FACTURE », numéros préfixés « F » (« F-2026-001 »).
+TYPE_FACTURE = "FACTURE"
+PREFIXE_FACTURE = "F"
 
 
 def formater_numero(type_document: str, annee: int, rang: int) -> str:
@@ -46,6 +49,8 @@ def prochain_rang(db: Session, type_document: str, annee: int) -> int:
     return compteur.dernier
 
 
-def prochain_numero(db: Session, type_document: str, annee: int) -> str:
-    """Numéro complet du prochain document, par exemple « OT-2026-001 »."""
-    return formater_numero(type_document, annee, prochain_rang(db, type_document, annee))
+def prochain_numero(db: Session, type_document: str, annee: int, prefixe: str | None = None) -> str:
+    """Numéro complet du prochain document, par exemple « OT-2026-001 » ; le préfixe vaut le
+    type du compteur sauf mention contraire (type « FACTURE », préfixe « F »)."""
+    rang = prochain_rang(db, type_document, annee)
+    return formater_numero(prefixe or type_document, annee, rang)

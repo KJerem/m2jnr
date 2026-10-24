@@ -16,6 +16,7 @@ from app.schemas.commun import PAGE_MAX, Page
 from app.schemas.devis import DevisDetail, DevisEntree, DevisResume, detail_devis, resume_devis
 from app.security.dependances import require_role
 from app.services import devis as service
+from app.services import factures as service_factures
 from app.services import ordres as service_ordres
 
 gerant_seul = require_role(Role.GERANT)
@@ -73,8 +74,10 @@ def modifier(
     db: DbSession,
     maintenant: datetime = Depends(get_now),
 ) -> DevisDetail:
-    # Verrou du devis : deux enregistrements simultanés s'appliquent l'un après l'autre (et,
-    # à la story S4.3, la facturation attend la fin d'une modification en cours).
+    # Verrou du devis : deux enregistrements simultanés s'appliquent l'un après l'autre, et
+    # une émission de facture en cours passe avant (ou après) la modification, jamais pendant.
     devis = service.obtenir_devis(db, devis_id, verrouiller=True)
+    # Un devis facturé est figé (la facture en est la copie) : 409 « devis_facture ».
+    service_factures.verifier_devis_modifiable(db, devis)
     devis = service.modifier_devis(db, devis, entree.lignes, maintenant)
     return detail_devis(devis)
