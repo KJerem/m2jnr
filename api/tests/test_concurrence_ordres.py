@@ -240,3 +240,39 @@ def test_suppression_d_une_tache_pendant_qu_on_la_coche_sans_erreur_500(
     assert attendait
     assert isinstance(issue[0], AppError)
     assert (issue[0].status_code, issue[0].code) == (404, "introuvable")
+
+
+# --- Deux ouvertures simultanées sur un même véhicule ---------------------------------------
+
+
+def test_deux_ouvertures_simultanees_ne_font_pas_reculer_le_compteur(
+    engine: Engine, donnees: Donnees
+) -> None:
+    def ouvrir_avec(kilometrage: int) -> Callable[[Session], Any]:
+        def _creer(s: Session) -> Any:
+            gerant = s.get_one(Utilisateur, donnees.gerant_id)
+            entree = OrdreEntree.model_validate(
+                {
+                    "vehicule_id": donnees.vehicule_id,
+                    "demande_client": f"Sonde {kilometrage} km.",
+                    "kilometrage_entree": kilometrage,
+                }
+            )
+            return service.creer_ordre(s, entree, gerant, MAINTENANT, ANNEE)
+
+        return _creer
+
+    attendait, issue = en_parallele(
+        engine,
+        ouvrir_avec(KILOMETRAGE_INITIAL + 80),
+        ouvrir_avec(KILOMETRAGE_INITIAL + 70),
+    )
+
+    assert attendait
+    # La seconde lit le compteur validé par la première : 70 km de plus que l'ancien relevé,
+    # mais 10 km de moins que le nouveau → refusée, sur le champ.
+    assert isinstance(issue[0], AppError)
+    assert issue[0].status_code == 422
+    assert set(issue[0].champs) == {"kilometrage_entree"}
+    with nouvelle_session(engine) as s:
+        assert s.get_one(Vehicule, donnees.vehicule_id).kilometrage == KILOMETRAGE_INITIAL + 80

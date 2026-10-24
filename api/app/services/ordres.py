@@ -74,11 +74,20 @@ def obtenir_ordre(db: Session, ordre_id: int, *, verrouiller: bool = False) -> O
     return ordre
 
 
-def vehicule_de_l_ordre(db: Session, vehicule_id: int | None) -> Vehicule:
-    """Véhicule obligatoire : absent → 422, inconnu → 404 (même message, sur le champ)."""
+def vehicule_de_l_ordre(
+    db: Session, vehicule_id: int | None, *, verrouiller: bool = False
+) -> Vehicule:
+    """Véhicule obligatoire : absent → 422, inconnu → 404 (même message, sur le champ).
+
+    `verrouiller` pose SELECT … FOR UPDATE et relit la ligne validée : deux ouvertures
+    simultanées qui relèvent le compteur comparent l'une après l'autre (pas de recul)."""
     if vehicule_id is None:
         raise invalid("vehicule_id", MESSAGE_VEHICULE_OBLIGATOIRE)
-    vehicule = db.get(Vehicule, vehicule_id) if id_possible(vehicule_id) else None
+    vehicule = (
+        db.get(Vehicule, vehicule_id, with_for_update=verrouiller, populate_existing=verrouiller)
+        if id_possible(vehicule_id)
+        else None
+    )
     if vehicule is None:
         raise AppError(
             status.HTTP_404_NOT_FOUND,
@@ -126,8 +135,12 @@ def verifier_modifiable(ordre: OrdreTravail) -> None:
 def creer_ordre(
     db: Session, entree: OrdreEntree, auteur: Utilisateur, maintenant: datetime, annee: int
 ) -> OrdreTravail:
-    """Ouvre un OT. Toutes les vérifications passent AVANT la réservation du numéro."""
-    vehicule = vehicule_de_l_ordre(db, entree.vehicule_id)
+    """Ouvre un OT. Toutes les vérifications passent AVANT la réservation du numéro.
+
+    Verrous, toujours dans cet ordre : véhicule (si un kilométrage est relevé), puis compteur."""
+    vehicule = vehicule_de_l_ordre(
+        db, entree.vehicule_id, verrouiller=entree.kilometrage_entree is not None
+    )
     mecanicien = mecanicien_actif(db, entree.mecanicien_id)
     appliquer_kilometrage_entree(vehicule, entree.kilometrage_entree)
 
