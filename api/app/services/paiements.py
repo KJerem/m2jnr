@@ -123,8 +123,12 @@ def enregistrer_paiement(
     recu = recu_le if recu_le is not None else maintenant
     if recu > maintenant:
         raise invalid("recu_le", MESSAGE_DATE_FUTURE)
-    if recu < facture.emise_le:
+    # Comparaison à la minute : le formulaire envoie « 14:47 » pour une facture émise à
+    # 14 h 47 min 40 s, et le message n'affiche que la minute. Un paiement saisi dans la
+    # minute de l'émission est daté de l'émission, jamais avant elle.
+    if recu < facture.emise_le.replace(second=0, microsecond=0):
         raise invalid("recu_le", message_avant_emission(facture, fuseau))
+    recu = max(recu, facture.emise_le)
     if montant_centimes > reste:
         raise trop_percu(reste)
 
