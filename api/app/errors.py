@@ -70,7 +70,7 @@ def _champ_depuis_loc(loc: tuple[Any, ...]) -> str:
 def _traduire(err: dict[str, Any]) -> str:
     typ = err.get("type", "")
     ctx = err.get("ctx") or {}
-    if typ == "missing":
+    if typ == "missing" or (typ == "string_type" and err.get("input") is None):
         return "Champ obligatoire."
     if typ in ("string_too_short",) and ctx.get("min_length") == 1:
         return "Champ obligatoire."
