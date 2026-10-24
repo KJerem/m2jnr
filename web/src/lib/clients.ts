@@ -15,7 +15,14 @@ export interface ClientResume {
   prenom: string | null;
 }
 
-export interface Client extends ClientResume {
+/** Adresse postale facultative (mention de la facture, art. 242 nonies A du CGI). */
+export interface AdresseClient {
+  adresse: string | null;
+  code_postal: string | null;
+  ville: string | null;
+}
+
+export interface Client extends ClientResume, AdresseClient {
   telephone: string;
   email: string | null;
   consentement_rappels: boolean;
@@ -30,7 +37,7 @@ export interface ClientDetail extends Client {
 }
 
 /** Corps envoyé à POST /clients et PUT /clients/{id}. */
-export interface ClientEntree {
+export interface ClientEntree extends AdresseClient {
   nom: string;
   prenom: string | null;
   telephone: string;
@@ -41,6 +48,13 @@ export interface ClientEntree {
 export const MESSAGE_OBLIGATOIRE = "Champ obligatoire.";
 export const MESSAGE_TELEPHONE = "Numéro de téléphone français invalide.";
 export const MESSAGE_EMAIL = "Adresse e-mail invalide.";
+export const MESSAGE_CODE_POSTAL = "Code postal à 5 chiffres.";
+
+/** « 12 rue des Tilleuls », « 69003 Lyon » : lignes de l'adresse renseignées, sinon []. */
+export function lignesAdresse(client: Partial<AdresseClient>): string[] {
+  const ville = [client.code_postal, client.ville].filter(Boolean).join(" ");
+  return [client.adresse, ville].filter((ligne): ligne is string => Boolean(ligne));
+}
 
 /** Même règle que l'API (services/telephone.py) : 10 chiffres « 0XXXXXXXXX », ou null. */
 export function normaliserTelephone(valeur: string): string | null {
@@ -65,6 +79,12 @@ export const clientSchema = z.object({
     .trim()
     .max(254, "254 caractères maximum.")
     .refine((v) => v === "" || EMAIL.test(v), MESSAGE_EMAIL),
+  adresse: z.string().trim().max(200, "200 caractères maximum."),
+  code_postal: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || /^\d{5}$/.test(v), MESSAGE_CODE_POSTAL),
+  ville: z.string().trim().max(100, "100 caractères maximum."),
   consentement_rappels: z.boolean(),
 });
 
@@ -75,6 +95,9 @@ export const CLIENT_VIDE: ClientFormValues = {
   prenom: "",
   telephone: "",
   email: "",
+  adresse: "",
+  code_postal: "",
+  ville: "",
   // RGPD : jamais coché par défaut.
   consentement_rappels: false,
 };
@@ -85,6 +108,9 @@ export function versFormulaire(client: Client): ClientFormValues {
     prenom: client.prenom ?? "",
     telephone: client.telephone,
     email: client.email ?? "",
+    adresse: client.adresse ?? "",
+    code_postal: client.code_postal ?? "",
+    ville: client.ville ?? "",
     consentement_rappels: client.consentement_rappels,
   };
 }
@@ -95,6 +121,9 @@ export function versEntree(valeurs: ClientFormValues): ClientEntree {
     prenom: valeurs.prenom.trim() || null,
     telephone: valeurs.telephone.trim(),
     email: valeurs.email.trim() || null,
+    adresse: valeurs.adresse.trim() || null,
+    code_postal: valeurs.code_postal.trim() || null,
+    ville: valeurs.ville.trim() || null,
     consentement_rappels: valeurs.consentement_rappels,
   };
 }

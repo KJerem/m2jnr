@@ -5,7 +5,8 @@ import Link from "next/link";
 import { BlocTotaux, TableauDevis } from "@/components/devis/DevisOrdre";
 import { Plate } from "@/components/ui/Plate";
 import { apiFetch } from "@/lib/api";
-import { formatJour, libelleTelechargement, lienPdf, type FactureDetail } from "@/lib/factures";
+import { lignesAdresse } from "@/lib/clients";
+import { formatJour, libelleTelechargement, lienPdf, mentionPrestation, type FactureDetail } from "@/lib/factures";
 import { formatDate, formatKm, formatTelephone, nomComplet } from "@/lib/format";
 import { modele } from "@/lib/ordres";
 import { BadgesPaiement, cleFacture, PaiementsFacture } from "./PaiementsFacture";
@@ -41,6 +42,8 @@ export function FicheFacture({ factureId }: { factureId: number }) {
   }
 
   const { client, vehicule, garage } = facture;
+  const prestation = mentionPrestation(facture.date_prestation, facture.emise_le);
+  const adresse = lignesAdresse(client);
   return (
     <>
       <header className="page-head">
@@ -57,6 +60,7 @@ export function FicheFacture({ factureId }: { factureId: number }) {
             <Link href={`/ordres/${facture.ordre.id}`} className="mono">
               {facture.ordre.numero}
             </Link>
+            {prestation ? ` · ${prestation.charAt(0).toLowerCase()}${prestation.slice(1)}` : null}
           </p>
         </div>
         <div className="actions">
@@ -85,6 +89,13 @@ export function FicheFacture({ factureId }: { factureId: number }) {
             </div>
             <div className="panel-body">
               <p className="strong">{nomComplet(client)}</p>
+              {adresse.length > 0 ? (
+                <address className="adresse">
+                  {adresse.map((ligne) => (
+                    <span key={ligne}>{ligne}</span>
+                  ))}
+                </address>
+              ) : null}
               <dl className="dl">
                 <dt>Téléphone</dt>
                 <dd className="num">{client.telephone ? formatTelephone(client.telephone) : <span className="muted">Non renseigné</span>}</dd>
