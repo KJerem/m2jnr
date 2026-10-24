@@ -15,7 +15,7 @@ from alembic.operations import Operations
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
-from sqlalchemy import Engine, delete, select, text
+from sqlalchemy import Engine, delete, func, select, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
@@ -628,6 +628,39 @@ def test_un_meme_devis_facture_deux_fois_en_meme_temps_une_seule_facture(
         ]
         compteur = s.get_one(Compteur, ("FACTURE", ANNEE))
         assert compteur.dernier == 1
+
+
+def test_la_base_refuse_d_ajouter_une_ligne_a_une_facture_emise(
+    engine: Engine, deux_devis: DonneesFacturation
+) -> None:
+    """Revue du sprint 3 : INSERT dans ligne_facture était accepté après l'émission (une
+    ligne de 1 000,00 € s'ajoutait au PDF, les totaux restant à 168,00 €). Les lignes ne
+    s'ajoutent que dans la transaction qui crée la facture."""
+    with nouvelle_session(engine) as s:
+        emise = _emettre(deux_devis, deux_devis.devis_ids[0])(s)
+        s.commit()
+        facture_id = emise.id
+
+    with nouvelle_session(engine) as s:
+        # Une autre facture créée dans la transaction n'ouvre pas la première aux ajouts.
+        autre = _emettre(deux_devis, deux_devis.devis_ids[1])(s)
+        with pytest.raises(DBAPIError) as erreur, s.begin_nested():
+            s.execute(
+                text(
+                    "INSERT INTO ligne_facture (facture_id, type, designation, quantite,"
+                    " prix_unitaire_ht_centimes, total_ht_centimes, position)"
+                    " VALUES (:id, 'piece', 'ajout frauduleux', 1, 100000, 100000, 99)"
+                ),
+                {"id": facture_id},
+            )
+        assert getattr(erreur.value.orig, "sqlstate", None) == "ET001"
+        assert "facture immuable" in str(erreur.value.orig)
+        s.commit()
+        assert len(autre.lignes) == len(LIGNES_BACKLOG)
+
+    with nouvelle_session(engine) as s:
+        lignes = s.scalars(select(func.count()).where(LigneFacture.facture_id == facture_id)).one()
+        assert lignes == len(LIGNES_BACKLOG)
 
 
 def test_echeance_selon_le_delai_de_paiement_configure(

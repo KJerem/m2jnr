@@ -7,7 +7,8 @@ facture émise, et son PDF reste identique.
 
 Une facture ne se modifie ni ne se supprime : des triggers PostgreSQL refusent UPDATE, DELETE
 et TRUNCATE sur `facture` et `ligne_facture` (SQLSTATE ET001, « facture immuable »), même en
-dehors de l'API. Les relations ci-dessous ne propagent donc aucune suppression.
+dehors de l'API ; une ligne ne s'ajoute que dans la transaction qui crée sa facture
+(migration 0011). Les relations ci-dessous ne propagent donc aucune suppression.
 """
 
 from datetime import date, datetime
