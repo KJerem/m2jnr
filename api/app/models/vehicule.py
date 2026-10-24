@@ -3,7 +3,7 @@
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, Integer, String
+from sqlalchemy import CheckConstraint, Date, ForeignKey, Index, Integer, String, literal_column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base, TimestampMixin
@@ -29,6 +29,13 @@ class Vehicule(TimestampMixin, Base):
         CheckConstraint(f"vin IS NULL OR vin ~ '{REGEX_VIN_SQL}'", name="vin_format"),
         CheckConstraint("char_length(btrim(marque)) > 0", name="marque_non_vide"),
         CheckConstraint("char_length(btrim(modele)) > 0", name="modele_non_vide"),
+        # Recherche (story S1.3, migration 0013) : trigrammes de la plaque sans tirets.
+        Index(
+            "ix_vehicule_immatriculation_trgm",
+            literal_column("replace(immatriculation, '-', '')").label("plaque_compacte"),
+            postgresql_using="gin",
+            postgresql_ops={"plaque_compacte": "gin_trgm_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

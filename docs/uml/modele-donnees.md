@@ -169,6 +169,7 @@ erDiagram
 | Un devis facturé au plus une fois | `facture.devis_id` unique |
 | Au plus un devis non refusé par OT | index unique partiel `uq_devis_ordre_non_refuse` (`WHERE statut <> 'refuse'`) |
 | Statut du devis cohérent avec ses dates | `CHECK statut_coherent` (brouillon sans envoi, envoyé daté, décision datée) |
+| Recherche sans accents ni casse, par morceau de nom, de téléphone ou de plaque | extension `unaccent`, fonction IMMUTABLE `etabli_normaliser`, index GIN `pg_trgm` (nom + prénom, téléphone, plaque sans tirets) |
 
 ## Statuts de l'ordre de travail
 
