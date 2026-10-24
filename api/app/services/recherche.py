@@ -5,7 +5,8 @@ Une seule saisie, plusieurs lectures (`analyser_requete`, fonction pure) :
   de la casse (« helene » trouve « Hélène ») ; recherche « contient » servie par l'index
   trigrammes de la migration 0013 ;
 - téléphone : une saisie faite de chiffres (espaces, points, tirets, parenthèses et « +33 »
-  permis) cherche les numéros qui contiennent ces chiffres ; « +33 » et « 0033 » valent 0 ;
+  permis) cherche les numéros qui contiennent ces chiffres ; « +33 » et « 0033 » valent 0,
+  y compris suivis du 0 national (« +33 (0)6 … ») ;
 - immatriculation : lettres et chiffres mêlés, tirets facultatifs, casse ignorée
   (« gh482kl » trouve « GH-482-KL ») ; les OT du véhicule sont aussi proposés ;
 - numéro d'OT (« OT-2026-003 », « 2026-003 ») et de facture (« F-2026-001 ») : par début de
@@ -98,10 +99,11 @@ def _telephone(texte: str) -> str | None:
     if "+" in compact[1:] or (compact.startswith("+") and not compact.startswith("+33")):
         return None
     chiffres = re.sub(r"[^0-9]", "", compact)
-    if compact.startswith("+33"):
-        chiffres = "0" + chiffres[2:]
-    elif chiffres.startswith("0033"):
-        chiffres = "0" + chiffres[4:]
+    if compact.startswith("+33") or chiffres.startswith("0033"):
+        national = chiffres[2:] if compact.startswith("+33") else chiffres[4:]
+        # « +33 (0)6 … » et « +33 06 … » : le 0 national écrit après l'indicatif ne compte
+        # qu'une fois.
+        chiffres = "0" + national.removeprefix("0")
     return chiffres if len(chiffres) >= LONGUEUR_MIN else None
 
 

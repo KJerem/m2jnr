@@ -91,6 +91,9 @@ def _noms(resultats: dict[str, Any]) -> list[str]:
         ("4830", "4830"),
         ("Diallo", None),
         ("GH482KL", None),
+        ("+33 (0)6 12 48 30 75", "0612483075"),
+        ("0033 (0)6 12 48", "061248"),
+        ("+33 0612", "0612"),
         ("+44 20 7946", None),
         ("06+12", None),
     ],
@@ -200,7 +203,15 @@ def test_clients_par_pertinence_puis_par_nom(client_gerant: TestClient, db: Sess
 
 
 @pytest.mark.parametrize(
-    "saisie", ["06 12 48", "+33 6 12 48 30 75", "0033612483075", "06.12.48.30.75", "483075"]
+    "saisie",
+    [
+        "06 12 48",
+        "+33 6 12 48 30 75",
+        "+33 (0)6 12 48 30 75",
+        "0033612483075",
+        "06.12.48.30.75",
+        "483075",
+    ],
 )
 def test_telephone_complet_ou_partiel(
     client_gerant: TestClient, fichier: dict[str, Any], saisie: str
@@ -339,7 +350,17 @@ def test_cent_caracteres_acceptes(client_gerant: TestClient) -> None:
     assert _chercher(client_gerant, "x" * 100)["clients"] == []
 
 
-@pytest.mark.parametrize("saisie", ["%%", "__", "%_", "\\%", "a%", "_e"])
+@pytest.mark.parametrize(
+    "saisie",
+    [
+        "%%",
+        "__",
+        "%_",
+        "\\%",
+        "a%",
+        "_e",
+    ],
+)
 def test_jokers_like_pris_a_la_lettre(
     client_gerant: TestClient, fichier: dict[str, Any], saisie: str
 ) -> None:
