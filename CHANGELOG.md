@@ -4,6 +4,9 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une
 
 ## [Non publié]
 
+### Ajouté
+- S4.1 Devis : chiffrage d'un ordre de travail par le gérant en lignes « pièce » et « main-d'œuvre » (référence, désignation, quantité à deux décimales, prix unitaire HT) ; total de ligne, HT, TVA 20 % et TTC calculés en centimes sans erreur d'arrondi (demi-centime arrondi au-dessus, 2 × 40 € + 1 h × 60 € = 168,00 € TTC, devis de la maquette = 454,80 € TTC) et enregistrés ; quantité nulle, négative ou à plus de deux décimales refusée (422), devis sans ligne refusé ; un devis courant par OT (409 sinon), modification qui remplace les lignes et recalcule, verrous contre les enregistrements simultanés ; routes réservées au gérant (403 pour le mécanicien, qui ne reçoit jamais de montant) ; section « Devis — pièces & main-d'œuvre » de la fiche d'OT avec lignes dynamiques et totaux recalculés en direct, page « Devis & factures » (onglets Devis et Factures) dans le menu du gérant.
+
 ## [sprint-2] — Atelier (16 au 27 novembre 2026)
 
 ### Ajouté

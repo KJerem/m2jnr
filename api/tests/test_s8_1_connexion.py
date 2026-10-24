@@ -252,12 +252,20 @@ def test_mecanicien_refuse_sur_devis_et_factures(
     }
 
 
-@pytest.mark.parametrize("chemin", ["/devis", "/factures"])
-def test_gerant_accede_aux_devis_et_factures(client_gerant: TestClient, chemin: str) -> None:
+@pytest.mark.parametrize(
+    ("chemin", "attendu"),
+    [
+        ("/devis", {"elements": [], "total": 0, "page": 1, "taille": 50}),
+        ("/factures", []),
+    ],
+)
+def test_gerant_accede_aux_devis_et_factures(
+    client_gerant: TestClient, chemin: str, attendu: object
+) -> None:
     reponse = client_gerant.get(chemin)
 
     assert reponse.status_code == 200
-    assert reponse.json() == []
+    assert reponse.json() == attendu
 
 
 # --- CSRF ----------------------------------------------------------------------------------

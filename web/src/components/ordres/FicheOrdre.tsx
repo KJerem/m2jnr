@@ -3,6 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
+import { DevisOrdre } from "@/components/devis/DevisOrdre";
 import { useSession } from "@/components/session/useSession";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Plate } from "@/components/ui/Plate";
@@ -36,6 +37,7 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
   const gerant = utilisateur?.role === "gerant";
   const queryClient = useQueryClient();
   const [edition, setEdition] = useState(false);
+  const [editionDevis, setEditionDevis] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const { data: ordre, isPending, isError, error } = useOrdre(ordreId);
   const mecaniciens = useMecaniciens();
@@ -91,7 +93,7 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
         </div>
         <div className="actions">
           {ordre.statut !== "livre" ? <ButtonLink href={`/ordres/${ordre.id}/tablette`}>Vue tablette atelier</ButtonLink> : null}
-          {modifiable && !edition ? (
+          {modifiable && !edition && !editionDevis ? (
             <Button
               onClick={() => {
                 setMessage(null);
@@ -101,7 +103,7 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
               Modifier
             </Button>
           ) : null}
-          {prochain && !edition ? (
+          {prochain && !edition && !editionDevis ? (
             <>
               {bloque ? (
                 <span className="caption" id="fiche-restantes">
@@ -160,6 +162,8 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
             <>
               <DemandeDiagnostic ordre={ordre} />
               <Travaux ordre={ordre} />
+              {/* Montants réservés au gérant : la section n'existe pas pour le mécanicien. */}
+              {gerant ? <DevisOrdre ordre={ordre} onEditionChange={setEditionDevis} /> : null}
             </>
           )}
         </div>
