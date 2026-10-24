@@ -63,4 +63,14 @@ export function formatDureeHeures(minutes: number): string {
   return `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(minutes / 60)}${NBSP}h`;
 }
 
+/** « 0612345678 » vers « 06 12 34 56 78 » (espaces insécables : le numéro ne se coupe pas). */
+export function formatTelephone(telephone: string): string {
+  return /^\d{10}$/.test(telephone) ? (telephone.match(/\d{2}/g) ?? []).join(NBSP) : telephone;
+}
+
+/** « Laurent », « Claire » vers « Claire Laurent ». */
+export function nomComplet(personne: { nom: string; prenom?: string | null }): string {
+  return [personne.prenom, personne.nom].filter(Boolean).join(" ");
+}
+
 export { NBSP, NNBSP };
