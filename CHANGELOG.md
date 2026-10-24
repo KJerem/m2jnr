@@ -4,6 +4,8 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une
 
 ## [Non publié]
 
+## [sprint-2] — Atelier (16 au 27 novembre 2026)
+
 ### Ajouté
 - S3.1 Ordre de travail : ouverture d'un OT par le gérant, numéro `OT-AAAA-nnn` unique et consécutif (compteur verrouillé dans la transaction, sans trou même en cas d'annulation ou de création simultanée, année de Paris), véhicule obligatoire, demande du client, diagnostic, tâches prévues, mécanicien facultatif, kilométrage d'entrée reporté sur le véhicule, restitution prévue ; liste filtrée par statut, formulaire avec lignes de tâches dynamiques, fiche de l'OT (maquette du détail), bouton « Nouvel ordre de travail » sur la fiche véhicule ; coordonnées du client réservées au gérant.
 - S3.2 Statut et kanban : statuts « En attente » → « En cours » → « Prêt » → « Livré », une étape à la fois sans retour (409 sinon), « Prêt » seulement quand toutes les tâches sont terminées, chaque changement horodaté avec son auteur dans le suivi de l'OT (historique créé dès l'ouverture), tâches cochées par le gérant ou le mécanicien ; page « Suivi atelier » en kanban avec un bouton « Passer à … » par carte, vue tablette atelier (grandes cases, « Terminer l'intervention »), « Mes travaux » à l'accueil du mécanicien.
