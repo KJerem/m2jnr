@@ -46,6 +46,7 @@ la démo, il montre une journée crédible. Remise à zéro complète de la base
 docker compose exec api alembic downgrade base
 docker compose exec api alembic upgrade head
 docker compose exec api python -m app.cli seed
+docker compose restart api web    # les connexions ouvertes gardent des requêtes préparées sur l'ancien schéma
 ```
 
 Autres commandes : `python -m app.cli init-db` (schéma) et
@@ -235,6 +236,8 @@ Méthode : [Definition of Done](docs/agile/definition-of-done.md),
 - **Accents abîmés dans un fichier (PowerShell)** : `Set-Content` et `Out-File` écrivent par
   défaut dans l'encodage du système ou avec une marque BOM. Éditer les fichiers avec un éditeur
   réglé en UTF-8 sans BOM et fins de ligne LF (voir `.editorconfig` et `.gitattributes`).
+- **Erreur 500 « cached plan must not change result type » après une remise à zéro** : l'API
+  a gardé des connexions préparées sur l'ancien schéma ; `docker compose restart api`.
 - **Compte de démonstration bloqué** : relancer `docker compose exec api python -m app.cli seed`.
 - **La base de test est vide ou dans un état inattendu** : elle vit en mémoire ; pytest la
   recrée par les migrations à chaque session, ou `docker compose restart db-test`.

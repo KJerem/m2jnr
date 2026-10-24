@@ -21,7 +21,7 @@ docker compose up -d --build
 docker compose exec api alembic downgrade base
 docker compose exec api alembic upgrade head
 docker compose exec api python -m app.cli seed     # le matin même : la journée est datée du jour
-docker compose restart web
+docker compose restart api web                      # connexions et pages repartent du nouveau schéma
 cd web && npm run e2e                               # recette verte : 5 parcours
 ```
 
@@ -72,6 +72,7 @@ onglet par écran pour éviter la première compilation des pages en direct.
   docker compose exec api alembic downgrade base
   docker compose exec api alembic upgrade head
   docker compose exec api python -m app.cli seed
+  docker compose restart api web
   ```
 
 - **Compte bloqué** : relancer le seed (débloque les comptes de démonstration).
