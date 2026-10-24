@@ -39,7 +39,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     # DROP COLUMN ne déclenche pas non plus les triggers de ligne de la facture.
     op.drop_column("facture", "date_prestation")
-    op.drop_constraint("ck_client_code_postal_format", "client", type_="check")
+    op.drop_constraint(op.f("ck_client_code_postal_format"), "client", type_="check")
     op.drop_column("client", "ville")
     op.drop_column("client", "code_postal")
     op.drop_column("client", "adresse")
