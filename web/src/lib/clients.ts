@@ -1,5 +1,6 @@
 /** Fiche client : types de l'API, validation du formulaire (mêmes règles que l'API). */
 import { z } from "zod";
+import type { VehiculeResume } from "./vehicules";
 
 export interface Page<T> {
   elements: T[];
@@ -21,6 +22,11 @@ export interface Client extends ClientResume {
   nombre_vehicules: number;
   cree_le: string;
   modifie_le: string;
+}
+
+/** Fiche complète renvoyée par GET /clients/{id}. */
+export interface ClientDetail extends Client {
+  vehicules: VehiculeResume[];
 }
 
 /** Corps envoyé à POST /clients et PUT /clients/{id}. */
