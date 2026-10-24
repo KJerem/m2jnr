@@ -9,7 +9,7 @@ entreprise peut partager un numéro.
 from dataclasses import dataclass
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.errors import conflict, not_found
 from app.models.client import Client
@@ -90,6 +90,7 @@ def lister_clients(db: Session, page: int, taille: int) -> PageClients:
     total = db.scalar(select(func.count()).select_from(Client)) or 0
     requete = (
         select(Client)
+        .options(selectinload(Client.vehicules))
         .order_by(func.lower(Client.nom), func.lower(func.coalesce(Client.prenom, "")), Client.id)
         .offset((page - 1) * taille)
         .limit(taille)

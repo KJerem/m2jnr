@@ -71,7 +71,9 @@ def test_creation_d_un_client(client_gerant: TestClient) -> None:
     assert corps["email"] == "claire.laurent@exemple.test"
     assert corps["consentement_rappels"] is False
     assert corps["nombre_vehicules"] == 0
-    assert client_gerant.get(f"/clients/{corps['id']}").json() == corps
+    fiche = client_gerant.get(f"/clients/{corps['id']}").json()
+    assert fiche.pop("vehicules") == []
+    assert fiche == corps
 
 
 def test_consentement_aux_rappels_faux_par_defaut(client_gerant: TestClient) -> None:

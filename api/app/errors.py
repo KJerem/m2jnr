@@ -77,7 +77,9 @@ def _traduire(err: dict[str, Any]) -> str:
     if typ == "value_error":
         # Les validateurs métier lèvent ValueError avec un message déjà en français.
         return str(ctx.get("error", err.get("msg", "Valeur invalide.")))
-    if typ in ("int_parsing", "int_type", "float_parsing", "decimal_parsing"):
+    if typ in ("int_parsing", "int_type", "int_from_float"):
+        return "Nombre entier attendu."
+    if typ in ("float_parsing", "float_type", "decimal_parsing", "decimal_type"):
         return "Nombre attendu."
     egal = " ou égal" if "equal" in typ else ""
     if typ.startswith("greater_than"):
@@ -88,7 +90,7 @@ def _traduire(err: dict[str, Any]) -> str:
         return f"{ctx.get('max_length')} caractères maximum."
     if typ == "string_too_short":
         return f"{ctx.get('min_length')} caractères minimum."
-    if typ in ("datetime_parsing", "datetime_from_date_parsing", "date_parsing"):
+    if typ.startswith(("date", "datetime")):
         return "Date invalide."
     if typ == "enum" or typ == "literal_error":
         return "Valeur non autorisée."
