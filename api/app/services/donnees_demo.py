@@ -3,7 +3,8 @@
 Les mots de passe viennent du fichier .env (DEMO_PASSWORD_GERANT, DEMO_PASSWORD_MECANICIEN) :
 aucun secret n'est écrit dans le code. Les clients et véhicules reprennent ceux des maquettes ;
 téléphones et e-mails sont inventés (domaine réservé exemple.test). La journée d'atelier
-(ordres de travail, rendez-vous, historique) est décrite dans journee_demo.py.
+(ordres de travail, rendez-vous, historique) est décrite dans journee_demo.py, ses devis et
+factures dans facturation_demo.py.
 """
 
 from dataclasses import dataclass
@@ -19,6 +20,7 @@ from app.models.utilisateur import Role
 from app.models.vehicule import Vehicule
 from app.schemas.client import ClientEntree
 from app.schemas.vehicule import VehiculeEntree
+from app.services.facturation_demo import semer_facturation
 from app.services.journee_demo import semer_journee
 from app.services.utilisateurs import CompteDemo, enregistrer_compte
 
@@ -142,8 +144,9 @@ def enregistrer_fiche(db: Session, fiche: FicheDemo) -> bool:
 
 
 def semer(db: Session, settings: Settings, maintenant: datetime | None = None) -> list[str]:
-    """Charge les comptes, clients, véhicules et la journée d'atelier de démonstration
-    (datée par rapport à `maintenant`, l'heure courante par défaut) ; renvoie un compte rendu."""
+    """Charge les comptes, clients, véhicules, la journée d'atelier, ses devis et ses factures
+    de démonstration (datés par rapport à `maintenant`, l'heure courante par défaut) ; renvoie
+    un compte rendu."""
     if not settings.demo_password_gerant or not settings.demo_password_mecanicien:
         raise SeedImpossibleError(
             "DEMO_PASSWORD_GERANT et DEMO_PASSWORD_MECANICIEN doivent être renseignés dans .env."
@@ -162,5 +165,7 @@ def semer(db: Session, settings: Settings, maintenant: datetime | None = None) -
             f"{'Créé' if cree else 'À jour'} : {v.marque} {v.modele} {v.immatriculation}"
             f" ({c.prenom} {c.nom})"
         )
-    rapport += semer_journee(db, maintenant or get_now(), settings.timezone)
+    instant = maintenant or get_now()
+    rapport += semer_journee(db, instant, settings.timezone)
+    rapport += semer_facturation(db, instant, settings)
     return rapport
