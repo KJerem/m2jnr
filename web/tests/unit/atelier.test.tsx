@@ -33,6 +33,7 @@ const ORDRE: OrdreDetail = {
   taches_total: 2,
   duree_prevue_minutes: 120,
   en_retard: false,
+  rendez_vous: null,
   demande_client: "Bruit au freinage",
   diagnostic: null,
   kilometrage_entree: null,
