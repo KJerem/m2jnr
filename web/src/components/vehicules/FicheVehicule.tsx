@@ -6,19 +6,22 @@ import { useState } from "react";
 import { useSession } from "@/components/session/useSession";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { Onglets } from "@/components/ui/Onglets";
 import { Plate } from "@/components/ui/Plate";
 import { apiFetch } from "@/lib/api";
 import { formatDate, formatKm, nomComplet } from "@/lib/format";
 import { versFormulaireVehicule, type Vehicule, type VehiculeEntree } from "@/lib/vehicules";
+import { HistoriqueVehicule } from "./HistoriqueVehicule";
 import { VehiculeForm } from "./VehiculeForm";
 
-/** Fiche véhicule : lecture pour le mécanicien, modification pour le gérant. */
+/** Fiche véhicule : onglets « Informations » et « Historique » ; modification pour le gérant. */
 export function FicheVehicule({ vehiculeId }: { vehiculeId: number }) {
   const { utilisateur } = useSession();
   const gerant = utilisateur?.role === "gerant";
   const queryClient = useQueryClient();
   const [edition, setEdition] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [onglet, setOnglet] = useState("informations");
   const cle = ["vehicules", vehiculeId] as const;
   const { data: vehicule, isPending, isError, error } = useQuery({
     queryKey: cle,
@@ -67,6 +70,7 @@ export function FicheVehicule({ vehiculeId }: { vehiculeId: number }) {
             <Button
               onClick={() => {
                 setMessage(null);
+                setOnglet("informations");
                 setEdition(true);
               }}
             >
@@ -84,44 +88,70 @@ export function FicheVehicule({ vehiculeId }: { vehiculeId: number }) {
         {message}
       </p>
 
-      <section className="panel" aria-labelledby="titre-vehicule">
-        <div className="panel-head">
-          <h2 id="titre-vehicule">Caractéristiques</h2>
-        </div>
-        <div className="panel-body">
-          {edition ? (
-            <VehiculeForm
-              mode="modification"
-              valeursInitiales={versFormulaireVehicule(vehicule)}
-              envoyer={modifier}
-              onSucces={(maj) => {
-                queryClient.setQueryData(cle, maj);
-                void queryClient.invalidateQueries({ queryKey: ["clients"] });
-                setEdition(false);
-                setMessage("Véhicule enregistré.");
-              }}
-              onAnnuler={() => setEdition(false)}
-            />
-          ) : (
-            <dl className="dl">
-              <dt>Immatriculation</dt>
-              <dd className="mono">{vehicule.immatriculation}</dd>
-              <dt>Marque et modèle</dt>
-              <dd>
-                {vehicule.marque} {vehicule.modele}
-              </dd>
-              <dt>VIN</dt>
-              <dd className="mono">{vehicule.vin ?? <span className="muted">Non renseigné</span>}</dd>
-              <dt>Kilométrage</dt>
-              <dd className="mono">{formatKm(vehicule.kilometrage)}</dd>
-              <dt>Mise en circulation</dt>
-              <dd>{vehicule.date_mise_en_circulation ? formatDate(vehicule.date_mise_en_circulation) : <span className="muted">Non renseignée</span>}</dd>
-              <dt>Propriétaire</dt>
-              <dd>{gerant ? <Link href={`/clients/${vehicule.proprietaire.id}`}>{proprietaire}</Link> : proprietaire}</dd>
-            </dl>
-          )}
-        </div>
-      </section>
+      <Onglets
+        label="Fiche du véhicule"
+        actif={onglet}
+        onChange={setOnglet}
+        onglets={[
+          {
+            id: "informations",
+            libelle: "Informations",
+            contenu: (
+              <section className="panel" aria-labelledby="titre-vehicule">
+                <div className="panel-head">
+                  <h2 id="titre-vehicule">Caractéristiques</h2>
+                </div>
+                <div className="panel-body">
+                  {edition ? (
+                    <VehiculeForm
+                      mode="modification"
+                      valeursInitiales={versFormulaireVehicule(vehicule)}
+                      envoyer={modifier}
+                      onSucces={(maj) => {
+                        queryClient.setQueryData(cle, maj);
+                        void queryClient.invalidateQueries({ queryKey: ["clients"] });
+                        setEdition(false);
+                        setMessage("Véhicule enregistré.");
+                      }}
+                      onAnnuler={() => setEdition(false)}
+                    />
+                  ) : (
+                    <dl className="dl">
+                      <dt>Immatriculation</dt>
+                      <dd className="mono">{vehicule.immatriculation}</dd>
+                      <dt>Marque et modèle</dt>
+                      <dd>
+                        {vehicule.marque} {vehicule.modele}
+                      </dd>
+                      <dt>VIN</dt>
+                      <dd className="mono">{vehicule.vin ?? <span className="muted">Non renseigné</span>}</dd>
+                      <dt>Kilométrage</dt>
+                      <dd className="mono">{formatKm(vehicule.kilometrage)}</dd>
+                      <dt>Mise en circulation</dt>
+                      <dd>{vehicule.date_mise_en_circulation ? formatDate(vehicule.date_mise_en_circulation) : <span className="muted">Non renseignée</span>}</dd>
+                      <dt>Propriétaire</dt>
+                      <dd>{gerant ? <Link href={`/clients/${vehicule.proprietaire.id}`}>{proprietaire}</Link> : proprietaire}</dd>
+                    </dl>
+                  )}
+                </div>
+              </section>
+            ),
+          },
+          {
+            id: "historique",
+            libelle: "Historique",
+            contenu: (
+              <section className="panel" aria-labelledby="titre-historique">
+                <div className="panel-head">
+                  <h2 id="titre-historique">Interventions</h2>
+                  <span className="caption">De la plus récente à la plus ancienne</span>
+                </div>
+                <HistoriqueVehicule vehiculeId={vehicule.id} />
+              </section>
+            ),
+          },
+        ]}
+      />
     </>
   );
 }
