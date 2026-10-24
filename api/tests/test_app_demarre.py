@@ -4,10 +4,11 @@ from collections.abc import Iterator
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.types import Message, Receive, Scope, Send
 
-from app.db import get_db
+from app.db import Base, get_db
 from app.models import Utilisateur
 from tests.conftest import connecter, preparer_csrf
 
@@ -69,3 +70,27 @@ def test_transaction_validee_avant_l_envoi_de_la_reponse(
 
     assert reponse.status_code == 201
     assert evenements == ["session", "commit", "réponse"]
+
+
+# --- Schéma : noms des contraintes (revue du sprint 1) --------------------------------------
+
+
+def test_noms_des_contraintes_en_base_identiques_au_modele(db: Session) -> None:
+    """Alembic ne compare pas les contraintes CHECK : ce test détecte une dérive de nom."""
+    attendus = {
+        (table.name, str(contrainte.name))
+        for table in Base.metadata.sorted_tables
+        for contrainte in table.constraints
+        if contrainte.name is not None
+    }
+    en_base = {
+        (str(table), str(nom))
+        for table, nom in db.execute(
+            text(
+                "SELECT conrelid::regclass::text, conname FROM pg_constraint "
+                "WHERE connamespace = 'public'::regnamespace AND conrelid <> 0"
+            )
+        )
+        if table != "alembic_version"
+    }
+    assert en_base == attendus
