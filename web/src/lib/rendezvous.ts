@@ -24,9 +24,12 @@ export interface RendezVous {
 
 export interface ElementPlanning {
   type: "rendez_vous" | "ordre";
+  /** Début du créneau ; pour un report, minuit du jour affiché (le report vient en tête). */
   heure: string;
   rendez_vous: RendezVous;
   ordre: OrdreResume | null;
+  /** Rendez-vous d'un jour précédent dont l'OT n'est pas livré : le véhicule est encore sur le pont. */
+  report: boolean;
 }
 
 export interface PontPlanning extends Pont {
@@ -100,6 +103,21 @@ export function versEntreeRendezVous(v: RendezVousFormValues): RendezVousEntree 
 /** « 9 h 00 – 10 h 30 ». */
 export function formatCreneau(debut: string, fin: string): string {
   return `${formatHeure(debut)} – ${formatHeure(fin)}`;
+}
+
+/** Créneau d'un report : « Reporté du mar. 3 nov. (9 h 00 – 10 h 00) ». */
+export function libelleReport(rdv: Pick<RendezVous, "debut" | "fin">): string {
+  return `Reporté du ${formatDateCourte(rdv.debut)} (${formatCreneau(rdv.debut, rdv.fin)})`;
+}
+
+/**
+ * Jour du planning à lire pour « Ensuite sur ce pont » : celui du rendez-vous, ou aujourd'hui
+ * si le rendez-vous date d'un jour précédent (l'OT y figure alors en report).
+ */
+export function jourDuPont(debutRendezVous: string, maintenant: Date = new Date()): string {
+  const jourRdv = aujourdHui(new Date(debutRendezVous));
+  const jour = aujourdHui(maintenant);
+  return jourRdv > jour ? jourRdv : jour;
 }
 
 /** Jour « AAAA-MM-JJ » vers « jeu. 22 oct. » (midi UTC : le même jour à Paris). */

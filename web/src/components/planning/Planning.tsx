@@ -8,7 +8,7 @@ import { StatusBadge, type BadgeStatus } from "@/components/ui/StatusBadge";
 import { apiFetch } from "@/lib/api";
 import { nomComplet } from "@/lib/format";
 import { formatDureeHM, modele } from "@/lib/ordres";
-import { decalerJour, formatCreneau, formatJour, type ElementPlanning, type Planning as DonneesPlanning, type PontPlanning, type RendezVous } from "@/lib/rendezvous";
+import { decalerJour, formatCreneau, formatJour, libelleReport, type ElementPlanning, type Planning as DonneesPlanning, type PontPlanning, type RendezVous } from "@/lib/rendezvous";
 import { aujourdHui } from "@/lib/vehicules";
 
 export function usePlanning(jour: string) {
@@ -38,12 +38,13 @@ export function CarteRendezVous({ rdv }: { rdv: RendezVous }) {
   );
 }
 
-/** Créneau du planning : la carte de l'OT s'il est ouvert, sinon le rendez-vous. */
+/** Créneau du planning : la carte de l'OT s'il est ouvert, sinon le rendez-vous ; un report rappelle son jour d'origine. */
 export function ElementDuPlanning({ element, lienTablette }: { element: ElementPlanning; lienTablette?: boolean }) {
   if (element.type === "ordre" && element.ordre) {
+    const { debut, fin } = element.rendez_vous;
     return (
       <div className="stack-xs">
-        <p className="carte-rdv-creneau num">{formatCreneau(element.rendez_vous.debut, element.rendez_vous.fin)}</p>
+        <p className="carte-rdv-creneau num">{element.report ? libelleReport(element.rendez_vous) : formatCreneau(debut, fin)}</p>
         <CarteOrdre ordre={element.ordre} href={lienTablette ? `/ordres/${element.ordre.id}/tablette` : undefined} />
       </div>
     );
