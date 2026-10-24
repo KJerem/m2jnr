@@ -2,13 +2,17 @@
 
 - devis de la Peugeot du jour : exactement les lignes de la maquette (454,80 € TTC), non
   facturé (l'intervention est en cours) ;
-- devis de la Toyota « Prêt », non facturé : il apparaît dans « Facture à établir » ;
+- devis de la Toyota « Prêt », accepté et non facturé : il apparaît dans « Facture à
+  établir » (story S4.2 : seul un devis accepté se facture) ;
 - devis et factures des OT livrés, dans l'ordre chronologique : Peugeot de l'an dernier
   (F-AAAA-001 de l'an dernier), Peugeot d'avril (F-AAAA-001), BMW livrée aujourd'hui
   (F-AAAA-002), pour que « Facturé aujourd'hui » ne soit pas nul.
 
-Rejouable : un devis existant n'est jamais modifié, une facture n'est jamais recréée ni
-modifiée (la base l'interdit de toute façon) ; on vérifie leur existence avant de créer.
+Statuts : un devis facturé est d'abord envoyé puis accepté (dates entre sa création et
+l'émission de la facture). Rejouable : les lignes d'un devis existant ne sont jamais
+modifiées, son statut ne fait qu'avancer jusqu'au statut prévu, une facture n'est jamais
+recréée ni modifiée (la base l'interdit de toute façon) ; on vérifie leur existence avant de
+créer.
 """
 
 from dataclasses import dataclass
@@ -18,13 +22,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.models.devis import Devis
+from app.models.devis import Devis, StatutDevis
 from app.models.ordre_travail import OrdreTravail, StatutOT
 from app.models.utilisateur import Utilisateur
 from app.models.vehicule import Vehicule
 from app.schemas.devis import LigneEntree
 from app.services import devis as service_devis
 from app.services import factures as service_factures
+from app.services import statut_devis
 from app.services.format import formater_euros
 from app.services.journee_demo import GERANT
 
@@ -43,6 +48,8 @@ class DevisDemo:
     plaque: str
     demande: str
     lignes: tuple[LigneDemo, ...]
+    # Statut visé ; un devis d'OT livré (à facturer) est toujours accepté.
+    statut: StatutDevis = StatutDevis.BROUILLON
 
 
 def _mo(reference: str, designation: str, heures: str, prix: int = 7200) -> LigneDemo:
@@ -106,6 +113,7 @@ DEVIS_DEMO: tuple[DevisDemo, ...] = (
             _piece("HUI-0W20-4L", "Huile moteur 0W20, bidon 4 L", 3850),
             _piece("FLT-H-YARIS", "Filtre à huile", 980),
         ),
+        StatutDevis.ACCEPTE,
     ),
 )
 
@@ -133,6 +141,19 @@ def _lignes(demo: DevisDemo) -> list[LigneEntree]:
     ]
 
 
+def _faire_avancer(devis: Devis, vise: StatutDevis, gerant: Utilisateur, limite: datetime) -> None:
+    """Avance le devis jusqu'au statut visé (jamais en arrière) : envoyé 5 min après sa
+    création, décidé 15 min plus tard, sans dépasser `limite` (livraison ou maintenant)."""
+    if vise == StatutDevis.BROUILLON or devis.statut == vise:
+        return
+    if devis.statut == StatutDevis.BROUILLON:
+        envoi = min(devis.cree_le + timedelta(minutes=5), limite)
+        statut_devis.changer_statut_devis(devis, StatutDevis.ENVOYE, gerant, envoi)
+    if vise != StatutDevis.ENVOYE and devis.statut == StatutDevis.ENVOYE and devis.envoye_le:
+        decision = max(min(devis.envoye_le + timedelta(minutes=15), limite), devis.envoye_le)
+        statut_devis.changer_statut_devis(devis, vise, gerant, decision)
+
+
 def semer_facturation(db: Session, maintenant: datetime, settings: Settings) -> list[str]:
     """Crée les devis puis les factures de démonstration manquants ; renvoie un compte rendu."""
     gerant = db.scalars(select(Utilisateur).where(Utilisateur.email == GERANT)).one()
@@ -150,11 +171,16 @@ def semer_facturation(db: Session, maintenant: datetime, settings: Settings) -> 
             devis = service_devis.creer_devis(
                 db, ordre, _lignes(demo), gerant, min(moment, maintenant)
             )
+        livre = ordre.statut == StatutOT.LIVRE and ordre.cloture_le is not None
+        vise = StatutDevis.ACCEPTE if livre else demo.statut
+        _faire_avancer(devis, vise, gerant, min(ordre.cloture_le or maintenant, maintenant))
+        db.flush()
         rapport.append(
             f"{'Créé' if cree else 'À jour'} : devis {ordre.numero}"
-            f" ({formater_euros(devis.total_ttc_centimes)} TTC)"
+            f" ({formater_euros(devis.total_ttc_centimes)} TTC,"
+            f" {statut_devis.LIBELLES_STATUT_DEVIS[devis.statut].lower()})"
         )
-        if ordre.statut == StatutOT.LIVRE and ordre.cloture_le is not None:
+        if livre:
             a_facturer.append((ordre, devis))
 
     # Factures dans l'ordre des livraisons : numéros chronologiques par année de Paris.

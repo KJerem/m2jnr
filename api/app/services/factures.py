@@ -1,9 +1,15 @@
 """Factures : émission à partir d'un devis, consultation, liste (story S4.3).
 
 Règles :
-- une facture s'établit sur un devis qui a au moins une ligne, quand l'intervention est
-  terminée (OT « Prêt » ou « Livré ») ; un devis n'est facturé qu'une fois (409 sinon, avec
-  le numéro de la facture existante) ;
+- une facture s'établit sur un devis accepté par le client (story S4.2) qui a au moins une
+  ligne, quand l'intervention est terminée (OT « Prêt » ou « Livré ») ; un devis n'est
+  facturé qu'une fois (409 sinon, avec le numéro de la facture existante) ;
+- ordre des contrôles, tous avant la réservation du numéro (le premier qui échoue répond) :
+  1. devis déjà facturé → 409 `devis_deja_facture` (le cas le plus précis : la facture
+     existe, on donne son numéro) ;
+  2. devis non accepté → 409 `devis_non_accepte` ;
+  3. devis sans ligne → 409 `devis_vide` ;
+  4. intervention ni « Prêt » ni « Livré » → 409 `ordre_non_termine` ;
 - le numéro « F-AAAA-nnn » (année du jour à Paris) est réservé dans la MÊME transaction que
   la facture : une émission annulée annule aussi l'incrément, aucun numéro ne manque ;
 - le client, le véhicule, les mentions du garage, les lignes et les montants sont recopiés ;
@@ -35,6 +41,7 @@ from app.models.ordre_travail import OrdreTravail, StatutOT
 from app.models.utilisateur import Utilisateur
 from app.services import calcul_devis
 from app.services.numerotation import PREFIXE_FACTURE, TYPE_FACTURE, prochain_numero
+from app.services.statut_devis import verifier_accepte
 
 MESSAGE_FACTURE_INTROUVABLE = "Facture introuvable."
 MESSAGE_DEJA_FACTURE = "Ce devis est déjà facturé."
@@ -144,6 +151,7 @@ def etablir_facture(
             facture_id=existante.id,
             numero=existante.numero,
         )
+    verifier_accepte(devis)
     if not devis.lignes:
         raise conflict("devis_vide", MESSAGE_DEVIS_VIDE)
     ordre = devis.ordre

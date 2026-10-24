@@ -3,7 +3,7 @@
 from app.db import Base
 from app.models.client import Client
 from app.models.compteur import Compteur
-from app.models.devis import Devis, LigneDevis, TypeLigne
+from app.models.devis import Devis, LigneDevis, StatutDevis, TypeLigne
 from app.models.facture import Facture, LigneFacture
 from app.models.ordre_travail import HistoriqueStatut, OrdreTravail, StatutOT, TacheOT
 from app.models.pont import Pont
@@ -24,6 +24,7 @@ __all__ = [
     "Pont",
     "RendezVous",
     "Role",
+    "StatutDevis",
     "StatutOT",
     "TacheOT",
     "TypeLigne",

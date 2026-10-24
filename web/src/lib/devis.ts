@@ -1,5 +1,5 @@
 /**
- * Devis (story S4.1) : types de l'API, formulaire et calcul en direct.
+ * Devis (stories S4.1 et S4.2) : types de l'API, statut, formulaire et calcul en direct.
  *
  * Le calcul reprend exactement la règle de l'API (app/services/calcul_devis.py) en entiers :
  * quantité en centièmes, prix en centimes, total de ligne = arrondi au centime (le demi-centime
@@ -7,10 +7,68 @@
  * produits passent par BigInt. Les totaux affichés après l'enregistrement sont ceux de l'API.
  */
 import { z } from "zod";
-import { formatEuros, NBSP, parseEurosToCentimes } from "./format";
+import type { BadgeStatus } from "@/components/ui/StatusBadge";
+import { formatDateHeure, formatEuros, NBSP, parseEurosToCentimes } from "./format";
 import type { StatutOT } from "./statuts";
 
 export type TypeLigne = "piece" | "main_oeuvre";
+
+/** Statut du devis (story S4.2) : brouillon → envoyé → accepté ou refusé. */
+export type StatutDevis = "brouillon" | "envoye" | "accepte" | "refuse";
+
+export const LIBELLE_DEVIS: Record<StatutDevis, string> = {
+  brouillon: "Brouillon",
+  envoye: "Envoyé",
+  accepte: "Accepté",
+  refuse: "Refusé",
+};
+
+/**
+ * Badges du design system : brouillon = anneau « attente » (rien n'est encore parti),
+ * envoyé = « en-cours » (on attend la réponse du client), accepté = « pret » (vert, la
+ * facture peut suivre), refusé = couleur « danger » du badge urgent (losange). Le mot
+ * accompagne toujours la pastille.
+ */
+export const BADGE_DEVIS: Record<StatutDevis, BadgeStatus> = {
+  brouillon: "attente",
+  envoye: "en-cours",
+  accepte: "pret",
+  refuse: "urgent",
+};
+
+export const MESSAGE_DEVIS_VERROUILLE = "Ce devis a été envoyé : il ne se modifie plus. Refusé, il peut être remplacé par un nouveau devis.";
+/** Aucun e-mail ni SMS n'est envoyé par l'application (hors périmètre du MVP). */
+export const AIDE_ENVOI =
+  "L'application n'envoie ni e-mail ni SMS : remettez le devis au client (papier, téléphone ou messagerie du garage), puis marquez-le comme envoyé.";
+
+/** Aide sous la phrase d'état, selon le statut. */
+export const AIDE_STATUT_DEVIS: Record<StatutDevis, string> = {
+  brouillon: AIDE_ENVOI,
+  envoye: MESSAGE_DEVIS_VERROUILLE,
+  accepte: "Le devis accepté ne se modifie plus : la facture le reprendra à l'identique.",
+  refuse: "Un nouveau devis reprend les lignes de celui-ci, à ajuster avant de le remettre au client.",
+};
+
+/** Seul un brouillon se modifie (même règle que l'API). */
+export function devisModifiable(devis: Pick<DevisDetail, "statut" | "facture">): boolean {
+  return devis.statut === "brouillon" && !devis.facture;
+}
+
+/** Phrase d'état sous le devis : « Envoyé au client le mar. 22 déc. à 10 h 15, en attente de sa réponse. » */
+export function phraseStatutDevis(devis: Pick<DevisDetail, "statut" | "envoye_le" | "decide_le" | "decide_par">): string {
+  const le = (iso: string | null) => (iso ? ` le ${formatDateHeure(iso)}` : "");
+  const par = devis.decide_par ? `, noté par ${devis.decide_par.nom}` : "";
+  switch (devis.statut) {
+    case "brouillon":
+      return "Brouillon : le devis se modifie librement.";
+    case "envoye":
+      return `Envoyé au client${le(devis.envoye_le)}, en attente de sa réponse.`;
+    case "accepte":
+      return `Accepté par le client${le(devis.decide_le)}${par}.`;
+    case "refuse":
+      return `Refusé par le client${le(devis.decide_le)}${par}.`;
+  }
+}
 
 export const LIBELLE_TYPE_LIGNE: Record<TypeLigne, string> = {
   main_oeuvre: "Main-d'œuvre",
@@ -45,6 +103,10 @@ export interface FactureLien {
 export interface DevisDetail {
   id: number;
   ordre: { id: number; numero: string; statut: StatutOT };
+  statut: StatutDevis;
+  envoye_le: string | null;
+  decide_le: string | null;
+  decide_par: { id: number; nom: string } | null;
   lignes: LigneDevis[];
   taux_tva_bp: number;
   totaux: TotauxDevis;
@@ -58,6 +120,9 @@ export interface DevisResume {
   ordre: { id: number; numero: string; statut: StatutOT };
   vehicule: { id: number; immatriculation: string; marque: string; modele: string; kilometrage: number };
   client: { id: number; nom: string; prenom: string | null };
+  statut: StatutDevis;
+  envoye_le: string | null;
+  decide_le: string | null;
   total_ht_centimes: number;
   total_ttc_centimes: number;
   cree_le: string;

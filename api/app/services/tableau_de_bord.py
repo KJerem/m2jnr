@@ -12,8 +12,8 @@ lendemain[ sont calculées dans le fuseau du garage (journées de 23 ou 25 heure
 - interventions du jour (mêmes OT que le kanban : non livrés et livrés aujourd'hui) :
   urgentes ou en retard d'abord, puis par heure de restitution, les livrées à la fin ;
 - arrivées prévues : rendez-vous du jour qui commencent après maintenant ;
-- à traiter : retards, factures à établir (OT « Prêt » ou « Livré » dont le devis courant
-  n'est pas facturé), OT sans mécanicien.
+- à traiter : retards, factures à établir (devis accepté, non facturé, d'un OT « Prêt » ou
+  « Livré »), devis à faire valider (envoyés au client, sans réponse), OT sans mécanicien.
 """
 
 from collections.abc import Sequence
@@ -26,7 +26,7 @@ from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.clock import bornes_jour, date_locale
-from app.models.devis import Devis
+from app.models.devis import Devis, StatutDevis
 from app.models.facture import Facture
 from app.models.ordre_travail import OrdreTravail, StatutOT
 from app.models.pont import Pont
@@ -46,7 +46,7 @@ from app.services.format import (
 INTERVENTIONS_MAX = 200
 STATUTS_FACTURABLES = (StatutOT.TERMINE, StatutOT.LIVRE)
 
-TypeATraiter = Literal["retard", "facture_a_etablir", "non_affecte"]
+TypeATraiter = Literal["retard", "facture_a_etablir", "devis_a_valider", "non_affecte"]
 
 
 @dataclass(frozen=True)
@@ -182,23 +182,39 @@ def _retards(
     return elements
 
 
+CHARGEMENT_DEVIS_ORDRE = (
+    selectinload(Devis.ordre).selectinload(OrdreTravail.vehicule).selectinload(Vehicule.client),
+)
+
+
 def devis_a_facturer(db: Session) -> list[Devis]:
-    """Devis courants (les plus récents de leur OT) non facturés d'un OT « Prêt » ou
-    « Livré », en une requête (et leurs OT, véhicules et clients en trois autres)."""
-    courants = select(func.max(Devis.id).label("id")).group_by(Devis.ordre_travail_id).subquery()
+    """Devis acceptés et non facturés d'un OT « Prêt » ou « Livré » (story S4.2 : seul un
+    devis accepté se facture), en une requête (et leurs OT, véhicules et clients en trois
+    autres)."""
     return list(
         db.scalars(
             select(Devis)
-            .join(courants, courants.c.id == Devis.id)
             .join(Devis.ordre)
             .outerjoin(Facture, Facture.devis_id == Devis.id)
-            .where(Facture.id.is_(None), OrdreTravail.statut.in_(STATUTS_FACTURABLES))
-            .options(
-                selectinload(Devis.ordre)
-                .selectinload(OrdreTravail.vehicule)
-                .selectinload(Vehicule.client)
+            .where(
+                Facture.id.is_(None),
+                Devis.statut == StatutDevis.ACCEPTE,
+                OrdreTravail.statut.in_(STATUTS_FACTURABLES),
             )
+            .options(*CHARGEMENT_DEVIS_ORDRE)
             .order_by(OrdreTravail.cloture_le.asc().nulls_first(), Devis.id)
+        )
+    )
+
+
+def devis_a_valider(db: Session) -> list[Devis]:
+    """Devis envoyés au client et encore sans réponse, du plus ancien envoi au plus récent."""
+    return list(
+        db.scalars(
+            select(Devis)
+            .where(Devis.statut == StatutDevis.ENVOYE)
+            .options(*CHARGEMENT_DEVIS_ORDRE)
+            .order_by(Devis.envoye_le, Devis.id)
         )
     )
 
@@ -211,6 +227,33 @@ def _factures_a_etablir(devis: Sequence[Devis]) -> list[ATraiter]:
             detail=(
                 f"{_nom(d.ordre)} · {_vehicule(d.ordre)} · {d.ordre.numero}"
                 f" · {formater_euros(d.total_ttc_centimes)} TTC"
+            ),
+            ordre_id=d.ordre.id,
+            numero=d.ordre.numero,
+        )
+        for d in devis
+    ]
+
+
+def _envoi(envoye_le: datetime, jour: date, fuseau: str) -> str:
+    """« envoyé à 11 h 05 » aujourd'hui, « envoyé le ven. 23 oct. à 11 h 05 » sinon."""
+    heure = formater_heure(envoye_le, fuseau)
+    jour_envoi = date_locale(envoye_le, fuseau)
+    if jour_envoi == jour:
+        return f"envoyé à {heure}"
+    return f"envoyé le {formater_date_courte(jour_envoi)} à {heure}"
+
+
+def _devis_a_valider(devis: Sequence[Devis], jour: date, fuseau: str) -> list[ATraiter]:
+    return [
+        ATraiter(
+            type="devis_a_valider",
+            titre="Devis à faire valider",
+            detail=(
+                f"{_nom(d.ordre)} · {_vehicule(d.ordre)} · {formater_euros(d.total_ttc_centimes)}"
+                f" TTC {_envoi(d.envoye_le, jour, fuseau)}"
+                if d.envoye_le
+                else f"{_nom(d.ordre)} · {_vehicule(d.ordre)}"
             ),
             ordre_id=d.ordre.id,
             numero=d.ordre.numero,
@@ -288,6 +331,7 @@ def tableau_de_bord(db: Session, maintenant: datetime, fuseau: str) -> TableauDe
     a_traiter = (
         _retards(interventions, maintenant, jour, fuseau)
         + _factures_a_etablir(devis_a_facturer(db))
+        + _devis_a_valider(devis_a_valider(db), jour, fuseau)
         + _non_affectes(interventions)
     )
     return TableauDeBord(

@@ -15,7 +15,7 @@ export interface Arrivee {
 }
 
 export interface ATraiter {
-  type: "retard" | "facture_a_etablir" | "non_affecte";
+  type: "retard" | "facture_a_etablir" | "devis_a_valider" | "non_affecte";
   titre: string;
   detail: string;
   ordre_id: number;

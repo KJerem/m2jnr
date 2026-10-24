@@ -38,7 +38,7 @@ class ArriveeSortie(BaseModel):
 
 
 class ATraiterSortie(BaseModel):
-    type: Literal["retard", "facture_a_etablir", "non_affecte"]
+    type: Literal["retard", "facture_a_etablir", "devis_a_valider", "non_affecte"]
     titre: str
     detail: str
     ordre_id: int

@@ -5,8 +5,10 @@ Règles (story S4.1) :
 - au moins une ligne, au plus 100 ; quantité > 0 à deux décimales, prix unitaire ≥ 0 ;
 - les totaux (lignes, HT, TVA, TTC) sont toujours recalculés par app/services/calcul_devis.py
   et enregistrés : le front affiche ceux renvoyés par l'API ;
-- un OT porte un devis courant (le plus récent) : en créer un second est refusé (409) tant
-  que le statut du devis (story S4.2) ne permet pas de remplacer un devis refusé ;
+- un OT porte au plus un devis non refusé (story S4.2) : en créer un second est refusé
+  (409 `devis_existant`) ; quand tous ses devis sont refusés, un nouveau devis le remplace.
+  Le devis « courant » est le devis non refusé, à défaut le dernier refusé ;
+- seul un brouillon se modifie (app/services/statut_devis.py) ;
 - deux enregistrements simultanés s'appliquent l'un après l'autre : la création verrouille
   l'OT, la modification verrouille le devis (SELECT … FOR UPDATE).
 """
@@ -15,38 +17,59 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.sql.base import ExecutableOption
 
 from app.db import id_possible
 from app.errors import conflict, not_found
-from app.models.devis import TAUX_TVA_NORMAL_BP, Devis, LigneDevis
+from app.models.devis import TAUX_TVA_NORMAL_BP, Devis, LigneDevis, StatutDevis
 from app.models.ordre_travail import OrdreTravail
 from app.models.utilisateur import Utilisateur
 from app.models.vehicule import Vehicule
 from app.schemas.devis import LigneEntree
 from app.services import calcul_devis
+from app.services.statut_devis import LIBELLES_STATUT_DEVIS
 
 MESSAGE_DEVIS_INTROUVABLE = "Devis introuvable."
 MESSAGE_AUCUN_DEVIS = "Aucun devis pour cet ordre de travail."
 MESSAGE_DEVIS_EXISTANT = "Cet ordre de travail a déjà un devis : modifiez-le."
 
+
+def message_devis_existant(statut: StatutDevis) -> str:
+    """Message du 409 `devis_existant` selon le statut du devis déjà là."""
+    if statut == StatutDevis.BROUILLON:
+        return MESSAGE_DEVIS_EXISTANT
+    return (
+        f"Cet ordre de travail a déjà un devis « {LIBELLES_STATUT_DEVIS[statut]} » : "
+        "un nouveau devis n'est possible qu'après un refus du client."
+    )
+
+
 CHARGEMENT_DEVIS: tuple[ExecutableOption, ...] = (
     selectinload(Devis.lignes),
     selectinload(Devis.facture),
+    selectinload(Devis.decideur),
     selectinload(Devis.ordre).selectinload(OrdreTravail.vehicule).selectinload(Vehicule.client),
 )
 
 
 def devis_courant(db: Session, ordre_id: int) -> Devis | None:
-    """Devis le plus récent de l'OT, ou None."""
+    """Devis non refusé de l'OT (au plus un), à défaut le dernier refusé, ou None."""
+    refuse_en_dernier = case((Devis.statut == StatutDevis.REFUSE, 1), else_=0)
     return db.scalars(
         select(Devis)
         .where(Devis.ordre_travail_id == ordre_id)
         .options(*CHARGEMENT_DEVIS)
-        .order_by(Devis.id.desc())
+        .order_by(refuse_en_dernier, Devis.id.desc())
         .limit(1)
+    ).first()
+
+
+def devis_non_refuse(db: Session, ordre_id: int) -> Devis | None:
+    """Devis de l'OT qui n'a pas été refusé (l'index unique partiel en garantit un au plus)."""
+    return db.scalars(
+        select(Devis).where(Devis.ordre_travail_id == ordre_id, Devis.statut != StatutDevis.REFUSE)
     ).first()
 
 
@@ -93,10 +116,15 @@ def creer_devis(
     maintenant: datetime,
 ) -> Devis:
     """Chiffre l'OT (verrouillé par l'appelant : deux créations simultanées ne font pas deux
-    devis)."""
-    existant = devis_courant(db, ordre.id)
+    devis) ; possible tant qu'aucun devis de l'OT n'est en cours (tous refusés ou aucun)."""
+    existant = devis_non_refuse(db, ordre.id)
     if existant is not None:
-        raise conflict("devis_existant", MESSAGE_DEVIS_EXISTANT, devis_id=existant.id)
+        raise conflict(
+            "devis_existant",
+            message_devis_existant(existant.statut),
+            devis_id=existant.id,
+            statut=existant.statut.value,
+        )
     devis = Devis(
         ordre=ordre,
         taux_tva_bp=TAUX_TVA_NORMAL_BP,
@@ -113,7 +141,8 @@ def creer_devis(
 def modifier_devis(
     db: Session, devis: Devis, lignes: Sequence[LigneEntree], maintenant: datetime
 ) -> Devis:
-    """Remplace les lignes du devis (verrouillé par l'appelant) et recalcule les totaux."""
+    """Remplace les lignes du devis (verrouillé par l'appelant, encore brouillon) et
+    recalcule les totaux."""
     _appliquer_lignes(devis, lignes)
     devis.modifie_le = maintenant
     db.flush()

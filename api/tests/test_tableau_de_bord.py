@@ -12,10 +12,12 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.models import (
     Client,
+    Devis,
     OrdreTravail,
     Pont,
     RendezVous,
     Role,
+    StatutDevis,
     StatutOT,
     Utilisateur,
     Vehicule,
@@ -23,6 +25,7 @@ from app.models import (
 from app.schemas.devis import DevisEntree
 from app.services import devis as service_devis
 from app.services import factures as service_factures
+from app.services.statut_devis import changer_statut_devis
 from app.services.tableau_de_bord import formater_retard, variation_pct
 from tests.conftest import Horloge, MakeUser
 from tests.test_s4_1_devis import LIGNES_BACKLOG
@@ -81,11 +84,18 @@ def fabrique(db: Session, gerant: Utilisateur, make_user: MakeUser) -> Callable[
     return _ordre
 
 
+def _accepte(devis: Devis, gerant: Utilisateur) -> Devis:
+    """Envoyé puis accepté à la date de sa création (seul un devis accepté se facture)."""
+    changer_statut_devis(devis, StatutDevis.ENVOYE, gerant, devis.cree_le)
+    changer_statut_devis(devis, StatutDevis.ACCEPTE, gerant, devis.cree_le)
+    return devis
+
+
 def _facturer(
     db: Session, ordre: OrdreTravail, gerant: Utilisateur, emise: datetime, lignes: Any = None
 ) -> int:
     entree = DevisEntree.model_validate({"lignes": lignes or LIGNES_BACKLOG})
-    devis = service_devis.creer_devis(db, ordre, entree.lignes, gerant, emise)
+    devis = _accepte(service_devis.creer_devis(db, ordre, entree.lignes, gerant, emise), gerant)
     facture = service_factures.etablir_facture(db, devis, gerant, emise, get_settings())
     return facture.total_ttc_centimes
 
@@ -127,7 +137,8 @@ def test_indicateurs_et_listes_de_la_journee(
     livre_du_jour = fabrique(statut=StatutOT.LIVRE, ouvert=utc(2, 6, 35), cloture=utc(2, 9, 15))
     livre_hier = fabrique(statut=StatutOT.LIVRE, ouvert=utc(1, 7), cloture=utc(1, 16))
     entree = DevisEntree.model_validate({"lignes": LIGNES_BACKLOG})
-    service_devis.creer_devis(db, pret, entree.lignes, gerant, utc(2, 9))  # facture à établir
+    # Devis accepté, non facturé : facture à établir.
+    _accepte(service_devis.creer_devis(db, pret, entree.lignes, gerant, utc(2, 9)), gerant)
     assert _facturer(db, livre_du_jour, gerant, utc(2, 9, 20)) == 16_800
     # Lundi précédent (26 octobre, heure d'hiver) : 150,00 € TTC facturés.
     lignes_150 = [{"type": "piece", "designation": "Pièce", "quantite": "1",

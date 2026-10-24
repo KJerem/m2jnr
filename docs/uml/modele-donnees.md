@@ -105,7 +105,10 @@ erDiagram
     DEVIS {
         int id PK
         int ordre_travail_id FK
-        enum statut "brouillon | envoye | accepte | refuse (sprint 4)"
+        enum statut "brouillon | envoye | accepte | refuse"
+        timestamptz envoye_le "null tant que brouillon"
+        timestamptz decide_le "acceptation ou refus"
+        int decide_par FK "auteur de la décision"
         int taux_tva_bp "2000 = 20 %"
         int total_ht_centimes
         int total_tva_centimes
@@ -164,6 +167,8 @@ erDiagram
 | Facture non modifiable | trigger `BEFORE UPDATE OR DELETE` qui lève une exception |
 | Quantité > 0, prix ≥ 0, kilométrage ≥ 0, durée > 0 | contraintes `CHECK` |
 | Un devis facturé au plus une fois | `facture.devis_id` unique |
+| Au plus un devis non refusé par OT | index unique partiel `uq_devis_ordre_non_refuse` (`WHERE statut <> 'refuse'`) |
+| Statut du devis cohérent avec ses dates | `CHECK statut_coherent` (brouillon sans envoi, envoyé daté, décision datée) |
 
 ## Statuts de l'ordre de travail
 
@@ -181,3 +186,21 @@ stateDiagram-v2
 Correspondance avec les badges du design system : `a_faire` → « En attente » (anneau),
 `en_cours` → « En cours », `termine` → « Prêt », `livre` → « Livré ». `prioritaire = true` ajoute le
 badge « Urgent » (losange) et la bande jaune `signal` sur la carte.
+
+## Statuts du devis
+
+Story S4.2. Seul un brouillon se modifie ; seul un devis accepté se facture ; un devis refusé
+peut être remplacé par un nouveau devis sur le même OT.
+
+```mermaid
+stateDiagram-v2
+    [*] --> brouillon
+    brouillon --> envoye : marqué envoyé au client
+    envoye --> accepte : accepté par le client
+    envoye --> refuse : refusé par le client
+    accepte --> [*] : facturé
+    refuse --> [*]
+```
+
+Badges : `brouillon` → « Brouillon » (anneau, `attente`), `envoye` → « Envoyé » (`en-cours`),
+`accepte` → « Accepté » (`pret`), `refuse` → « Refusé » (`urgent`, couleur `danger`).

@@ -1,4 +1,5 @@
-"""Schémas du devis (story S4.1) : lignes saisies par le gérant, devis calculé renvoyé."""
+"""Schémas du devis (stories S4.1 et S4.2) : lignes saisies par le gérant, devis calculé et
+son statut renvoyés."""
 
 from datetime import datetime
 from decimal import Decimal
@@ -6,10 +7,10 @@ from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, BeforeValidator, Field, StringConstraints
 
-from app.models.devis import Devis, LigneDevis, TypeLigne
+from app.models.devis import Devis, LigneDevis, StatutDevis, TypeLigne
 from app.models.ordre_travail import StatutOT
 from app.schemas.commun import FactureLien, SansControle, vide_vers_none
-from app.schemas.ordre import VehiculeOrdre
+from app.schemas.ordre import UtilisateurResume, VehiculeOrdre
 from app.services.calcul_devis import (
     LIGNES_MAX,
     PRIX_UNITAIRE_MAX_CENTIMES,
@@ -54,6 +55,12 @@ class DevisEntree(BaseModel):
     lignes: Annotated[list[LigneEntree], AfterValidator(_nombre_de_lignes)]
 
 
+class ChangementStatutDevisEntree(BaseModel):
+    """POST /devis/{id}/statut : « envoye », « accepte » ou « refuse »."""
+
+    nouveau: StatutDevis
+
+
 # --- Sorties -------------------------------------------------------------------------------
 
 
@@ -92,6 +99,10 @@ class ClientDuDevis(BaseModel):
 class DevisDetail(BaseModel):
     id: int
     ordre: OrdreDuDevis
+    statut: StatutDevis
+    envoye_le: datetime | None
+    decide_le: datetime | None
+    decide_par: UtilisateurResume | None
     lignes: list[LigneSortie]
     taux_tva_bp: int
     totaux: TotauxSortie
@@ -107,6 +118,9 @@ class DevisResume(BaseModel):
     ordre: OrdreDuDevis
     vehicule: VehiculeOrdre
     client: ClientDuDevis
+    statut: StatutDevis
+    envoye_le: datetime | None
+    decide_le: datetime | None
     total_ht_centimes: int
     total_ttc_centimes: int
     cree_le: datetime
@@ -158,6 +172,10 @@ def detail_devis(devis: Devis) -> DevisDetail:
     return DevisDetail(
         id=devis.id,
         ordre=_ordre(devis),
+        statut=devis.statut,
+        envoye_le=devis.envoye_le,
+        decide_le=devis.decide_le,
+        decide_par=UtilisateurResume.model_validate(devis.decideur) if devis.decideur else None,
         lignes=[sortie_ligne(ligne) for ligne in devis.lignes],
         taux_tva_bp=devis.taux_tva_bp,
         totaux=totaux_enregistres(devis),
@@ -175,6 +193,9 @@ def resume_devis(devis: Devis) -> DevisResume:
         ordre=_ordre(devis),
         vehicule=VehiculeOrdre.model_validate(vehicule),
         client=ClientDuDevis(id=client.id, nom=client.nom, prenom=client.prenom),
+        statut=devis.statut,
+        envoye_le=devis.envoye_le,
+        decide_le=devis.decide_le,
         total_ht_centimes=devis.total_ht_centimes,
         total_ttc_centimes=devis.total_ttc_centimes,
         cree_le=devis.cree_le,

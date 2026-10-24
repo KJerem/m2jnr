@@ -258,6 +258,9 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
 .devis-actions { display: flex; justify-content: flex-end; gap: var(--space-2); flex-wrap: wrap; padding: var(--space-4) var(--space-5); border-top: 1px solid var(--line); }
 .devis-vide { margin: var(--space-3) var(--space-5) 0; }
 .devis-message { margin: 0 var(--space-5) var(--space-5); }
+/* Statut du devis (S4.2) : phrase d'état et action suivante. */
+.devis-statut { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-4) var(--space-5); border-top: 1px solid var(--line); }
+.devis-statut .stack-xs { flex: 1 1 260px; min-width: 0; }
 .devis-pied { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-4) var(--space-5); border-top: 1px solid var(--line); }
 
 /* Tableau de bord du gérant (maquette 4) */

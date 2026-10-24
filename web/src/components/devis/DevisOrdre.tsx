@@ -3,23 +3,30 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useFieldArray, useForm, useWatch, type Path } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { Modal } from "@/components/ui/Modal";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useToast } from "@/components/ui/Toast";
 import { ApiError, apiFetch } from "@/lib/api";
 import {
+  AIDE_STATUT_DEVIS,
+  BADGE_DEVIS,
   calculerTotaux,
   CHAMP_API,
+  devisModifiable,
   devisSchema,
   formatQuantite,
+  LIBELLE_DEVIS,
   LIBELLE_TYPE_LIGNE,
   libelleTva,
   LIGNE_VIDE,
   ligneCalculable,
   LIGNES_MAX,
+  phraseStatutDevis,
   TAUX_TVA_NORMAL_BP,
   totalLigne,
   versEntreeDevis,
@@ -28,13 +35,14 @@ import {
   type DevisFormValues,
   type LigneCalcul,
   type LigneFormValues,
+  type StatutDevis,
   type TotauxDevis,
 } from "@/lib/devis";
-import { lienPdf, MESSAGE_FACTURE_INDISPONIBLE, numeroAVenir, peutFacturer, type FactureDetail } from "@/lib/factures";
+import { factureDisponible, lienPdf, MESSAGE_FACTURE_INDISPONIBLE, numeroAVenir, type FactureDetail } from "@/lib/factures";
 import { formatEuros } from "@/lib/format";
 import type { OrdreDetail } from "@/lib/ordres";
 import type { StatutOT } from "@/lib/statuts";
-import { cleDevisOrdre, enregistrerDevis, rafraichirApresDevis, useDevisOrdre } from "./donnees";
+import { changerStatutDevis, cleDevisOrdre, enregistrerDevis, rafraichirApresDevis, useDevisOrdre } from "./donnees";
 
 export interface DevisOrdreProps {
   ordre: OrdreDetail;
@@ -42,22 +50,29 @@ export interface DevisOrdreProps {
   onEditionChange?: (edition: boolean) => void;
 }
 
+interface Edition {
+  ajouter: boolean;
+  /** Nouveau devis après un refus : lignes du devis refusé reprises, enregistrées en création. */
+  remplace?: DevisDetail;
+}
+
 /** Section « Devis — pièces & main-d'œuvre » de la fiche d'un OT (gérant seulement). */
 export function DevisOrdre({ ordre, onEditionChange }: DevisOrdreProps) {
   const queryClient = useQueryClient();
   const { data: devis, isPending, isError, error } = useDevisOrdre(ordre.id);
-  const [edition, setEdition] = useState<{ ajouter: boolean } | null>(null);
+  const [edition, setEdition] = useState<Edition | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const boutonAjout = useRef<HTMLButtonElement>(null);
   const boutonModifier = useRef<HTMLButtonElement>(null);
+  const boutonFacture = useRef<HTMLButtonElement>(null);
   const titre = useRef<HTMLHeadingElement>(null);
   // Le formulaire démonte le bouton qui avait le focus (Annuler, Enregistrer) : sans relais,
   // le focus tombait sur <body> et l'utilisateur au clavier repartait du haut de la page.
   const rendreFocus = useRef(false);
 
-  function ouvrir(ajouter: boolean) {
+  function ouvrir(ouverture: Edition) {
     setMessage(null);
-    setEdition({ ajouter });
+    setEdition(ouverture);
     onEditionChange?.(true);
   }
 
@@ -73,22 +88,31 @@ export function DevisOrdre({ ordre, onEditionChange }: DevisOrdreProps) {
     (boutonModifier.current ?? boutonAjout.current ?? titre.current)?.focus();
   }, [edition]);
 
-  const modifiable = devis !== undefined && !devis?.facture;
+  // Story S4.2 : seul un brouillon se modifie ; sans devis, on peut en créer un.
+  const modifiable = devis !== undefined && (devis === null || devisModifiable(devis));
 
   return (
     <section className="panel" aria-labelledby="titre-devis">
       <div className="panel-head">
-        <h2 id="titre-devis" ref={titre} tabIndex={-1}>
-          Devis — pièces &amp; main-d&apos;œuvre
-        </h2>
+        <div className="row">
+          <h2 id="titre-devis" ref={titre} tabIndex={-1}>
+            Devis — pièces &amp; main-d&apos;œuvre
+          </h2>
+          {devis ? (
+            <StatusBadge status={BADGE_DEVIS[devis.statut]}>
+              <span className="sr-only">Statut du devis : </span>
+              {LIBELLE_DEVIS[devis.statut]}
+            </StatusBadge>
+          ) : null}
+        </div>
         {modifiable && !edition ? (
           <div className="actions">
             {devis ? (
-              <Button ref={boutonModifier} variant="quiet" onClick={() => ouvrir(false)}>
+              <Button ref={boutonModifier} variant="quiet" onClick={() => ouvrir({ ajouter: false })}>
                 Modifier le devis
               </Button>
             ) : null}
-            <Button ref={boutonAjout} variant="quiet" onClick={() => ouvrir(true)}>
+            <Button ref={boutonAjout} variant="quiet" onClick={() => ouvrir({ ajouter: true })}>
               <Icon name="plus" />
               Ajouter une ligne
             </Button>
@@ -107,7 +131,8 @@ export function DevisOrdre({ ordre, onEditionChange }: DevisOrdreProps) {
       ) : edition ? (
         <FormulaireDevis
           ordreId={ordre.id}
-          devis={devis}
+          devis={edition.remplace ? null : devis}
+          remplace={edition.remplace}
           ajouterLigne={edition.ajouter}
           onAnnuler={fermer}
           onSucces={(enregistre) => {
@@ -121,15 +146,28 @@ export function DevisOrdre({ ordre, onEditionChange }: DevisOrdreProps) {
         <>
           <TableauDevis devis={devis} />
           <BlocTotaux totaux={devis.totaux} tauxBp={devis.taux_tva_bp} />
-          <PiedFacturation
-            statut={ordre.statut}
+          <ActionsStatutDevis
             devis={devis}
-            onEmise={(facture) => {
-              queryClient.setQueryData(cleDevisOrdre(ordre.id), { ...devis, facture: { id: facture.id, numero: facture.numero } });
+            boutonFacture={boutonFacture}
+            onChange={(maj) => {
+              setMessage(null);
+              queryClient.setQueryData(cleDevisOrdre(ordre.id), maj);
               void rafraichirApresDevis(queryClient);
-              setMessage(`Facture ${facture.numero} établie : ${formatEuros(facture.totaux.total_ttc_centimes)} TTC.`);
             }}
+            onNouveau={() => ouvrir({ ajouter: false, remplace: devis })}
           />
+          {devis.statut !== "refuse" ? (
+            <PiedFacturation
+              statut={ordre.statut}
+              devis={devis}
+              boutonRef={boutonFacture}
+              onEmise={(facture) => {
+                queryClient.setQueryData(cleDevisOrdre(ordre.id), { ...devis, facture: { id: facture.id, numero: facture.numero } });
+                void rafraichirApresDevis(queryClient);
+                setMessage(`Facture ${facture.numero} établie : ${formatEuros(facture.totaux.total_ttc_centimes)} TTC.`);
+              }}
+            />
+          ) : null}
         </>
       ) : (
         <div className="panel-body">
@@ -143,19 +181,150 @@ export function DevisOrdre({ ordre, onEditionChange }: DevisOrdreProps) {
   );
 }
 
+const SUCCES_STATUT: Record<Exclude<StatutDevis, "brouillon">, string> = {
+  envoye: "Devis marqué comme envoyé au client.",
+  accepte: "Devis accepté par le client.",
+  refuse: "Devis refusé par le client.",
+};
+
+export interface ActionsStatutDevisProps {
+  devis: DevisDetail;
+  onChange: (devis: DevisDetail) => void;
+  /** « Nouveau devis » après un refus. */
+  onNouveau: () => void;
+  /** « Générer la facture » : reçoit le focus après l'acceptation s'il est actif. */
+  boutonFacture?: RefObject<HTMLButtonElement | null>;
+}
+
+/**
+ * Statut du devis (story S4.2) : phrase d'état et action suivante. Brouillon : « Marquer
+ * comme envoyé au client » (l'application n'envoie rien elle-même) ; envoyé : « Accepté par
+ * le client » ou « Refusé par le client » (refus confirmé) ; refusé : « Nouveau devis ».
+ * Après chaque action, le focus va sur l'action suivante, à défaut sur la phrase d'état.
+ */
+export function ActionsStatutDevis({ devis, onChange, onNouveau, boutonFacture }: ActionsStatutDevisProps) {
+  const notifier = useToast();
+  const [confirmerRefus, setConfirmerRefus] = useState(false);
+  const phrase = useRef<HTMLParagraphElement>(null);
+  const boutonAccepter = useRef<HTMLButtonElement>(null);
+  const boutonRefuser = useRef<HTMLButtonElement>(null);
+  const boutonNouveau = useRef<HTMLButtonElement>(null);
+  const focaliser = useRef(false);
+  const changement = useMutation({
+    mutationFn: (nouveau: StatutDevis) => changerStatutDevis(devis.id, nouveau),
+    onSuccess: (maj) => {
+      focaliser.current = true;
+      setConfirmerRefus(false);
+      if (maj.statut !== "brouillon") notifier({ type: "success", message: SUCCES_STATUT[maj.statut] });
+      onChange(maj);
+    },
+    onError: (erreur) => {
+      setConfirmerRefus(false);
+      notifier({ type: "error", message: erreur.message });
+    },
+  });
+
+  useEffect(() => {
+    if (!focaliser.current) return;
+    focaliser.current = false;
+    const facture = boutonFacture?.current;
+    const cible =
+      devis.statut === "envoye"
+        ? boutonAccepter.current
+        : devis.statut === "refuse"
+          ? boutonNouveau.current
+          : devis.statut === "accepte" && facture && !facture.disabled
+            ? facture
+            : null;
+    (cible ?? phrase.current)?.focus();
+  }, [devis.statut, boutonFacture]);
+
+  const idPhrase = `devis-statut-${devis.id}`;
+  const aide = devis.facture ? null : AIDE_STATUT_DEVIS[devis.statut];
+  return (
+    <div className="devis-statut">
+      <div className="stack-xs">
+        <p ref={phrase} tabIndex={-1} id={idPhrase} className="strong">
+          {phraseStatutDevis(devis)}
+        </p>
+        {aide ? <p className="caption">{aide}</p> : null}
+      </div>
+      {devis.facture ? null : (
+        <div className="actions">
+          {devis.statut === "brouillon" ? (
+            <Button loading={changement.isPending} onClick={() => changement.mutate("envoye")}>
+              Marquer comme envoyé au client
+            </Button>
+          ) : null}
+          {devis.statut === "envoye" ? (
+            <>
+              <Button ref={boutonAccepter} loading={changement.isPending && changement.variables === "accepte"} disabled={changement.isPending} onClick={() => changement.mutate("accepte")}>
+                Accepté par le client
+              </Button>
+              <Button
+                ref={boutonRefuser}
+                variant="danger"
+                disabled={changement.isPending}
+                onClick={() => {
+                  changement.reset();
+                  setConfirmerRefus(true);
+                }}
+              >
+                Refusé par le client
+              </Button>
+            </>
+          ) : null}
+          {devis.statut === "refuse" ? (
+            <Button ref={boutonNouveau} onClick={onNouveau}>
+              <Icon name="plus" />
+              Nouveau devis
+            </Button>
+          ) : null}
+        </div>
+      )}
+      {confirmerRefus ? (
+        <Modal
+          titre="Refusé par le client"
+          onClose={() => setConfirmerRefus(false)}
+          retourFocus={boutonRefuser}
+          actions={
+            <>
+              <Button onClick={() => setConfirmerRefus(false)} disabled={changement.isPending}>
+                Annuler
+              </Button>
+              <Button variant="danger" loading={changement.isPending} onClick={() => changement.mutate("refuse")}>
+                Confirmer le refus
+              </Button>
+            </>
+          }
+        >
+          <p>
+            Le devis de <span className="strong">{formatEuros(devis.totaux.total_ttc_centimes)} TTC</span> sera marqué refusé par le client.
+          </p>
+          <p>Cette décision est définitive ; vous pourrez ensuite établir un nouveau devis pour cette intervention.</p>
+        </Modal>
+      ) : null}
+    </div>
+  );
+}
+
 export interface PiedFacturationProps {
   statut: StatutOT;
   devis: DevisDetail;
   onEmise: (facture: FactureDetail) => void;
+  /** Référence du bouton « Générer la facture » (focus après l'acceptation du devis). */
+  boutonRef?: RefObject<HTMLButtonElement | null>;
 }
 
 /**
- * Facturation du devis : « Générer la facture » (actif quand l'intervention est « Prêt » ou
- * « Livré », confirmation obligatoire), puis lien vers la facture et son PDF.
+ * Facturation du devis : « Générer la facture » (actif quand le devis est accepté et
+ * l'intervention « Prêt » ou « Livré », confirmation obligatoire), puis lien vers la facture
+ * et son PDF.
  */
-export function PiedFacturation({ statut, devis, onEmise }: PiedFacturationProps) {
+export function PiedFacturation({ statut, devis, onEmise, boutonRef }: PiedFacturationProps) {
   const [confirmation, setConfirmation] = useState(false);
-  const bouton = useRef<HTMLButtonElement>(null);
+  const boutonInterne = useRef<HTMLButtonElement>(null);
+  const bouton = boutonRef ?? boutonInterne;
   const lienPdfFacture = useRef<HTMLAnchorElement>(null);
   // Après l'émission, le bouton « Générer la facture » disparaît avec la fenêtre : le focus
   // va sur « Télécharger le PDF », action suivante du nouvel état.
@@ -196,7 +365,7 @@ export function PiedFacturation({ statut, devis, onEmise }: PiedFacturationProps
     );
   }
 
-  const possible = peutFacturer(statut);
+  const possible = factureDisponible(statut, devis.statut);
   return (
     <div className="devis-pied">
       <p className="caption" id="facture-aide">
@@ -329,14 +498,16 @@ function erreursApi(erreur: unknown, setError: (champ: Path<DevisFormValues>, me
 export interface FormulaireDevisProps {
   ordreId: number;
   devis: DevisDetail | null;
+  /** Devis refusé dont les lignes servent de point de départ à un nouveau devis (création). */
+  remplace?: DevisDetail;
   ajouterLigne?: boolean;
   onAnnuler: () => void;
   onSucces: (devis: DevisDetail) => void;
 }
 
 /** Lignes dynamiques, totaux recalculés en direct (même arrondi que l'API), enregistrement. */
-export function FormulaireDevis({ ordreId, devis, ajouterLigne, onAnnuler, onSucces }: FormulaireDevisProps) {
-  const initiales = versFormulaireDevis(devis);
+export function FormulaireDevis({ ordreId, devis, remplace, ajouterLigne, onAnnuler, onSucces }: FormulaireDevisProps) {
+  const initiales = versFormulaireDevis(devis ?? remplace ?? null);
   if (ajouterLigne || initiales.lignes.length === 0) initiales.lignes.push({ ...LIGNE_VIDE });
   // Ligne qui reçoit le focus à l'ouverture : la ligne ajoutée, sinon la première.
   const ligneInitiale = ajouterLigne ? initiales.lignes.length - 1 : 0;
@@ -352,7 +523,7 @@ export function FormulaireDevis({ ordreId, devis, ajouterLigne, onAnnuler, onSuc
   const lignes = useWatch({ control, name: "lignes" }) ?? [];
   const boutonAjout = useRef<HTMLButtonElement>(null);
   const [general, setGeneral] = useState<string | null>(null);
-  const tauxBp = devis?.taux_tva_bp ?? TAUX_TVA_NORMAL_BP;
+  const tauxBp = devis?.taux_tva_bp ?? remplace?.taux_tva_bp ?? TAUX_TVA_NORMAL_BP;
   const calculables = lignes.map(ligneCalculable);
   const totaux = calculerTotaux(
     calculables.filter((l): l is LigneCalcul => l !== null),

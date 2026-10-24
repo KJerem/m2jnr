@@ -1,5 +1,5 @@
 /** Factures (story S4.3) : types de l'API et règles d'affichage. */
-import type { LigneDevis, TotauxDevis } from "./devis";
+import type { LigneDevis, StatutDevis, TotauxDevis } from "./devis";
 import { formatDateCourteOuAnnee } from "./format";
 import { aujourdHui } from "./vehicules";
 import type { StatutOT } from "./statuts";
@@ -41,7 +41,12 @@ export function peutFacturer(statut: StatutOT): boolean {
   return statut === "termine" || statut === "livre";
 }
 
-export const MESSAGE_FACTURE_INDISPONIBLE = "Disponible quand l'intervention est « Prêt ».";
+/** Story S4.2 : la facture s'établit sur un devis accepté, intervention « Prêt » ou « Livré ». */
+export function factureDisponible(statutOT: StatutOT, statutDevis: StatutDevis): boolean {
+  return statutDevis === "accepte" && peutFacturer(statutOT);
+}
+
+export const MESSAGE_FACTURE_INDISPONIBLE = "Disponible quand le devis est accepté et l'intervention « Prêt ».";
 
 /** Adresse du PDF, relayée vers l'API (même origine, cookie de session). */
 export function lienPdf(factureId: number): string {
