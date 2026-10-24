@@ -6,13 +6,14 @@ import { Pagination } from "@/components/ui/Pagination";
 import { Plate } from "@/components/ui/Plate";
 import { apiFetch } from "@/lib/api";
 import type { Page } from "@/lib/clients";
-import type { DevisResume } from "@/lib/devis";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { BADGE_DEVIS, LIBELLE_DEVIS, type DevisResume } from "@/lib/devis";
 import { formatDateCourteOuAnnee, formatEuros, nomComplet } from "@/lib/format";
 import { modele } from "@/lib/ordres";
 
 export const TAILLE_LISTE = 50;
 
-/** Onglet « Devis » : numéro d'OT, véhicule, client, total TTC, date (avec l'année si ce n'est pas l'année en cours). */
+/** Onglet « Devis » : numéro d'OT, véhicule, client, statut, total TTC, date (avec l'année si ce n'est pas l'année en cours). */
 export function ListeDevis({ page }: { page: number }) {
   const { data, isPending, isError, error } = useQuery({
     queryKey: ["devis", "liste", page],
@@ -46,6 +47,7 @@ export function ListeDevis({ page }: { page: number }) {
                 <th scope="col">N° OT</th>
                 <th scope="col">Véhicule</th>
                 <th scope="col">Client</th>
+                <th scope="col">Statut</th>
                 <th scope="col" className="right">
                   Total TTC
                 </th>
@@ -68,6 +70,9 @@ export function ListeDevis({ page }: { page: number }) {
                     </span>
                   </td>
                   <td>{nomComplet(devis.client)}</td>
+                  <td>
+                    <StatusBadge status={BADGE_DEVIS[devis.statut]}>{LIBELLE_DEVIS[devis.statut]}</StatusBadge>
+                  </td>
                   <td className="right num nowrap strong">{formatEuros(devis.total_ttc_centimes)}</td>
                   <td className="nowrap">{formatDateCourteOuAnnee(devis.modifie_le)}</td>
                   <td>

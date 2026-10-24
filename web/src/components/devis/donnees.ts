@@ -2,9 +2,9 @@
 
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
-import type { DevisDetail, DevisEntree } from "@/lib/devis";
+import type { DevisDetail, DevisEntree, StatutDevis } from "@/lib/devis";
 
-/** Devis courant d'un OT (null s'il n'en a pas encore). */
+/** Devis courant d'un OT (le devis non refusé, à défaut le dernier refusé ; null s'il n'en a pas). */
 export const cleDevisOrdre = (ordreId: number) => ["devis", "ordre", ordreId] as const;
 
 export function useDevisOrdre(ordreId: number) {
@@ -20,6 +20,11 @@ export function useDevisOrdre(ordreId: number) {
       }
     },
   });
+}
+
+/** Story S4.2 : « envoye », « accepte » ou « refuse ». */
+export function changerStatutDevis(devisId: number, nouveau: StatutDevis) {
+  return apiFetch<DevisDetail>(`/devis/${devisId}/statut`, { method: "POST", body: { nouveau } });
 }
 
 export function enregistrerDevis(ordreId: number, devis: DevisDetail | null, entree: DevisEntree) {

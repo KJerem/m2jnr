@@ -21,6 +21,10 @@ vi.mock("next/navigation", () => ({ usePathname: () => navigation.chemin, useRou
 const DEVIS: DevisDetail = {
   id: 7,
   ordre: { id: 1, numero: "OT-2026-001", statut: "termine" },
+  statut: "accepte",
+  envoye_le: "2026-12-01T09:10:00Z",
+  decide_le: "2026-12-01T09:40:00Z",
+  decide_par: { id: 1, nom: "Nadia Benali" },
   lignes: [{ id: 70, type: "piece", reference: null, designation: "Pièce", quantite: "2.00", prix_unitaire_ht_centimes: 4000, total_ht_centimes: 8000, position: 0 }],
   taux_tva_bp: 2000,
   totaux: { main_oeuvre_ht_centimes: 6000, pieces_ht_centimes: 8000, total_ht_centimes: 14000, total_tva_centimes: 2800, total_ttc_centimes: 16800 },
@@ -45,7 +49,7 @@ describe("génération de la facture depuis le devis", () => {
     const bouton = screen.getByRole("button", { name: "Générer la facture" });
     expect(bouton).toBeDisabled();
     expect(bouton).toHaveAccessibleDescription(MESSAGE_FACTURE_INDISPONIBLE);
-    expect(MESSAGE_FACTURE_INDISPONIBLE).toBe("Disponible quand l'intervention est « Prêt ».");
+    expect(MESSAGE_FACTURE_INDISPONIBLE).toBe("Disponible quand le devis est accepté et l'intervention « Prêt ».");
   });
 
   it("demande confirmation puis émet la facture d'un OT « Prêt »", async () => {
@@ -158,6 +162,9 @@ const DEVIS_LISTE: DevisResume[] = [
     ordre: { id: 1, numero: "OT-2025-001", statut: "livre" },
     vehicule: { id: 4, immatriculation: "GH-482-KL", marque: "Peugeot", modele: "308 SW", kilometrage: 84312 },
     client: { id: 9, nom: "Laurent", prenom: "Claire" },
+    statut: "accepte",
+    envoye_le: "2025-10-24T07:30:00Z",
+    decide_le: "2025-10-24T08:00:00Z",
     total_ht_centimes: 14000,
     total_ttc_centimes: 16800,
     cree_le: "2025-10-24T07:10:00Z",

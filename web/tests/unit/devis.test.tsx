@@ -126,6 +126,10 @@ describe("calcul du devis : mêmes résultats que l'API", () => {
 const DEVIS: DevisDetail = {
   id: 7,
   ordre: { id: 1, numero: "OT-2026-001", statut: "en_cours" },
+  statut: "brouillon",
+  envoye_le: null,
+  decide_le: null,
+  decide_par: null,
   lignes: [
     { id: 70, type: "main_oeuvre", reference: "MO-DIAG", designation: "Diagnostic freinage", quantite: "0.50", prix_unitaire_ht_centimes: 7200, total_ht_centimes: 3600, position: 0 },
     { id: 71, type: "piece", reference: "PLQ-308-AV", designation: "Jeu de plaquettes avant", quantite: "1.00", prix_unitaire_ht_centimes: 4850, total_ht_centimes: 4850, position: 1 },
@@ -330,10 +334,12 @@ describe("focus clavier de la section devis (revue du sprint 3)", () => {
   it("après « Générer la facture », place le focus sur « Télécharger le PDF »", async () => {
     const user = userEvent.setup({ delay: null });
     const facture = { id: 3, numero: "F-2026-001", totaux: DEVIS.totaux };
+    // Story S4.2 : seul un devis accepté se facture.
+    const accepte: DevisDetail = { ...DEVIS, statut: "accepte", envoye_le: "2026-12-01T09:10:00Z", decide_le: "2026-12-01T09:40:00Z" };
     apiFetch.mockImplementation((chemin: string) =>
-      Promise.resolve(chemin === "/devis/7/facture" ? facture : { ...DEVIS, facture: { id: 3, numero: "F-2026-001" } }),
+      Promise.resolve(chemin === "/devis/7/facture" ? facture : { ...accepte, facture: { id: 3, numero: "F-2026-001" } }),
     );
-    avecRequetes(<DevisOrdre ordre={{ ...ORDRE, statut: "termine" }} />, "gerant", DEVIS);
+    avecRequetes(<DevisOrdre ordre={{ ...ORDRE, statut: "termine" }} />, "gerant", accepte);
 
     await user.click(screen.getByRole("button", { name: "Générer la facture" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Générer la facture" }));
