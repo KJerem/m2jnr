@@ -153,6 +153,9 @@ erDiagram
         int montant_centimes "> 0, cumul ≤ TTC"
         enum mode "carte | especes | cheque | virement"
         timestamptz recu_le
+        string reference "n° de chèque ou de virement, facultatif"
+        int cree_par FK
+        timestamptz cree_le
     }
 ```
 
@@ -169,6 +172,8 @@ erDiagram
 | Un devis facturé au plus une fois | `facture.devis_id` unique |
 | Au plus un devis non refusé par OT | index unique partiel `uq_devis_ordre_non_refuse` (`WHERE statut <> 'refuse'`) |
 | Statut du devis cohérent avec ses dates | `CHECK statut_coherent` (brouillon sans envoi, envoyé daté, décision datée) |
+| Cumul des paiements d'une facture ≤ son TTC | trigger `paiement_plafond` (BEFORE INSERT) qui verrouille la facture (`SELECT … FOR UPDATE`) puis refuse le dépassement (SQLSTATE `ET002`) |
+| Paiement non modifiable | trigger `BEFORE UPDATE OR DELETE` et `BEFORE TRUNCATE` (SQLSTATE `ET003`) ; aucune donnée de carte n'est enregistrée (« carte » = terminal du garage) |
 | Recherche sans accents ni casse, par morceau de nom, de téléphone ou de plaque | extension `unaccent`, fonction IMMUTABLE `etabli_normaliser`, index GIN `pg_trgm` (nom + prénom, téléphone, plaque sans tirets) |
 
 ## Statuts de l'ordre de travail

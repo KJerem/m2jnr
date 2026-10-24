@@ -35,6 +35,7 @@ from app.models.devis import ENUM_TYPE_LIGNE, TypeLigne
 if TYPE_CHECKING:
     from app.models.devis import Devis
     from app.models.ordre_travail import OrdreTravail
+    from app.models.paiement import Paiement
     from app.models.utilisateur import Utilisateur
 
 # « F-2026-001 » : trois chiffres au moins, davantage au-delà de 999.
@@ -91,6 +92,12 @@ class Facture(Base):
     lignes: Mapped[list["LigneFacture"]] = relationship(
         back_populates="facture",
         order_by="(LigneFacture.position, LigneFacture.id)",
+        passive_deletes="all",
+    )
+    # Encaissements (story S4.4), du plus ancien au plus récent ; jamais modifiés ni supprimés.
+    paiements: Mapped[list["Paiement"]] = relationship(
+        back_populates="facture",
+        order_by="(Paiement.recu_le, Paiement.id)",
         passive_deletes="all",
     )
 

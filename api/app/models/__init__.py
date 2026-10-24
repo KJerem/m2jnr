@@ -6,6 +6,7 @@ from app.models.compteur import Compteur
 from app.models.devis import Devis, LigneDevis, StatutDevis, TypeLigne
 from app.models.facture import Facture, LigneFacture
 from app.models.ordre_travail import HistoriqueStatut, OrdreTravail, StatutOT, TacheOT
+from app.models.paiement import ModePaiement, Paiement
 from app.models.pont import Pont
 from app.models.rendez_vous import RendezVous
 from app.models.utilisateur import Role, Utilisateur
@@ -20,7 +21,9 @@ __all__ = [
     "HistoriqueStatut",
     "LigneDevis",
     "LigneFacture",
+    "ModePaiement",
     "OrdreTravail",
+    "Paiement",
     "Pont",
     "RendezVous",
     "Role",
