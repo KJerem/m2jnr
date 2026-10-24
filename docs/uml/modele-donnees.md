@@ -39,6 +39,9 @@ erDiagram
         string telephone "obligatoire, normalisé 0XXXXXXXXX, indexé"
         citext email
         bool consentement_rappels "RGPD, faux par défaut"
+        string adresse "facultative"
+        string code_postal "5 chiffres, facultatif"
+        string ville "facultative"
     }
     VEHICULE {
         int id PK
@@ -131,7 +134,8 @@ erDiagram
         int devis_id FK,UK
         timestamptz emise_le
         date echeance
-        jsonb client_fige
+        date date_prestation "fin de la prestation (Paris), null avant la migration 0015"
+        jsonb client_fige "adresse comprise depuis la migration 0015"
         jsonb vehicule_fige
         int total_ht_centimes
         int total_tva_centimes

@@ -68,7 +68,11 @@ class Facture(Base):
     )
     emise_le: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     echeance: Mapped[date] = mapped_column(Date, nullable=False)
-    # {nom, prenom, telephone, email} au moment de l'émission.
+    # Jour (Paris) de la fin de la prestation, figé à l'émission (migration 0015) ; NULL pour
+    # les factures émises avant.
+    date_prestation: Mapped[date | None] = mapped_column(Date)
+    # {nom, prenom, telephone, email} au moment de l'émission, et depuis la migration 0015
+    # {adresse, code_postal, ville}.
     client_fige: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     # {immatriculation, marque, modele, kilometrage}.
     vehicule_fige: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
