@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import event, select
+from sqlalchemy import event, select, text
 from sqlalchemy.orm import Session
 
 from app.models import Client, OrdreTravail, StatutOT, Utilisateur, Vehicule
@@ -18,6 +18,7 @@ from app.services.recherche import (
     RESULTATS_MAX,
     analyser_requete,
     echapper_like,
+    requete_clients,
 )
 from tests.conftest import Horloge
 from tests.test_s4_1_devis import LIGNES_BACKLOG
@@ -431,6 +432,32 @@ def test_nombre_de_requetes_independant_du_nombre_de_resultats(
         resultats = _chercher(client_gerant, "petit")
     assert len(resultats["clients"]) == 9
     assert len(beaucoup) == len(peu)
+
+
+def _plan(db: Session, saisie: str) -> str:
+    """Plan de la requête des clients, parcours séquentiels découragés : s'il reste un
+    « Seq Scan on client », aucun plan par index n'existe pour cette requête."""
+    requete = requete_clients(analyser_requete(saisie)).compile(dialect=db.get_bind().dialect)
+    db.execute(text("SET LOCAL enable_seqscan = off"))
+    lignes = db.connection().exec_driver_sql(f"EXPLAIN {requete}", dict(requete.params))
+    return "\n".join(str(ligne[0]) for ligne in lignes)
+
+
+@pytest.mark.parametrize(
+    ("saisie", "index"),
+    [
+        ("laurent", "ix_client_nom_prenom_trgm"),
+        ("06 12 48", "ix_client_telephone_trgm"),
+        ("gh482kl", "ix_vehicule_immatriculation_trgm"),
+    ],
+)
+def test_clients_cherches_par_les_index_trigrammes(
+    db: Session, fichier: dict[str, Any], saisie: str, index: str
+) -> None:
+    plan = _plan(db, saisie)
+    assert "Seq Scan on client" not in plan, plan
+    assert index in plan, plan
+    assert "ix_client_nom_prenom_trgm" in plan, plan
 
 
 # --- Accès ---------------------------------------------------------------------------------
