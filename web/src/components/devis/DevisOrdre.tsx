@@ -230,7 +230,7 @@ export function FormulaireDevis({ ordreId, devis, ajouterLigne, onAnnuler, onSuc
 
   const enregistrement = useMutation({
     mutationFn: (valeurs: DevisFormValues) => enregistrerDevis(ordreId, devis, versEntreeDevis(valeurs)),
-    onSuccess: onSucces,
+    onSuccess: (enregistre) => onSucces(enregistre),
     onError: (erreur) => setGeneral(erreursApi(erreur, (champ, message, focus) => setError(champ, { type: "server", message }, { shouldFocus: focus }))),
   });
 
