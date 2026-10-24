@@ -2,7 +2,9 @@
 
 from collections.abc import Iterator
 from datetime import datetime
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy import DateTime, MetaData, create_engine, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -36,7 +38,10 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 
 
 def get_db() -> Iterator[Session]:
-    """Dépendance FastAPI : une session par requête, validée ou annulée en fin de requête."""
+    """Dépendance FastAPI : une session par requête, validée ou annulée en fin de requête.
+
+    Ne pas l'utiliser directement : passer par `DbSession`, qui garantit le commit avant
+    l'envoi de la réponse."""
     db = SessionLocal()
     try:
         yield db
@@ -46,3 +51,11 @@ def get_db() -> Iterator[Session]:
         raise
     finally:
         db.close()
+
+
+# Portée « function » : le code après le `yield` (commit ou rollback) s'exécute dès que la
+# route a rendu sa valeur, AVANT l'envoi du statut et du corps. Avec la portée par défaut
+# (« request »), FastAPI validerait la transaction après l'envoi de la réponse : un 201
+# pourrait annoncer une donnée qui n'est pas encore (ou jamais) en base. Toutes les routes et
+# dépendances utilisent ce même alias, donc partagent la même session dans une requête.
+DbSession = Annotated[Session, Depends(get_db, scope="function")]

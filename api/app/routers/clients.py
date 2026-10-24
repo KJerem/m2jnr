@@ -3,11 +3,10 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
 
 from app.clock import date_locale, get_now
 from app.config import Settings, get_settings
-from app.db import get_db
+from app.db import DbSession
 from app.models.utilisateur import Role
 from app.schemas.client import ClientDetail, ClientEntree, ClientSortie
 from app.schemas.commun import Page
@@ -23,9 +22,9 @@ router = APIRouter(
 
 @router.get("")
 def lister(
+    db: DbSession,
     page: int = Query(1, ge=1),
     taille: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
 ) -> Page[ClientSortie]:
     resultat = service.lister_clients(db, page, taille)
     return Page[ClientSortie](
@@ -44,15 +43,15 @@ ConfirmerDoublon = Query(
 @router.post("", status_code=status.HTTP_201_CREATED)
 def creer(
     entree: ClientEntree,
+    db: DbSession,
     confirmer_doublon: bool = ConfirmerDoublon,
-    db: Session = Depends(get_db),
 ) -> ClientSortie:
     client = service.creer_client(db, entree, confirmer_doublon=confirmer_doublon)
     return ClientSortie.model_validate(client)
 
 
 @router.get("/{client_id}")
-def consulter(client_id: int, db: Session = Depends(get_db)) -> ClientDetail:
+def consulter(client_id: int, db: DbSession) -> ClientDetail:
     return ClientDetail.model_validate(service.obtenir_client(db, client_id))
 
 
@@ -60,8 +59,8 @@ def consulter(client_id: int, db: Session = Depends(get_db)) -> ClientDetail:
 def modifier(
     client_id: int,
     entree: ClientEntree,
+    db: DbSession,
     confirmer_doublon: bool = ConfirmerDoublon,
-    db: Session = Depends(get_db),
 ) -> ClientSortie:
     client = service.obtenir_client(db, client_id)
     client = service.modifier_client(db, client, entree, confirmer_doublon=confirmer_doublon)
@@ -69,7 +68,7 @@ def modifier(
 
 
 @router.get("/{client_id}/vehicules")
-def lister_vehicules(client_id: int, db: Session = Depends(get_db)) -> list[VehiculeSortie]:
+def lister_vehicules(client_id: int, db: DbSession) -> list[VehiculeSortie]:
     client = service.obtenir_client(db, client_id)
     return [
         VehiculeSortie.model_validate(v)
@@ -81,7 +80,7 @@ def lister_vehicules(client_id: int, db: Session = Depends(get_db)) -> list[Vehi
 def ajouter_vehicule(
     client_id: int,
     entree: VehiculeEntree,
-    db: Session = Depends(get_db),
+    db: DbSession,
     maintenant: datetime = Depends(get_now),
     settings: Settings = Depends(get_settings),
 ) -> VehiculeSortie:

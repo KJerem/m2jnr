@@ -4,11 +4,10 @@ from collections.abc import Callable
 from datetime import datetime
 
 from fastapi import Depends, Request, status
-from sqlalchemy.orm import Session
 
 from app.clock import get_now
 from app.config import Settings, get_settings
-from app.db import get_db
+from app.db import DbSession
 from app.errors import AppError, forbidden
 from app.models.utilisateur import Role, Utilisateur
 from app.security.jetons import lire_jeton_session
@@ -20,7 +19,7 @@ def non_authentifie() -> AppError:
 
 def get_current_user(
     request: Request,
-    db: Session = Depends(get_db),
+    db: DbSession,
     maintenant: datetime = Depends(get_now),
     settings: Settings = Depends(get_settings),
 ) -> Utilisateur:

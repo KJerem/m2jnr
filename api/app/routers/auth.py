@@ -3,11 +3,10 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Request, Response, status
-from sqlalchemy.orm import Session
 
 from app.clock import get_now
 from app.config import Settings, get_settings
-from app.db import get_db
+from app.db import DbSession
 from app.models.utilisateur import Utilisateur
 from app.schemas.auth import ConnexionEntree, CsrfSortie, SessionSortie, UtilisateurSortie
 from app.security.csrf import generer_jeton, poser_cookie_csrf
@@ -37,7 +36,7 @@ def jeton_csrf(
 def connexion(
     entree: ConnexionEntree,
     response: Response,
-    db: Session = Depends(get_db),
+    db: DbSession,
     maintenant: datetime = Depends(get_now),
     settings: Settings = Depends(get_settings),
 ) -> SessionSortie:
