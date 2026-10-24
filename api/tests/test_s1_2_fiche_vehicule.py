@@ -70,6 +70,8 @@ def test_normalisation_de_l_immatriculation(saisie: str) -> None:
         "GH-482-KU",
         "123-AB-45",
         "GH_482_KL",
+        "GH-٤٨٢-KL",  # chiffres arabes orientaux
+        "GH-４８２-KL",  # chiffres pleine chasse
     ],
 )
 def test_immatriculation_invalide(saisie: str) -> None:
@@ -146,8 +148,11 @@ def test_immatriculation_en_double_casse_et_tirets_ignores(
     }
 
 
-def test_format_d_immatriculation_invalide(client_gerant: TestClient, client_id: int) -> None:
-    reponse = _ajouter(client_gerant, client_id, immatriculation="AB-000-CD")
+@pytest.mark.parametrize("plaque", ["AB-000-CD", "GH-٤٨٢-KL"])
+def test_format_d_immatriculation_invalide(
+    client_gerant: TestClient, client_id: int, plaque: str
+) -> None:
+    reponse = _ajouter(client_gerant, client_id, immatriculation=plaque)
 
     assert reponse.status_code == 422
     assert reponse.json()["champs"] == {"immatriculation": MESSAGE_IMMATRICULATION_INVALIDE}

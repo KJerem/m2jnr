@@ -47,7 +47,17 @@ def test_normalisation_des_variantes_de_telephone(saisie: str) -> None:
 
 @pytest.mark.parametrize(
     "saisie",
-    ["", "12345", "061234567", "06123456789", "0012345678", "+44 7911 123456", "06 12 AB 56 78"],
+    [
+        "",
+        "12345",
+        "061234567",
+        "06123456789",
+        "0012345678",
+        "+44 7911 123456",
+        "06 12 AB 56 78",
+        "06١٢٣٤٥٦٧٨",  # chiffres arabes orientaux
+        "０６１２３４５６７８",  # pleine chasse
+    ],
 )
 def test_telephone_invalide(saisie: str) -> None:
     with pytest.raises(ValueError, match=MESSAGE_TELEPHONE_INVALIDE):
@@ -120,6 +130,16 @@ def test_telephone_invalide_refuse(client_gerant: TestClient) -> None:
 
     assert reponse.status_code == 422
     assert reponse.json()["champs"] == {"telephone": "Numéro de téléphone français invalide."}
+
+
+def test_telephone_en_chiffres_non_ascii_refuse_en_422(client_gerant: TestClient) -> None:
+    reponse = client_gerant.post(
+        "/clients?confirmer_doublon=true",
+        json=_client(telephone="06١٢٣٤٥٦٧٨"),
+    )
+
+    assert reponse.status_code == 422
+    assert reponse.json()["champs"]["telephone"] == MESSAGE_TELEPHONE_INVALIDE
 
 
 def test_email_invalide_refuse(client_gerant: TestClient) -> None:

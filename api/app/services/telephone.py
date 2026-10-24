@@ -5,7 +5,9 @@ import re
 MESSAGE_TELEPHONE_INVALIDE = "Numéro de téléphone français invalide."
 
 _SEPARATEURS = re.compile(r"[\s.\-()/]")
-_NATIONAL = re.compile(r"^0[1-9]\d{8}$")
+# [0-9] et non \d : \d accepte tous les chiffres Unicode (arabes, pleine chasse…), que la
+# contrainte CHECK de la base refuse ensuite (erreur 500 au lieu d'un 422).
+_NATIONAL = re.compile(r"^0[1-9][0-9]{8}$")
 
 
 def normaliser_telephone(valeur: str) -> str:

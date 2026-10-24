@@ -7,7 +7,8 @@ MESSAGE_VIN_INVALIDE = "VIN invalide (17 caractères, sans I, O ni Q)."
 
 # Lettres autorisées par le SIV : A à Z sauf I, O et U (confusion avec 1, 0 et V).
 _LETTRES = "[A-HJ-NP-TV-Z]"
-_SIV = re.compile(rf"^({_LETTRES}{{2}})(\d{{3}})({_LETTRES}{{2}})$")
+# [0-9] et non \d, qui accepterait aussi les chiffres non ASCII (refusés par la base).
+_SIV = re.compile(rf"^({_LETTRES}{{2}})([0-9]{{3}})({_LETTRES}{{2}})$")
 _VIN = re.compile(r"^[A-HJ-NPR-Z0-9]{17}$")
 _SEPARATEURS = re.compile(r"[\s\-]")
 
