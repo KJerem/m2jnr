@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { ordreVide, type OrdreDetail, type OrdreEntree } from "@/lib/ordres";
-import { useMecaniciens, useVehicules } from "./donnees";
+import { rafraichirApresOrdre } from "./actions";
+import { cleOrdre, useMecaniciens, useVehicules } from "./donnees";
 import { OrdreForm } from "./OrdreForm";
 
 export function creerOrdre(entree: OrdreEntree) {
@@ -48,8 +49,8 @@ export function NouvelOrdre({ vehiculeId }: { vehiculeId: number | null }) {
               mecaniciens={mecaniciens.data}
               envoyer={creerOrdre}
               onSucces={(ordre) => {
-                void queryClient.invalidateQueries({ queryKey: ["ordres"] });
-                void queryClient.invalidateQueries({ queryKey: ["vehicules"] });
+                queryClient.setQueryData(cleOrdre(ordre.id), ordre);
+                void rafraichirApresOrdre(queryClient);
                 router.push(`/ordres/${ordre.id}`);
               }}
               onAnnuler={() => router.back()}

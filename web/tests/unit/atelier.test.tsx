@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CarteKanban } from "@/components/atelier/Kanban";
 import { ActionPrincipale } from "@/components/atelier/VueTablette";
+import { rafraichirApresOrdre } from "@/components/ordres/actions";
 import { cleOrdre } from "@/components/ordres/donnees";
 import { TachesCochables } from "@/components/ordres/TachesCochables";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -136,5 +137,64 @@ describe("action principale de la vue tablette", () => {
   it("propose d'abord de démarrer un ordre en attente", () => {
     avecRequetes(<ActionPrincipale ordre={{ ...ORDRE, statut: "a_faire" }} />);
     expect(screen.getByRole("button", { name: "Démarrer l'intervention" })).toBeEnabled();
+  });
+});
+
+describe("données rafraîchies après une action sur un OT", () => {
+  /** Requêtes en cache qui affichent le statut ou les tâches de l'OT ailleurs que sur sa fiche. */
+  const CLES_DEPENDANTES = [
+    ["ordres", "atelier"],
+    ["ordres", "mes-travaux", 2],
+    ["planning", "2026-11-16"],
+    ["rendez-vous", "a-venir"],
+    ["vehicules", 4, "historique"],
+  ] as const;
+
+  function remplirCache(client: QueryClient) {
+    for (const cle of CLES_DEPENDANTES) client.setQueryData(cle, []);
+  }
+
+  function invalidees(client: QueryClient) {
+    return CLES_DEPENDANTES.filter((cle) => client.getQueryState(cle)?.isInvalidated).map((cle) => cle[0] + (cle[1] ? `/${cle[1]}` : ""));
+  }
+
+  const TOUTES = ["ordres/atelier", "ordres/mes-travaux", "planning/2026-11-16", "rendez-vous/a-venir", "vehicules/4"];
+
+  it("un changement de statut rafraîchit kanban, planning, rendez-vous et historique du véhicule", async () => {
+    apiFetch.mockResolvedValue({ ...ORDRE, statut: "en_cours" });
+    const user = userEvent.setup();
+    const { client } = avecRequetes(<ActionPrincipale ordre={{ ...ORDRE, statut: "a_faire" }} />);
+    remplirCache(client);
+
+    await user.click(screen.getByRole("button", { name: "Démarrer l'intervention" }));
+
+    await vi.waitFor(() => expect(invalidees(client)).toEqual(TOUTES));
+    // La fiche reçoit directement la réponse de l'API (pas de rechargement inutile).
+    expect(client.getQueryState(cleOrdre(1))?.isInvalidated).toBe(false);
+    expect(client.getQueryData<OrdreDetail>(cleOrdre(1))?.statut).toBe("en_cours");
+  });
+
+  it("une tâche cochée rafraîchit aussi le planning et l'historique du véhicule", async () => {
+    apiFetch.mockResolvedValue(basculerTache(ORDRE, 11, true, { id: 2, nom: "Karim B." }));
+    const user = userEvent.setup();
+    const { client } = avecRequetes(<TachesCochables ordre={ORDRE} />);
+    remplirCache(client);
+
+    await user.click(screen.getByLabelText(/Remplacement plaquettes/));
+
+    await vi.waitFor(() => expect(invalidees(client)).toEqual(TOUTES));
+  });
+
+  it("rafraichirApresOrdre couvre toutes les vues qui montrent un OT", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    remplirCache(client);
+    client.setQueryData(cleOrdre(1), ORDRE);
+    client.setQueryData(["clients", "liste", 1], []);
+
+    await rafraichirApresOrdre(client);
+
+    expect(invalidees(client)).toEqual(TOUTES);
+    expect(client.getQueryState(cleOrdre(1))?.isInvalidated).toBe(false);
+    expect(client.getQueryState(["clients", "liste", 1])?.isInvalidated).toBe(false);
   });
 });

@@ -11,7 +11,7 @@ import { apiFetch } from "@/lib/api";
 import { formatDate, formatDateHeure, formatKm, formatTelephone, nomComplet } from "@/lib/format";
 import { formatDureeHM, formatRestitution, libellePasserA, modele, prenom, suivant, versFormulaireOrdre, type OrdreDetail, type OrdreEntree } from "@/lib/ordres";
 import { BADGE_OT, LIBELLE_OT } from "@/lib/statuts";
-import { useChangerStatut } from "./actions";
+import { rafraichirApresOrdre, useChangerStatut } from "./actions";
 import { cleOrdre, useMecaniciens, useOrdre } from "./donnees";
 import { OrdreForm } from "./OrdreForm";
 import { Suivi } from "./Suivi";
@@ -115,7 +115,7 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
                     envoyer={modifier}
                     onSucces={(maj) => {
                       queryClient.setQueryData(cleOrdre(ordreId), maj);
-                      void queryClient.invalidateQueries({ queryKey: ["ordres", "liste"] });
+                      void rafraichirApresOrdre(queryClient);
                       setEdition(false);
                       setMessage("Ordre de travail enregistré.");
                     }}
