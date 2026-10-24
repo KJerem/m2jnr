@@ -429,6 +429,37 @@ def test_pdf_genere_a_partir_des_seules_donnees_figees(
     assert client_gerant.get(f"/factures/{facture['id']}").json()["client"]["nom"] == "Laurent"
 
 
+def test_pdf_ecrit_les_noms_hors_winansi_sans_carre_noir(
+    client_gerant: TestClient, nouvel_ordre: Callable[..., OrdreTravail], db: Session
+) -> None:
+    """Revue du sprint 3 : avec Helvetica (WinAnsi), « ł », « ş » ou « ễ » sortaient en « ■ »."""
+    ordre = nouvel_ordre()
+    client = ordre.vehicule.client
+    client.nom, client.prenom = "Dvořák-Nguyễn", "Łukasz Ştefan"
+    ordre.vehicule.marque, ordre.vehicule.modele = "Škoda", "Octavia Ő"
+    db.flush()
+    designation = "Joint torique Ø 5 mm ≤ 3 bar → kit Ő"
+    lignes = [
+        {"type": "piece", "reference": "JT-Ø5", "designation": designation, "quantite": "1",
+         "prix_unitaire_ht_centimes": 1250},
+        *LIGNES_BACKLOG,
+    ]  # fmt: skip
+    facture = _facturer(client_gerant, _devis(client_gerant, ordre, lignes)["id"])
+
+    texte = _texte_pdf(client_gerant.get(f"/factures/{facture['id']}/pdf").content)
+
+    assert "■" not in texte
+    for attendu in (
+        "Łukasz Ştefan Dvořák-Nguyễn",
+        "Škoda Octavia Ő",
+        "JT-Ø5",
+        designation,
+        "Main-d'œuvre HT",
+        "183,00 €",  # 152,50 € HT + 30,50 € de TVA
+    ):
+        assert attendu in texte, attendu
+
+
 # --- Accès -----------------------------------------------------------------------------------
 
 

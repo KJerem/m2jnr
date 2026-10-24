@@ -1,6 +1,8 @@
 """PDF d'une facture (story S4.3), produit avec reportlab à partir des seules données figées.
 
-- A4, polices standard Helvetica (encodage WinAnsi : « € », « œ », accents français) ;
+- A4, police DejaVu Sans (TrueType Unicode, livrée dans app/polices et incorporée au PDF) :
+  « € », « œ », mais aussi « Ł », « ř », « ş », « ễ » des noms de clients ; les polices
+  standard Helvetica (WinAnsi) sortaient ces caractères en carrés noirs (revue du sprint 3) ;
 - en-tête du garage, numéro, dates d'émission et d'échéance, client, véhicule, ordre de
   travail, lignes, totaux, mentions légales (SIRET, TVA intracommunautaire, capital, RCS,
   pénalités de retard, indemnité forfaitaire de 40 €, escompte) ;
@@ -11,6 +13,7 @@
 """
 
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape
 
@@ -19,6 +22,8 @@ from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
@@ -47,9 +52,27 @@ FOND = colors.HexColor("#efece6")
 
 LARGEUR_UTILE = A4[0] - 36 * mm
 
-STYLE = ParagraphStyle("texte", fontName="Helvetica", fontSize=9.5, leading=12.5, textColor=ENCRE)
+DOSSIER_POLICES = Path(__file__).resolve().parent.parent / "polices"
+POLICE = "DejaVuSans"
+POLICE_GRASSE = "DejaVuSans-Bold"
+
+
+def enregistrer_polices() -> None:
+    """Enregistre DejaVu Sans (normal et gras) auprès de reportlab, une seule fois."""
+    deja = set(pdfmetrics.getRegisteredFontNames())
+    for nom, fichier in ((POLICE, "DejaVuSans.ttf"), (POLICE_GRASSE, "DejaVuSans-Bold.ttf")):
+        if nom not in deja:
+            pdfmetrics.registerFont(TTFont(nom, str(DOSSIER_POLICES / fichier)))
+    pdfmetrics.registerFontFamily(
+        POLICE, normal=POLICE, bold=POLICE_GRASSE, italic=POLICE, boldItalic=POLICE_GRASSE
+    )
+
+
+enregistrer_polices()
+
+STYLE = ParagraphStyle("texte", fontName=POLICE, fontSize=9.5, leading=12.5, textColor=ENCRE)
 STYLE_DOUX = ParagraphStyle("doux", parent=STYLE, textColor=ENCRE_DOUCE)
-STYLE_GRAS = ParagraphStyle("gras", parent=STYLE, fontName="Helvetica-Bold")
+STYLE_GRAS = ParagraphStyle("gras", parent=STYLE, fontName=POLICE_GRASSE)
 STYLE_GARAGE = ParagraphStyle("garage", parent=STYLE_GRAS, fontSize=13, leading=16)
 STYLE_TITRE = ParagraphStyle(
     "titre", parent=STYLE_GRAS, fontSize=18, leading=22, alignment=TA_RIGHT
@@ -256,7 +279,7 @@ def generer_pdf(facture: Facture, fuseau: str = "Europe/Paris") -> bytes:
 
     def pied(canvas: Canvas, doc: SimpleDocTemplate) -> None:
         canvas.saveState()
-        canvas.setFont("Helvetica", 7.5)
+        canvas.setFont(POLICE, 7.5)
         canvas.setFillColor(ENCRE_DOUCE)
         canvas.drawRightString(
             A4[0] - 18 * mm, 9 * mm, f"Facture {facture.numero} · page {doc.page}"
