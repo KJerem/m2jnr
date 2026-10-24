@@ -2,6 +2,11 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une entrée par sprint.
 
+## [Non publié]
+
+### Ajouté
+- S3.1 Ordre de travail : ouverture d'un OT par le gérant, numéro `OT-AAAA-nnn` unique et consécutif (compteur verrouillé dans la transaction, sans trou même en cas d'annulation ou de création simultanée, année de Paris), véhicule obligatoire, demande du client, diagnostic, tâches prévues, mécanicien facultatif, kilométrage d'entrée reporté sur le véhicule, restitution prévue ; liste filtrée par statut, formulaire avec lignes de tâches dynamiques, fiche de l'OT (maquette du détail), bouton « Nouvel ordre de travail » sur la fiche véhicule ; coordonnées du client réservées au gérant.
+
 ## [sprint-1] — Accès et fiches (2 au 13 novembre 2026)
 
 ### Ajouté
