@@ -345,6 +345,10 @@ def _reglages_demo():  # type: ignore[no-untyped-def]
 
 def test_seed_cree_les_comptes_de_demo_et_reste_idempotent(db: Session) -> None:
     premier = semer(db, _reglages_demo())
+    nadia = db.scalars(select(Utilisateur).where(Utilisateur.email == "nadia@garage.test")).one()
+    nadia.tentatives_echouees = 5
+    nadia.bloque_jusqu_a = datetime(2099, 1, 1, tzinfo=UTC)
+    db.flush()
     second = semer(db, _reglages_demo())
     assert len(premier) == len(second) == 12  # 4 comptes, 8 véhicules de démonstration
 
@@ -352,8 +356,10 @@ def test_seed_cree_les_comptes_de_demo_et_reste_idempotent(db: Session) -> None:
     assert all(ligne.startswith("À jour") for ligne in second)
     total = db.scalar(select(func.count()).select_from(Utilisateur))
     assert total == 4
-    nadia = db.scalars(select(Utilisateur).where(Utilisateur.email == "nadia@garage.test")).one()
+    db.refresh(nadia)
     assert (nadia.nom, nadia.role) == ("Nadia Benali", Role.GERANT)
+    # Relancer le seed débloque un compte de démonstration bloqué.
+    assert (nadia.tentatives_echouees, nadia.bloque_jusqu_a) == (0, None)
     assert verifier(nadia.mot_de_passe_hash, "demo-gerant-motdepasse")
     mecaniciens = db.scalars(
         select(Utilisateur.email).where(Utilisateur.role == Role.MECANICIEN)

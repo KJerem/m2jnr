@@ -78,6 +78,9 @@ def enregistrer_compte(db: Session, compte: CompteDemo, mot_de_passe: str) -> bo
     utilisateur.nom = compte.nom
     utilisateur.role = compte.role
     utilisateur.actif = True
+    # Déblocage : un compte de démonstration bloqué pendant une démo redevient utilisable.
+    utilisateur.tentatives_echouees = 0
+    utilisateur.bloque_jusqu_a = None
     if not verifier(utilisateur.mot_de_passe_hash, mot_de_passe):
         utilisateur.mot_de_passe_hash = hacher(mot_de_passe)
     db.flush()
