@@ -122,6 +122,8 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
   .brand small, .nav a span, .sidebar-foot .who, .sidebar-foot .theme-label, .sidebar-foot .sidebar-label { display: none; }
   .brand { font-size: 22px; padding: 0; text-align: center; }
   .nav a { justify-content: center; padding: 0; }
+  /* Boutons réduits à l'icône : 44 × 44 px dans la colonne de 76 px. */
+  .sidebar-foot .et-btn { padding: 0; }
   .grid-2 { grid-template-columns: 1fr; }
   .main { padding: var(--space-5); }
 }

@@ -29,7 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       <button
         type="button"
-        className="et-btn et-btn-sm"
+        className="et-btn"
         onClick={() => deconnexion.mutate()}
         disabled={deconnexion.isPending}
         aria-label="Se déconnecter"
