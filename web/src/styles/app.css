@@ -259,6 +259,33 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
 .devis-message { margin: 0 var(--space-5) var(--space-5); }
 .devis-pied { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-4) var(--space-5); border-top: 1px solid var(--line); }
 
+/* Tableau de bord du gérant (maquette 4) */
+.tdb-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-3); }
+.tdb-kpis .et-kpi-value { display: flex; flex-wrap: wrap; align-items: baseline; white-space: nowrap; }
+@media (max-width: 900px) { .tdb-kpis { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); } }
+.tdb-grille { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); gap: var(--space-5); align-items: start; }
+.tdb-cote { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+/* Sous 1280 px, le tableau garde toute la largeur ; les deux encadrés passent dessous, côte à côte. */
+@media (max-width: 1279px) {
+  .tdb-grille { grid-template-columns: minmax(0, 1fr); }
+  .tdb-cote { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
+}
+.tdb-table th, .tdb-table td { padding-left: var(--space-3); padding-right: var(--space-3); }
+.tdb-table th:first-child, .tdb-table td:first-child { padding-left: var(--space-5); }
+.tdb-table th:last-child, .tdb-table td:last-child { padding-right: var(--space-5); }
+/* La plaque ne passe jamais à la ligne ; le modèle se range dessous. */
+.tdb-vehicule { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); }
+.tdb-vehicule .et-plate { white-space: nowrap; }
+.tdb-badges { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); }
+.tdb-liste { list-style: none; margin: 0; padding: 0; }
+.tdb-liste > li + li { border-top: 1px solid var(--line); }
+.tdb-arrivee { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--space-3); align-items: center; padding: var(--space-3) var(--space-5); min-height: 64px; }
+.tdb-heure { font-family: var(--font-condensed); font-weight: 600; font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tdb-texte { display: flex; flex-direction: column; min-width: 0; }
+.tdb-a-traiter { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3) var(--space-5); min-height: 56px; justify-content: center; color: var(--ink); text-decoration: none; }
+.tdb-a-traiter:hover { background: var(--surface-sunken); }
+.tdb-a-traiter:hover .strong { text-decoration: underline; }
+
 /* Toast */
 .toasts { position: fixed; right: var(--space-5); bottom: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); z-index: 50; pointer-events: none; }
 .toasts-zone { display: flex; flex-direction: column; gap: var(--space-2); }

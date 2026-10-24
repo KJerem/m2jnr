@@ -12,7 +12,8 @@ import { cleOrdre } from "./donnees";
  * À appeler après toute écriture sur un OT (création, modification, statut, tâche) : recharge
  * toutes les vues qui l'affichent ailleurs que sur sa fiche (mise à jour par l'appelant avec la
  * réponse de l'API) — listes, kanban, « Mes travaux », planning et « Ensuite sur ce pont »,
- * rendez-vous à venir, fiche et historique du véhicule (kilométrage, interventions).
+ * rendez-vous à venir, fiche et historique du véhicule (kilométrage, interventions), tableau
+ * de bord du gérant (indicateurs, interventions du jour, « À traiter »).
  */
 export function rafraichirApresOrdre(queryClient: QueryClient): Promise<void> {
   return Promise.all([
@@ -20,6 +21,7 @@ export function rafraichirApresOrdre(queryClient: QueryClient): Promise<void> {
     queryClient.invalidateQueries({ queryKey: ["planning"] }),
     queryClient.invalidateQueries({ queryKey: ["rendez-vous"] }),
     queryClient.invalidateQueries({ queryKey: ["vehicules"] }),
+    queryClient.invalidateQueries({ queryKey: ["tableau-de-bord"] }),
   ]).then(() => undefined);
 }
 

@@ -36,6 +36,9 @@
 .et-plate-lg { height: 40px; font-size: 26px; }
 .et-plate-lg .et-plate-band { width: 22px; font-size: 12px; }
 .et-plate-lg .et-plate-num { padding: 0 var(--space-3); }
+.et-plate-sm { height: 24px; font-size: 15px; }
+.et-plate-sm .et-plate-band { width: 14px; font-size: 8px; }
+.et-plate-sm .et-plate-num { padding: 0 6px; }
 
 /* TextField, Select, TextArea */
 .et-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
