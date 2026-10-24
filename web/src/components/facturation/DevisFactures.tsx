@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Onglets } from "@/components/ui/Onglets";
 import { ListeDevis } from "./ListeDevis";
+import type { StatutPaiement } from "@/lib/factures";
 import { ListeFactures } from "./ListeFactures";
 
 export type OngletFacturation = "devis" | "factures";
@@ -17,7 +18,7 @@ const CHEMINS: Record<OngletFacturation, string> = { devis: "/devis", factures: 
  * replaceState) et non d'un état local : revenir sur /devis par le menu, qui réutilise la
  * page déjà affichée, montrait encore l'onglet « Factures » (revue du sprint 3).
  */
-export function DevisFactures({ onglet, page }: { onglet: OngletFacturation; page: number }) {
+export function DevisFactures({ onglet, page, paiement = "toutes" }: { onglet: OngletFacturation; page: number; paiement?: StatutPaiement | "toutes" }) {
   const chemin = usePathname();
   const actif: OngletFacturation = chemin === CHEMINS.factures ? "factures" : chemin === CHEMINS.devis ? "devis" : onglet;
 
@@ -43,7 +44,7 @@ export function DevisFactures({ onglet, page }: { onglet: OngletFacturation; pag
         onChange={changer}
         onglets={[
           { id: "devis", libelle: "Devis", contenu: <ListeDevis page={pageDe("devis")} /> },
-          { id: "factures", libelle: "Factures", contenu: <ListeFactures page={pageDe("factures")} /> },
+          { id: "factures", libelle: "Factures", contenu: <ListeFactures page={pageDe("factures")} paiement={onglet === "factures" ? paiement : "toutes"} /> },
         ]}
       />
     </>

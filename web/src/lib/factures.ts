@@ -1,10 +1,33 @@
-/** Factures (story S4.3) : types de l'API et règles d'affichage. */
+/** Factures (story S4.3) et leurs paiements (story S4.4) : types de l'API et règles d'affichage. */
+import type { BadgeStatus } from "@/components/ui/StatusBadge";
 import type { LigneDevis, StatutDevis, TotauxDevis } from "./devis";
-import { formatDateCourteOuAnnee } from "./format";
+import { formatDateCourteOuAnnee, formatEuros, parseEurosToCentimes } from "./format";
 import { aujourdHui } from "./vehicules";
 import type { StatutOT } from "./statuts";
 
-export interface FactureResume {
+export type StatutPaiement = "impayee" | "partielle" | "payee";
+export type ModePaiement = "carte" | "especes" | "cheque" | "virement";
+
+export interface Paiement {
+  id: number;
+  montant_centimes: number;
+  mode: ModePaiement;
+  recu_le: string;
+  reference: string | null;
+  cree_par: { id: number; nom: string };
+}
+
+/** Champs de paiement communs à la liste et à la fiche (story S4.4). */
+export interface SuiviPaiement {
+  paiements: Paiement[];
+  deja_paye_centimes: number;
+  reste_centimes: number;
+  statut_paiement: StatutPaiement;
+  /** Non payée et échéance dépassée (jour de Paris). */
+  en_retard: boolean;
+}
+
+export interface FactureResume extends SuiviPaiement {
   id: number;
   numero: string;
   emise_le: string;
@@ -72,4 +95,74 @@ export function formatJour(jour: string): string {
 /** Date d'émission : « sam. 24 oct. » cette année, « ven. 24 oct. 2025 » sinon. */
 export function formatEmission(iso: string, maintenant: Date = new Date()): string {
   return formatDateCourteOuAnnee(iso, maintenant);
+}
+
+// --- Paiements (story S4.4) ---------------------------------------------------------------
+
+export const STATUTS_PAIEMENT: StatutPaiement[] = ["impayee", "partielle", "payee"];
+
+export const LIBELLE_PAIEMENT: Record<StatutPaiement, string> = {
+  impayee: "Impayée",
+  partielle: "Partiellement payée",
+  payee: "Payée",
+};
+
+/** Badges du design system : anneau « attente », pastille « en-cours », pastille « pret ». */
+export const BADGE_PAIEMENT: Record<StatutPaiement, BadgeStatus> = {
+  impayee: "attente",
+  partielle: "en-cours",
+  payee: "pret",
+};
+
+/** Libellés des filtres de l'onglet Factures. */
+export const FILTRES_PAIEMENT: { id: StatutPaiement | "toutes"; libelle: string }[] = [
+  { id: "toutes", libelle: "Toutes" },
+  { id: "impayee", libelle: "Impayées" },
+  { id: "partielle", libelle: "Partielles" },
+  { id: "payee", libelle: "Payées" },
+];
+
+/** « ?paiement=partielle » vers le filtre ; absent ou inconnu → toutes. */
+export function filtrePaiement(valeur: string | string[] | undefined): StatutPaiement | "toutes" {
+  return typeof valeur === "string" && (STATUTS_PAIEMENT as string[]).includes(valeur) ? (valeur as StatutPaiement) : "toutes";
+}
+
+/** Adresse de l'onglet Factures pour un filtre et une page. */
+export function lienFactures(filtre: StatutPaiement | "toutes", page = 1): string {
+  const params = new URLSearchParams();
+  if (filtre !== "toutes") params.set("paiement", filtre);
+  if (page > 1) params.set("page", String(page));
+  const texte = params.toString();
+  return texte ? `/factures?${texte}` : "/factures";
+}
+
+/** « carte » est le terminal du garage : aucune donnée de carte n'est saisie. */
+export const LIBELLE_MODE: Record<ModePaiement, string> = {
+  carte: "Carte bancaire (terminal)",
+  especes: "Espèces",
+  cheque: "Chèque",
+  virement: "Virement",
+};
+
+export const MODES_PAIEMENT: ModePaiement[] = ["carte", "especes", "cheque", "virement"];
+
+export const MESSAGE_MONTANT_INVALIDE = "Montant en euros, par exemple « 120,50 ».";
+export const MESSAGE_MONTANT_NUL = "Le montant doit être supérieur à 0.";
+
+export function messageTropPercu(resteCentimes: number): string {
+  return `Le paiement dépasse le reste à payer (${formatEuros(resteCentimes)}).`;
+}
+
+/** Montant saisi pré-rempli : le reste à payer, « 168,00 ». */
+export function montantSaisi(centimes: number): string {
+  return (centimes / 100).toFixed(2).replace(".", ",");
+}
+
+/** Lecture du montant saisi : centimes, ou message d'erreur (même règle que l'API). */
+export function lireMontant(saisie: string, resteCentimes: number): { centimes: number } | { erreur: string } {
+  const centimes = parseEurosToCentimes(saisie);
+  if (centimes === null) return { erreur: MESSAGE_MONTANT_INVALIDE };
+  if (centimes <= 0) return { erreur: MESSAGE_MONTANT_NUL };
+  if (centimes > resteCentimes) return { erreur: messageTropPercu(resteCentimes) };
+  return { centimes };
 }
