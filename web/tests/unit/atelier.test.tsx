@@ -7,10 +7,11 @@ import { CarteKanban } from "@/components/atelier/Kanban";
 import { ActionPrincipale } from "@/components/atelier/VueTablette";
 import { rafraichirApresOrdre } from "@/components/ordres/actions";
 import { cleOrdre } from "@/components/ordres/donnees";
+import { FicheOrdre } from "@/components/ordres/FicheOrdre";
 import { TachesCochables } from "@/components/ordres/TachesCochables";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ApiError } from "@/lib/api";
-import { basculerTache, libellePasserA, trierCartes, type OrdreDetail } from "@/lib/ordres";
+import { basculerTache, libellePasserA, messageTachesRestantes, peutPasserA, trierCartes, type OrdreDetail } from "@/lib/ordres";
 
 const apiFetch = vi.fn();
 vi.mock("@/lib/api", async (importOriginal) => {
@@ -196,5 +197,42 @@ describe("données rafraîchies après une action sur un OT", () => {
     expect(invalidees(client)).toEqual(TOUTES);
     expect(client.getQueryState(cleOrdre(1))?.isInvalidated).toBe(false);
     expect(client.getQueryState(["clients", "liste", 1])?.isInvalidated).toBe(false);
+  });
+});
+
+describe("« Passer à « Prêt » » tant que des tâches restent ouvertes", () => {
+  it("la règle est la même partout : Prêt exige toutes les tâches terminées", () => {
+    expect(peutPasserA(ORDRE, "termine")).toBe(false);
+    expect(peutPasserA(ORDRE, "livre")).toBe(true);
+    expect(peutPasserA({ ...ORDRE, taches_terminees: 0 }, "en_cours")).toBe(true);
+    expect(peutPasserA(basculerTache(ORDRE, 11, true, null), "termine")).toBe(true);
+    expect(messageTachesRestantes(1)).toBe("Encore 1 tâche à terminer.");
+    expect(messageTachesRestantes(2)).toBe("Encore 2 tâches à terminer.");
+  });
+
+  it("la carte du kanban désactive le bouton et dit combien de tâches restent", () => {
+    const onAvancer = vi.fn();
+    render(<CarteKanban ordre={ORDRE} enCours={false} onAvancer={onAvancer} />);
+
+    const bouton = screen.getByRole("button", { name: /^Passer à « Prêt »/ });
+    expect(bouton).toBeDisabled();
+    expect(bouton).toHaveAccessibleDescription("Encore 1 tâche à terminer.");
+  });
+
+  it("la fiche de l'OT désactive son action principale de la même façon", () => {
+    avecRequetes(<FicheOrdre ordreId={1} />);
+
+    const bouton = screen.getByRole("button", { name: "Passer à « Prêt »" });
+    expect(bouton).toBeDisabled();
+    expect(bouton).toHaveAccessibleDescription("Encore 1 tâche à terminer.");
+  });
+
+  it("la fiche réactive le bouton quand toutes les tâches sont faites", () => {
+    const fini = basculerTache(ORDRE, 11, true, null);
+    avecRequetes(<FicheOrdre ordreId={1} />, fini);
+
+    const bouton = screen.getByRole("button", { name: "Passer à « Prêt »" });
+    expect(bouton).toBeEnabled();
+    expect(bouton).not.toHaveAccessibleDescription();
   });
 });

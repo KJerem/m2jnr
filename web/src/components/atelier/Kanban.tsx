@@ -7,7 +7,7 @@ import { useChangerStatut } from "@/components/ordres/actions";
 import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api";
 import type { Page } from "@/lib/clients";
-import { libellePasserA, suivant, trierCartes, type OrdreResume } from "@/lib/ordres";
+import { libellePasserA, messageTachesRestantes, peutPasserA, suivant, tachesRestantes, trierCartes, type OrdreResume } from "@/lib/ordres";
 import { LIBELLE_OT, STATUTS_OT, type StatutOT } from "@/lib/statuts";
 
 export const CLE_ATELIER = ["ordres", "atelier"] as const;
@@ -21,14 +21,21 @@ export interface CarteKanbanProps {
 /** Carte du kanban : lien vers la fiche, et bouton « Passer à … » à part (pas de glisser-déposer). */
 export function CarteKanban({ ordre, enCours, onAvancer }: CarteKanbanProps) {
   const prochain = suivant(ordre.statut);
+  const bloque = prochain !== null && !peutPasserA(ordre, prochain);
+  const idRestantes = `kanban-restantes-${ordre.id}`;
   return (
     <li id={`kanban-${ordre.id}`} className="kanban-carte" tabIndex={-1}>
       <CarteOrdre ordre={ordre} />
       {prochain ? (
-        <Button block loading={enCours} onClick={() => onAvancer(ordre, prochain)}>
+        <Button block loading={enCours} disabled={bloque} aria-describedby={bloque ? idRestantes : undefined} onClick={() => onAvancer(ordre, prochain)}>
           {libellePasserA(prochain)}
           <span className="sr-only"> : {ordre.numero}</span>
         </Button>
+      ) : null}
+      {bloque ? (
+        <span className="caption" id={idRestantes}>
+          {messageTachesRestantes(tachesRestantes(ordre))}
+        </span>
       ) : null}
     </li>
   );

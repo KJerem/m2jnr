@@ -10,7 +10,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Plate } from "@/components/ui/Plate";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatKm } from "@/lib/format";
-import { formatRestitution, modele, type OrdreDetail } from "@/lib/ordres";
+import { formatRestitution, messageTachesRestantes, modele, peutPasserA, tachesRestantes, type OrdreDetail } from "@/lib/ordres";
 import { elementSuivant, formatCreneau, jourDuPont, libelleReport } from "@/lib/rendezvous";
 import { BADGE_OT, LIBELLE_OT } from "@/lib/statuts";
 import { aujourdHui } from "@/lib/vehicules";
@@ -36,7 +36,7 @@ function Progression({ ordre }: { ordre: OrdreDetail }) {
 /** Action principale selon le statut : démarrer, puis terminer quand toutes les tâches sont faites. */
 export function ActionPrincipale({ ordre }: { ordre: OrdreDetail }) {
   const avancer = useChangerStatut();
-  const restantes = ordre.taches_total - ordre.taches_terminees;
+  const bloque = !peutPasserA(ordre, "termine");
   if (ordre.statut === "a_faire") {
     return (
       <Button variant="primary" size="lg" loading={avancer.isPending} onClick={() => avancer.mutate({ ordreId: ordre.id, nouveau: "en_cours" })}>
@@ -50,16 +50,16 @@ export function ActionPrincipale({ ordre }: { ordre: OrdreDetail }) {
         <Button
           variant="primary"
           size="lg"
-          disabled={restantes > 0}
-          aria-describedby={restantes > 0 ? "tablette-restantes" : undefined}
+          disabled={bloque}
+          aria-describedby={bloque ? "tablette-restantes" : undefined}
           loading={avancer.isPending}
           onClick={() => avancer.mutate({ ordreId: ordre.id, nouveau: "termine" })}
         >
           Terminer l&apos;intervention
         </Button>
-        {restantes > 0 ? (
+        {bloque ? (
           <span className="caption" id="tablette-restantes">
-            Encore {restantes} {restantes > 1 ? "tâches" : "tâche"} à terminer.
+            {messageTachesRestantes(tachesRestantes(ordre))}
           </span>
         ) : null}
       </div>
