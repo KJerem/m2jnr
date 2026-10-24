@@ -1,11 +1,17 @@
-"""Fiches clients : création, modification, consultation et liste paginée."""
+"""Fiches clients : création, modification, consultation et liste paginée.
+
+Alerte de doublon : un téléphone déjà connu chez un autre client bloque l'enregistrement
+(409 `doublon_telephone`, avec la liste des clients concernés) tant que le gérant ne l'a pas
+confirmé (`confirmer_doublon=True`). Ce n'est pas une interdiction : un couple ou une
+entreprise peut partager un numéro.
+"""
 
 from dataclasses import dataclass
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.errors import not_found
+from app.errors import conflict, not_found
 from app.models.client import Client
 from app.schemas.client import ClientEntree
 
@@ -31,7 +37,34 @@ def _appliquer(client: Client, donnees: ClientEntree) -> None:
     client.consentement_rappels = donnees.consentement_rappels
 
 
-def creer_client(db: Session, donnees: ClientEntree) -> Client:
+MESSAGE_DOUBLON = "Un client avec ce téléphone existe déjà."
+
+
+def clients_avec_telephone(
+    db: Session, telephone: str, *, sauf_id: int | None = None
+) -> list[Client]:
+    requete = select(Client).where(Client.telephone == telephone).order_by(Client.id)
+    if sauf_id is not None:
+        requete = requete.where(Client.id != sauf_id)
+    return list(db.scalars(requete))
+
+
+def verifier_doublon_telephone(
+    db: Session, telephone: str, *, sauf_id: int | None = None, confirmer_doublon: bool = False
+) -> None:
+    if confirmer_doublon:
+        return
+    existants = clients_avec_telephone(db, telephone, sauf_id=sauf_id)
+    if existants:
+        raise conflict(
+            "doublon_telephone",
+            MESSAGE_DOUBLON,
+            clients=[{"id": c.id, "nom": c.nom, "prenom": c.prenom} for c in existants],
+        )
+
+
+def creer_client(db: Session, donnees: ClientEntree, *, confirmer_doublon: bool = False) -> Client:
+    verifier_doublon_telephone(db, donnees.telephone, confirmer_doublon=confirmer_doublon)
     client = Client()
     _appliquer(client, donnees)
     db.add(client)
@@ -40,7 +73,12 @@ def creer_client(db: Session, donnees: ClientEntree) -> Client:
     return client
 
 
-def modifier_client(db: Session, client: Client, donnees: ClientEntree) -> Client:
+def modifier_client(
+    db: Session, client: Client, donnees: ClientEntree, *, confirmer_doublon: bool = False
+) -> Client:
+    verifier_doublon_telephone(
+        db, donnees.telephone, sauf_id=client.id, confirmer_doublon=confirmer_doublon
+    )
     _appliquer(client, donnees)
     db.flush()
     db.refresh(client)

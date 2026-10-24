@@ -30,9 +30,19 @@ def lister(
     )
 
 
+ConfirmerDoublon = Query(
+    False, description="Vrai pour enregistrer malgré un téléphone déjà connu (409 sinon)."
+)
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
-def creer(entree: ClientEntree, db: Session = Depends(get_db)) -> ClientSortie:
-    return ClientSortie.model_validate(service.creer_client(db, entree))
+def creer(
+    entree: ClientEntree,
+    confirmer_doublon: bool = ConfirmerDoublon,
+    db: Session = Depends(get_db),
+) -> ClientSortie:
+    client = service.creer_client(db, entree, confirmer_doublon=confirmer_doublon)
+    return ClientSortie.model_validate(client)
 
 
 @router.get("/{client_id}")
@@ -41,6 +51,12 @@ def consulter(client_id: int, db: Session = Depends(get_db)) -> ClientSortie:
 
 
 @router.put("/{client_id}")
-def modifier(client_id: int, entree: ClientEntree, db: Session = Depends(get_db)) -> ClientSortie:
+def modifier(
+    client_id: int,
+    entree: ClientEntree,
+    confirmer_doublon: bool = ConfirmerDoublon,
+    db: Session = Depends(get_db),
+) -> ClientSortie:
     client = service.obtenir_client(db, client_id)
-    return ClientSortie.model_validate(service.modifier_client(db, client, entree))
+    client = service.modifier_client(db, client, entree, confirmer_doublon=confirmer_doublon)
+    return ClientSortie.model_validate(client)
