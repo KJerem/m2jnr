@@ -97,6 +97,12 @@ class OrdreTravail(TimestampMixin, Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    historique: Mapped[list["HistoriqueStatut"]] = relationship(
+        back_populates="ordre",
+        order_by="(HistoriqueStatut.change_le, HistoriqueStatut.id)",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     @property
     def taches_terminees(self) -> int:
@@ -146,3 +152,31 @@ class TacheOT(TimestampMixin, Base):
 
     def __repr__(self) -> str:
         return f"<TacheOT {self.id} OT {self.ordre_travail_id}>"
+
+
+class HistoriqueStatut(Base):
+    """Trace d'un changement de statut : qui, quand, de quoi vers quoi (story S3.2).
+
+    Ligne écrite une fois, jamais modifiée : `change_le` tient lieu d'horodatage. La création
+    de l'OT est la première ligne (ancien = NULL, nouveau = a_faire).
+    """
+
+    __tablename__ = "historique_statut"
+    __table_args__ = (CheckConstraint("ancien IS DISTINCT FROM nouveau", name="statut_change"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ordre_travail_id: Mapped[int] = mapped_column(
+        ForeignKey("ordre_travail.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ancien: Mapped[StatutOT | None] = mapped_column(ENUM_STATUT_OT)
+    nouveau: Mapped[StatutOT] = mapped_column(ENUM_STATUT_OT, nullable=False)
+    change_le: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    utilisateur_id: Mapped[int] = mapped_column(
+        ForeignKey("utilisateur.id", ondelete="RESTRICT"), nullable=False
+    )
+
+    ordre: Mapped[OrdreTravail] = relationship(back_populates="historique")
+    utilisateur: Mapped["Utilisateur"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<HistoriqueStatut OT {self.ordre_travail_id} {self.ancien} → {self.nouveau}>"
