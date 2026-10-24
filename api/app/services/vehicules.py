@@ -2,9 +2,9 @@
 
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.db import id_possible
 from app.errors import AppError, conflict, invalid, not_found
@@ -27,6 +27,24 @@ def obtenir_vehicule(db: Session, vehicule_id: int) -> Vehicule:
 def lister_vehicules_client(db: Session, client: Client) -> list[Vehicule]:
     return list(
         db.scalars(select(Vehicule).where(Vehicule.client_id == client.id).order_by(Vehicule.id))
+    )
+
+
+def lister_vehicules(db: Session, limite: int) -> list[Vehicule]:
+    """Tous les véhicules, groupés par propriétaire (nom, prénom) puis par plaque."""
+    return list(
+        db.scalars(
+            select(Vehicule)
+            .join(Vehicule.client)
+            .options(selectinload(Vehicule.client))
+            .order_by(
+                func.lower(Client.nom),
+                func.lower(func.coalesce(Client.prenom, "")),
+                Client.id,
+                Vehicule.immatriculation,
+            )
+            .limit(limite)
+        )
     )
 
 
