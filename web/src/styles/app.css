@@ -290,6 +290,28 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
 .tdb-a-traiter:hover { background: var(--surface-sunken); }
 .tdb-a-traiter:hover .strong { text-decoration: underline; }
 
+/* Recherche (S1.3) : champ de l'en-tête du tableau de bord et page de résultats. */
+.tdb-entete-actions { display: flex; align-items: flex-end; gap: var(--space-3); flex-wrap: wrap; }
+.recherche-form { min-width: 0; }
+.recherche-tdb { width: min(320px, 100%); }
+.recherche-page { width: min(420px, 100%); }
+.recherche-saisie { display: flex; gap: var(--space-2); }
+.recherche-saisie .et-input { flex: 1; min-width: 0; }
+.recherche-bouton { flex: none; width: 44px; padding: 0; justify-content: center; }
+.recherche-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: var(--space-5); align-items: start; }
+@media (max-width: 900px) { .recherche-grille { grid-template-columns: 1fr; } }
+.recherche-liste { list-style: none; margin: 0; padding: 0; }
+.recherche-liste > li + li { border-top: 1px solid var(--line); }
+.recherche-lien { display: flex; flex-direction: column; gap: 2px; min-height: 56px; justify-content: center; padding: var(--space-2) var(--space-5); color: var(--ink); text-decoration: none; }
+.recherche-lien:hover { background: var(--surface-sunken); }
+.recherche-lien:hover .strong { text-decoration: underline; }
+.recherche-lien-ligne { flex-direction: row; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.recherche-lien-ligne .et-plate { white-space: nowrap; }
+.recherche-texte { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; flex: 1; min-width: 120px; }
+/* OT : numéro, plaque et modèle, badge ; la plaque ne passe jamais à la ligne. */
+.recherche-lien-ot { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); }
+.recherche-lien-ot .recherche-texte { min-width: 0; }
+
 /* Toast */
 .toasts { position: fixed; right: var(--space-5); bottom: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); z-index: 50; pointer-events: none; }
 .toasts-zone { display: flex; flex-direction: column; gap: var(--space-2); }

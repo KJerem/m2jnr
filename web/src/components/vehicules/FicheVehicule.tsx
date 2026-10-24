@@ -110,6 +110,7 @@ export function FicheVehicule({ vehiculeId }: { vehiculeId: number }) {
                       onSucces={(maj) => {
                         queryClient.setQueryData(cle, maj);
                         void queryClient.invalidateQueries({ queryKey: ["clients"] });
+                        void queryClient.invalidateQueries({ queryKey: ["recherche"] });
                         setEdition(false);
                         setMessage("Véhicule enregistré.");
                       }}

@@ -13,7 +13,7 @@ import { cleOrdre } from "./donnees";
  * toutes les vues qui l'affichent ailleurs que sur sa fiche (mise à jour par l'appelant avec la
  * réponse de l'API) — listes, kanban, « Mes travaux », planning et « Ensuite sur ce pont »,
  * rendez-vous à venir, fiche et historique du véhicule (kilométrage, interventions), tableau
- * de bord du gérant (indicateurs, interventions du jour, « À traiter »).
+ * de bord du gérant (indicateurs, interventions du jour, « À traiter »), résultats de recherche.
  */
 export function rafraichirApresOrdre(queryClient: QueryClient): Promise<void> {
   return Promise.all([
@@ -22,6 +22,7 @@ export function rafraichirApresOrdre(queryClient: QueryClient): Promise<void> {
     queryClient.invalidateQueries({ queryKey: ["rendez-vous"] }),
     queryClient.invalidateQueries({ queryKey: ["vehicules"] }),
     queryClient.invalidateQueries({ queryKey: ["tableau-de-bord"] }),
+    queryClient.invalidateQueries({ queryKey: ["recherche"] }),
   ]).then(() => undefined);
 }
 
