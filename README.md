@@ -207,6 +207,10 @@ Variables utiles : `E2E_BASE_URL` (http://localhost:3000 par défaut), `E2E_MDP_
 l'équipe, `PW_CHROMIUM_PATH` pour utiliser un Chromium déjà installé quand le téléchargement
 est impossible, par exemple
 `C:\Users\<vous>\AppData\Local\ms-playwright\chromium_headless_shell-1234\chrome-headless-shell-win64\chrome-headless-shell.exe`.
+Chaque exécution tire un identifiant au hasard (plaques, téléphones et noms « Recette… » en
+découlent, sans dépendre de l'heure) ; `E2E_EXECUTION` (entier de 0 à 99 999) le fixe pour
+rejouer une exécution à l'identique. Le rendez-vous du parcours du gérant est pris sur le
+premier créneau libre du pont 3, lu dans les rendez-vous déjà enregistrés.
 
 ## Méthode et historique Git
 

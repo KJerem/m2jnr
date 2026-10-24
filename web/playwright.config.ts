@@ -8,7 +8,9 @@ import { defineConfig, devices } from "@playwright/test";
  * - E2E_BASE_URL : adresse de l'interface (http://localhost:3000 par défaut) ;
  * - PW_CHROMIUM_PATH : exécutable Chromium à utiliser si « npx playwright install chromium »
  *   n'est pas possible (machine sans réseau), par exemple
- *   C:\Users\…\AppData\Local\ms-playwright\chromium_headless_shell-1234\chrome-headless-shell-win64\chrome-headless-shell.exe.
+ *   C:\Users\…\AppData\Local\ms-playwright\chromium_headless_shell-1234\chrome-headless-shell-win64\chrome-headless-shell.exe ;
+ * - E2E_EXECUTION : identifiant de l'exécution (0 à 99 999, tiré au hasard sinon), dont
+ *   découlent plaques, téléphones et noms des données créées (tests/e2e/donnees.ts).
  */
 const executablePath = process.env.PW_CHROMIUM_PATH || undefined;
 

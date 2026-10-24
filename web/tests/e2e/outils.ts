@@ -1,42 +1,21 @@
 /**
  * Outils des parcours de recette : connexion, appels à l'API comme le navigateur (cookie de
  * session, jeton CSRF), données uniques à chaque exécution (les parcours se rejouent sur la
- * même base sans conflit : plaque, téléphone et créneau différents à chaque fois).
+ * même base sans conflit : plaque et téléphone tirés d'un identifiant d'exécution, voir
+ * donnees.ts, et créneau de rendez-vous cherché parmi les créneaux libres du pont).
  *
  * Les comptes de démonstration ne reçoivent jamais de mauvais mot de passe : ils ne doivent
  * pas être bloqués (5 échecs = 15 minutes).
  */
 import { expect, request, type APIRequestContext, type Page } from "@playwright/test";
+import { EXECUTION, numeroExecution, plaqueUnique, premierCreneauLibre, telephoneUnique } from "./donnees";
+
+export { numeroExecution, plaqueUnique, telephoneUnique };
 
 export const GERANT = { email: "nadia@garage.test", motDePasse: process.env.E2E_MDP_GERANT ?? "Gerant-Demo-2026!" };
 export const MECANICIEN = { email: "karim@garage.test", motDePasse: process.env.E2E_MDP_MECANICIEN ?? "Meca-Demo-2026!" };
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3000";
-// Lettres du SIV (sans I, O ni U).
-const LETTRES = "ABCDEFGHJKLMNPQRSTVWXYZ";
-
-/** Identifiant de l'exécution : secondes écoulées depuis 2026, plus un décalage par donnée. */
-export function numeroExecution(decalage = 0): number {
-  return Math.floor((Date.now() - Date.UTC(2026, 0, 1)) / 1000) + decalage;
-}
-
-/** Plaque SIV valide et unique, « AB-123-CD », tirée du numéro d'exécution. */
-export function plaqueUnique(decalage = 0): string {
-  let n = numeroExecution(decalage);
-  const chiffres = String((n % 999) + 1).padStart(3, "0");
-  n = Math.floor(n / 999);
-  const lettres: string[] = [];
-  for (let i = 0; i < 4; i += 1) {
-    lettres.push(LETTRES[n % LETTRES.length]!);
-    n = Math.floor(n / LETTRES.length);
-  }
-  return `${lettres[0]}${lettres[1]}-${chiffres}-${lettres[2]}${lettres[3]}`;
-}
-
-/** Téléphone unique « 07xxxxxxxx » (pas d'alerte de doublon). */
-export function telephoneUnique(decalage = 0): string {
-  return `07${String(numeroExecution(decalage) % 100_000_000).padStart(8, "0")}`;
-}
 
 /** « 2026-12-24 » dans `jours` jours (calendrier de Paris). */
 export function jourDansNJours(jours: number): string {
@@ -126,4 +105,23 @@ export async function creerFacture(api: Api, decalage: number): Promise<{ id: nu
   await api.post(`/api/ordres/${ordre.id}/statut`, { nouveau: "termine" });
   const facture = await api.post<{ id: number; numero: string }>(`/api/devis/${devis.id}/facture`);
   return { ...facture, ordre };
+}
+
+/**
+ * Créneau libre sur le pont nommé, lu dans les rendez-vous déjà pris (GET /api/rendez-vous) :
+ * à partir d'un jour propre à l'exécution (dans 30 à 329 jours), le premier jour qui a une
+ * place. Une exécution précédente restée en base ne provoque plus de chevauchement (409).
+ */
+export async function creneauLibre(api: Api, nomPont: string, dureeMinutes = 60): Promise<{ jour: string; heure: string }> {
+  const ponts = await api.get<{ id: number; nom: string }[]>("/api/ponts");
+  const pont = ponts.find((p) => p.nom === nomPont);
+  expect(pont, `le pont « ${nomPont} » doit exister (seed)`).toBeDefined();
+  const depart = 30 + (EXECUTION % 300);
+  for (let jours = depart; jours < depart + 60; jours += 1) {
+    const jour = jourDansNJours(jours);
+    const pris = await api.get<{ debut: string; fin: string }[]>(`/api/rendez-vous?du=${jour}&au=${jour}&pont_id=${pont!.id}`);
+    const heure = premierCreneauLibre(pris, dureeMinutes);
+    if (heure) return { jour, heure };
+  }
+  throw new Error(`aucun créneau libre sur ${nomPont} pendant 60 jours`);
 }
