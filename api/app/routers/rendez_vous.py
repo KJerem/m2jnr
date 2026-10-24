@@ -1,6 +1,6 @@
 """Rendez-vous : lecture pour les deux rôles ; prise de rendez-vous et ouverture d'OT : gérant."""
 
-from datetime import date, datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, status
 
@@ -8,6 +8,7 @@ from app.clock import bornes_jour, date_locale, get_now
 from app.config import Settings, get_settings
 from app.db import ID_MAX, DbSession
 from app.models.utilisateur import Role, Utilisateur
+from app.schemas.commun import Jour
 from app.schemas.ordre import OrdreDetail, detail_ordre
 from app.schemas.rendez_vous import RendezVousEntree, RendezVousSortie, sortie_rendez_vous
 from app.security.dependances import require_role
@@ -25,10 +26,10 @@ def lister(
     db: DbSession,
     maintenant: datetime = Depends(get_now),
     settings: Settings = Depends(get_settings),
-    du: date | None = Query(
+    du: Jour | None = Query(
         None, description="À partir de ce jour (Paris) ; aujourd'hui par défaut"
     ),
-    au: date | None = Query(None, description="Jusqu'à ce jour inclus (Paris)"),
+    au: Jour | None = Query(None, description="Jusqu'à ce jour inclus (Paris)"),
     pont_id: int | None = Query(None, ge=1, le=ID_MAX),
 ) -> list[RendezVousSortie]:
     premier_jour = du or date_locale(maintenant, settings.timezone)

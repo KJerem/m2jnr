@@ -62,12 +62,16 @@ def sortie_rendez_vous(rdv: RendezVous) -> RendezVousSortie:
 
 
 class ElementPlanning(BaseModel):
-    """Créneau d'un pont : un rendez-vous, avec la carte de son OT s'il est ouvert."""
+    """Créneau d'un pont : un rendez-vous, avec la carte de son OT s'il est ouvert.
+
+    `report` : rendez-vous d'un jour précédent dont l'OT n'est pas livré (le véhicule est
+    encore sur le pont) ; `heure` vaut alors minuit du jour affiché."""
 
     type: Literal["rendez_vous", "ordre"]
     heure: datetime
     rendez_vous: RendezVousSortie
     ordre: OrdreResume | None = None
+    report: bool = False
 
 
 class PontPlanning(BaseModel):

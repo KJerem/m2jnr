@@ -3,7 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useVehicules } from "@/components/ordres/donnees";
+import { rafraichirApresOrdre } from "@/components/ordres/actions";
+import { cleOrdre, useVehicules } from "@/components/ordres/donnees";
 import { Button } from "@/components/ui/Button";
 import { Plate } from "@/components/ui/Plate";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -41,9 +42,8 @@ export function PageRendezVous() {
   const ouvrir = useMutation({
     mutationFn: (rdv: RendezVous) => apiFetch<OrdreDetail>(`/rendez-vous/${rdv.id}/ordre`, { method: "POST" }),
     onSuccess: (ordre) => {
-      void queryClient.invalidateQueries({ queryKey: ["ordres"] });
-      void queryClient.invalidateQueries({ queryKey: ["rendez-vous"] });
-      void queryClient.invalidateQueries({ queryKey: ["planning"] });
+      queryClient.setQueryData(cleOrdre(ordre.id), ordre);
+      void rafraichirApresOrdre(queryClient);
       notifier({ type: "success", message: `${ordre.numero} ouvert.` });
       router.push(`/ordres/${ordre.id}`);
     },

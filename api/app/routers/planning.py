@@ -1,6 +1,6 @@
 """Ponts et planning du jour de l'atelier (lecture seule, gérant et mécanicien)."""
 
-from datetime import date, datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
 
@@ -8,6 +8,7 @@ from app.clock import date_locale, get_now
 from app.config import Settings, get_settings
 from app.db import DbSession
 from app.models.utilisateur import Role, Utilisateur
+from app.schemas.commun import Jour
 from app.schemas.ordre import PontSortie, resume_ordre
 from app.schemas.rendez_vous import (
     ElementPlanning,
@@ -34,7 +35,7 @@ def planning(
     utilisateur: Utilisateur = Depends(tous_les_roles),
     maintenant: datetime = Depends(get_now),
     settings: Settings = Depends(get_settings),
-    jour: date | None = Query(
+    jour: Jour | None = Query(
         None, description="Jour de Paris (AAAA-MM-JJ) ; aujourd'hui par défaut"
     ),
 ) -> PlanningSortie:
@@ -50,6 +51,17 @@ def planning(
                 nom=p.pont.nom,
                 charge_minutes=p.charge_minutes,
                 elements=[
+                    ElementPlanning(
+                        type="ordre",
+                        heure=donnees.debut,
+                        rendez_vous=sortie_rendez_vous(r),
+                        ordre=resume_ordre(r.ordre, maintenant, voir_contact=contact),
+                        report=True,
+                    )
+                    for r in p.reports
+                    if r.ordre
+                ]
+                + [
                     ElementPlanning(
                         type="ordre" if r.ordre else "rendez_vous",
                         heure=r.debut,

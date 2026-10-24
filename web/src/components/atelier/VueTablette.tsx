@@ -10,8 +10,8 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Plate } from "@/components/ui/Plate";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatKm } from "@/lib/format";
-import { formatRestitution, modele, type OrdreDetail } from "@/lib/ordres";
-import { elementSuivant, formatCreneau } from "@/lib/rendezvous";
+import { formatRestitution, messageTachesRestantes, modele, peutPasserA, tachesRestantes, type OrdreDetail } from "@/lib/ordres";
+import { elementSuivant, formatCreneau, jourDuPont, libelleReport } from "@/lib/rendezvous";
 import { BADGE_OT, LIBELLE_OT } from "@/lib/statuts";
 import { aujourdHui } from "@/lib/vehicules";
 import { Horloge } from "./Horloge";
@@ -36,7 +36,7 @@ function Progression({ ordre }: { ordre: OrdreDetail }) {
 /** Action principale selon le statut : démarrer, puis terminer quand toutes les tâches sont faites. */
 export function ActionPrincipale({ ordre }: { ordre: OrdreDetail }) {
   const avancer = useChangerStatut();
-  const restantes = ordre.taches_total - ordre.taches_terminees;
+  const bloque = !peutPasserA(ordre, "termine");
   if (ordre.statut === "a_faire") {
     return (
       <Button variant="primary" size="lg" loading={avancer.isPending} onClick={() => avancer.mutate({ ordreId: ordre.id, nouveau: "en_cours" })}>
@@ -50,16 +50,16 @@ export function ActionPrincipale({ ordre }: { ordre: OrdreDetail }) {
         <Button
           variant="primary"
           size="lg"
-          disabled={restantes > 0}
-          aria-describedby={restantes > 0 ? "tablette-restantes" : undefined}
+          disabled={bloque}
+          aria-describedby={bloque ? "tablette-restantes" : undefined}
           loading={avancer.isPending}
           onClick={() => avancer.mutate({ ordreId: ordre.id, nouveau: "termine" })}
         >
           Terminer l&apos;intervention
         </Button>
-        {restantes > 0 ? (
+        {bloque ? (
           <span className="caption" id="tablette-restantes">
-            Encore {restantes} {restantes > 1 ? "tâches" : "tâche"} à terminer.
+            {messageTachesRestantes(tachesRestantes(ordre))}
           </span>
         ) : null}
       </div>
@@ -74,9 +74,11 @@ export function ActionPrincipale({ ordre }: { ordre: OrdreDetail }) {
 
 type RendezVousOrdre = NonNullable<OrdreDetail["rendez_vous"]>;
 
-/** « Ensuite sur ce pont » : le créneau suivant du même pont, le même jour. */
-function EnsuiteSurCePont({ rdv }: { rdv: RendezVousOrdre }) {
-  const { data, isPending } = usePlanning(aujourdHui(new Date(rdv.debut)));
+/** « Ensuite sur ce pont » : le créneau suivant du même pont, le jour du rendez-vous (ou aujourd'hui s'il est reporté). */
+export function EnsuiteSurCePont({ rdv }: { rdv: RendezVousOrdre }) {
+  const jour = jourDuPont(rdv.debut);
+  const reporte = jour !== aujourdHui(new Date(rdv.debut));
+  const { data, isPending } = usePlanning(jour);
   const suivant = elementSuivant(data, rdv.pont.id, rdv.id);
   return (
     <aside className="panel" aria-labelledby="titre-ensuite">
@@ -85,7 +87,7 @@ function EnsuiteSurCePont({ rdv }: { rdv: RendezVousOrdre }) {
       </div>
       <div className="panel-body">
         <p className="caption">
-          Ce créneau : <span className="num">{formatCreneau(rdv.debut, rdv.fin)}</span>
+          Ce créneau : <span className="num">{reporte ? libelleReport(rdv) : formatCreneau(rdv.debut, rdv.fin)}</span>
         </p>
         {isPending ? (
           <p className="muted" role="status">

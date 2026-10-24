@@ -9,9 +9,22 @@ import { Plate } from "@/components/ui/Plate";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { apiFetch } from "@/lib/api";
 import { formatDate, formatDateHeure, formatKm, formatTelephone, nomComplet } from "@/lib/format";
-import { formatDureeHM, formatRestitution, libellePasserA, modele, prenom, suivant, versFormulaireOrdre, type OrdreDetail, type OrdreEntree } from "@/lib/ordres";
+import {
+  formatDureeHM,
+  formatRestitution,
+  libellePasserA,
+  messageTachesRestantes,
+  modele,
+  peutPasserA,
+  prenom,
+  suivant,
+  tachesRestantes,
+  versFormulaireOrdre,
+  type OrdreDetail,
+  type OrdreEntree,
+} from "@/lib/ordres";
 import { BADGE_OT, LIBELLE_OT } from "@/lib/statuts";
-import { useChangerStatut } from "./actions";
+import { rafraichirApresOrdre, useChangerStatut } from "./actions";
 import { cleOrdre, useMecaniciens, useOrdre } from "./donnees";
 import { OrdreForm } from "./OrdreForm";
 import { Suivi } from "./Suivi";
@@ -54,6 +67,8 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
 
   const modifiable = gerant && ordre.statut !== "livre";
   const prochain = suivant(ordre.statut);
+  // Même règle que l'API (et que la vue tablette) : « Prêt » attend la dernière tâche.
+  const bloque = prochain !== null && !peutPasserA(ordre, prochain);
 
   return (
     <>
@@ -87,9 +102,22 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
             </Button>
           ) : null}
           {prochain && !edition ? (
-            <Button variant="primary" loading={avancer.isPending} onClick={() => avancer.mutate({ ordreId: ordre.id, nouveau: prochain })}>
-              {libellePasserA(prochain)}
-            </Button>
+            <>
+              {bloque ? (
+                <span className="caption" id="fiche-restantes">
+                  {messageTachesRestantes(tachesRestantes(ordre))}
+                </span>
+              ) : null}
+              <Button
+                variant="primary"
+                loading={avancer.isPending}
+                disabled={bloque}
+                aria-describedby={bloque ? "fiche-restantes" : undefined}
+                onClick={() => avancer.mutate({ ordreId: ordre.id, nouveau: prochain })}
+              >
+                {libellePasserA(prochain)}
+              </Button>
+            </>
           ) : null}
         </div>
       </header>
@@ -115,7 +143,7 @@ export function FicheOrdre({ ordreId }: { ordreId: number }) {
                     envoyer={modifier}
                     onSucces={(maj) => {
                       queryClient.setQueryData(cleOrdre(ordreId), maj);
-                      void queryClient.invalidateQueries({ queryKey: ["ordres", "liste"] });
+                      void rafraichirApresOrdre(queryClient);
                       setEdition(false);
                       setMessage("Ordre de travail enregistré.");
                     }}

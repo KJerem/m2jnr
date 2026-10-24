@@ -13,6 +13,8 @@ liste avant le passage en colonne « Terminé ».
 ## Tests
 - [ ] Les cas de test listés dans la story sont automatisés (pytest pour les règles métier, Vitest pour l'interface).
 - [ ] `pytest` et `npm test` passent en local et en CI.
+- [ ] Les tests passent **à chaque commit** : `pytest` est lancé sans pipe (ou avec `set -o pipefail`)
+      avant de valider, et son code de sortie est vérifié.
 - [ ] Les règles d'accès sont testées (403 pour un rôle non autorisé).
 
 ## Produit

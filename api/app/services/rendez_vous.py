@@ -11,7 +11,7 @@ Règles (story S2.1) :
 - un rendez-vous donne lieu à au plus un ordre de travail.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
 from fastapi import status
@@ -185,30 +185,61 @@ def ouvrir_ordre(
     return ordre
 
 
+def minutes_restantes(ordre: OrdreTravail) -> int:
+    """Durée prévue des tâches pas encore terminées."""
+    return sum(t.duree_prevue_minutes for t in ordre.taches if not t.terminee)
+
+
 @dataclass(frozen=True)
 class PontDuJour:
     pont: Pont
     rendez_vous: list[RendezVous]
+    # Rendez-vous d'un jour précédent dont l'OT n'est pas livré : le véhicule occupe encore
+    # le pont. Affichés en tête de colonne, ils pèsent le temps des tâches restantes.
+    reports: list[RendezVous] = field(default_factory=list)
 
     @property
     def charge_minutes(self) -> int:
-        return sum(r.duree_minutes for r in self.rendez_vous)
+        restantes = sum(minutes_restantes(r.ordre) for r in self.reports if r.ordre)
+        return restantes + sum(r.duree_minutes for r in self.rendez_vous)
 
 
 @dataclass(frozen=True)
 class Planning:
     jour: date
+    # Minuit du jour à Paris, en UTC : heure affichée des reports.
+    debut: datetime
     ponts: list[PontDuJour]
     a_planifier: list[OrdreTravail]
 
 
+def rendez_vous_reportes(db: Session, avant: datetime) -> list[RendezVous]:
+    """Rendez-vous commencés avant `avant` dont l'OT ouvert n'est pas encore livré."""
+    return list(
+        db.scalars(
+            select(RendezVous)
+            .join(RendezVous.ordre)
+            .where(RendezVous.debut < avant, OrdreTravail.statut != StatutOT.LIVRE)
+            .options(*CHARGEMENT_RENDEZ_VOUS)
+            .order_by(RendezVous.debut, RendezVous.id)
+            .limit(LIMITE_LISTE)
+        )
+    )
+
+
 def planning_du_jour(db: Session, jour: date, fuseau: str) -> Planning:
     """Rendez-vous du jour de Paris (un rendez-vous à 23 h 30 appartient à ce jour) groupés
-    par pont, et OT non livrés sans rendez-vous (« À planifier »)."""
+    par pont, précédés des OT non livrés dont le rendez-vous date d'un jour précédent
+    (le véhicule est encore sur le pont), et OT non livrés sans rendez-vous (« À planifier »)."""
     debut, fin = bornes_jour(jour, fuseau)
     rendez_vous = lister_rendez_vous(db, debut, fin, None)
+    reports = rendez_vous_reportes(db, debut)
     ponts = [
-        PontDuJour(pont, [r for r in rendez_vous if r.pont_id == pont.id])
+        PontDuJour(
+            pont,
+            [r for r in rendez_vous if r.pont_id == pont.id],
+            [r for r in reports if r.pont_id == pont.id],
+        )
         for pont in lister_ponts(db)
     ]
     a_planifier = list(
@@ -224,4 +255,7 @@ def planning_du_jour(db: Session, jour: date, fuseau: str) -> Planning:
             )
         )
     )
-    return Planning(jour=jour, ponts=ponts, a_planifier=a_planifier)
+    # Un pont retiré de l'atelier depuis le rendez-vous : l'OT reste visible, à replanifier.
+    ponts_actifs = {p.pont.id for p in ponts}
+    a_planifier += [r.ordre for r in reports if r.ordre and r.pont_id not in ponts_actifs]
+    return Planning(jour=jour, debut=debut, ponts=ponts, a_planifier=a_planifier)

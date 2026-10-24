@@ -234,6 +234,26 @@ export function suivant(statut: StatutOT): StatutOT | null {
   return STATUTS_OT[STATUTS_OT.indexOf(statut) + 1] ?? null;
 }
 
+type Avancement = Pick<OrdreResume, "taches_terminees" | "taches_total">;
+
+/** Tâches pas encore terminées. */
+export function tachesRestantes(ordre: Avancement): number {
+  return Math.max(0, ordre.taches_total - ordre.taches_terminees);
+}
+
+/**
+ * Même règle que l'API : « Prêt » exige que toutes les tâches soient terminées. Le bouton
+ * « Passer à … » (fiche, kanban, vue tablette) est désactivé tant qu'il échouerait.
+ */
+export function peutPasserA(ordre: Avancement, prochain: StatutOT): boolean {
+  return prochain !== "termine" || tachesRestantes(ordre) === 0;
+}
+
+/** « Encore 2 tâches à terminer. », relié au bouton désactivé par aria-describedby. */
+export function messageTachesRestantes(restantes: number): string {
+  return `Encore ${restantes} ${restantes > 1 ? "tâches" : "tâche"} à terminer.`;
+}
+
 /**
  * Mise à jour optimiste d'une tâche cochée ou décochée : la case change tout de suite, la
  * réponse de l'API remplace ensuite ces données (ou l'état précédent revient en cas d'erreur).
