@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { SESSION_KEY } from "@/components/session/useSession";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
@@ -20,6 +20,12 @@ export function LoginForm({ suivant }: { suivant: string }) {
   const motDePasseRef = useRef<HTMLInputElement>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
+
+  // Aucune donnée de la session précédente ne reste en mémoire (poste partagé). Les pages
+  // connectées sont déjà démontées : vider le cache ne relance aucune requête.
+  useEffect(() => {
+    client.clear();
+  }, [client]);
 
   async function soumettre(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
