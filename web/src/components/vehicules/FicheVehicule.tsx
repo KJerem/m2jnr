@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 import { useSession } from "@/components/session/useSession";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import { Plate } from "@/components/ui/Plate";
 import { apiFetch } from "@/lib/api";
 import { formatDate, formatKm, nomComplet } from "@/lib/format";
@@ -62,14 +63,20 @@ export function FicheVehicule({ vehiculeId }: { vehiculeId: number }) {
           </h1>
         </div>
         {gerant && !edition ? (
-          <Button
-            onClick={() => {
-              setMessage(null);
-              setEdition(true);
-            }}
-          >
-            Modifier
-          </Button>
+          <div className="actions">
+            <Button
+              onClick={() => {
+                setMessage(null);
+                setEdition(true);
+              }}
+            >
+              Modifier
+            </Button>
+            <ButtonLink href={`/ordres/nouveau?vehicule_id=${vehicule.id}`} variant="primary">
+              <Icon name="plus" />
+              Nouvel ordre de travail
+            </ButtonLink>
+          </div>
         ) : null}
       </header>
 
