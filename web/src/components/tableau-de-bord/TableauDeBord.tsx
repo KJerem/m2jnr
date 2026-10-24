@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
+import { ChampRecherche } from "@/components/recherche/ChampRecherche";
 import { ButtonLink } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { KpiTile } from "@/components/ui/KpiTile";
@@ -43,10 +44,13 @@ export function TableauDeBord() {
           <h1 className="display">{data ? titreJour(data.jour) : "Atelier"}</h1>
           {data ? <p className="caption sub">{sousTitre(data.ponts_actifs, data.mecaniciens_actifs)}</p> : null}
         </div>
-        <ButtonLink href="/ordres/nouveau" variant="primary">
-          <Icon name="plus" />
-          Nouvelle intervention
-        </ButtonLink>
+        <div className="tdb-entete-actions">
+          <ChampRecherche className="recherche-tdb" />
+          <ButtonLink href="/ordres/nouveau" variant="primary">
+            <Icon name="plus" />
+            Nouvelle intervention
+          </ButtonLink>
+        </div>
       </header>
       {isPending ? (
         <p className="muted" role="status">

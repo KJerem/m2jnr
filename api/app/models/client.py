@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, CheckConstraint, Index, String, text
+from sqlalchemy import Boolean, CheckConstraint, Index, String, literal_column, text
 from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,6 +20,25 @@ class Client(TimestampMixin, Base):
         CheckConstraint("telephone ~ '^0[1-9][0-9]{8}$'", name="telephone_normalise"),
         # Index non unique : deux clients peuvent partager un numéro (alerte, pas interdiction).
         Index("ix_client_telephone", "telephone"),
+        # Recherche (story S1.3, migration 0013) : trigrammes du nom et du prénom sans accents
+        # ni majuscules (fonction IMMUTABLE etabli_normaliser), et du téléphone.
+        Index(
+            "ix_client_nom_prenom_trgm",
+            # Écrite comme PostgreSQL la restitue (comparaison d'Alembic) : même expression que
+            # la migration, etabli_normaliser(nom || ' ' || coalesce(prenom, '')).
+            literal_column(
+                "etabli_normaliser((nom::text || ' '::text)"
+                " || COALESCE(prenom, ''::character varying)::text)"
+            ).label("nom_normalise"),
+            postgresql_using="gin",
+            postgresql_ops={"nom_normalise": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_client_telephone_trgm",
+            "telephone",
+            postgresql_using="gin",
+            postgresql_ops={"telephone": "gin_trgm_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

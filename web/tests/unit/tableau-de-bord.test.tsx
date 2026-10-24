@@ -12,6 +12,8 @@ vi.mock("@/lib/api", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/api")>();
   return { ...original, apiFetch: (...args: unknown[]) => apiFetch(...args) };
 });
+// Le champ « Rechercher » de l'en-tête (S1.3) navigue avec le routeur de Next.js.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 
 // Samedi 24 octobre 2026, 14 h 40 à Paris.
 const MAINTENANT = new Date("2026-10-24T12:40:00Z");

@@ -32,6 +32,7 @@ export function NouveauClient() {
             envoyer={creerClient}
             onSucces={(client) => {
               void queryClient.invalidateQueries({ queryKey: ["clients"] });
+              void queryClient.invalidateQueries({ queryKey: ["recherche"] });
               router.push(`/clients/${client.id}`);
             }}
             onAnnuler={() => router.push("/clients")}

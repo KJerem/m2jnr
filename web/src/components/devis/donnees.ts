@@ -44,5 +44,6 @@ export function rafraichirApresDevis(queryClient: QueryClient): Promise<void> {
     queryClient.invalidateQueries({ queryKey: ["factures"] }),
     queryClient.invalidateQueries({ queryKey: ["ordres", "fiche"] }),
     queryClient.invalidateQueries({ queryKey: ["tableau-de-bord"] }),
+    queryClient.invalidateQueries({ queryKey: ["recherche"] }),
   ]).then(() => undefined);
 }

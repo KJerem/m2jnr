@@ -83,6 +83,7 @@ export function FicheClient({ clientId }: { clientId: number }) {
                 // La réponse ne contient pas les véhicules : on garde ceux déjà chargés.
                 queryClient.setQueryData<ClientDetail>(cle, (ancien) => (ancien ? { ...ancien, ...maj } : undefined));
                 void queryClient.invalidateQueries({ queryKey: ["clients", "liste"] });
+                void queryClient.invalidateQueries({ queryKey: ["recherche"] });
                 setEdition(false);
                 setMessage("Fiche enregistrée.");
               }}
@@ -112,6 +113,7 @@ export function FicheClient({ clientId }: { clientId: number }) {
         vehicules={client.vehicules}
         onAjout={(vehicule) => {
           void queryClient.invalidateQueries({ queryKey: ["clients"] });
+          void queryClient.invalidateQueries({ queryKey: ["recherche"] });
           setMessage(`Véhicule ${vehicule.immatriculation} ajouté.`);
         }}
       />
