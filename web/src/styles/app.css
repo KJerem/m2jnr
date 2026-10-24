@@ -117,6 +117,24 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
 .tache-faite .tache-libelle { color: var(--ink-muted); text-decoration: line-through; }
 .tache-duree { flex: none; text-align: right; min-width: 4.5em; font-variant-numeric: tabular-nums; }
 
+.tache-cochable { padding-left: var(--space-4); }
+.tache-case { flex: none; width: 24px; height: 24px; margin: 10px; accent-color: var(--petrol); cursor: pointer; }
+.tache-case:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); }
+.tache-case:disabled { cursor: not-allowed; }
+.tache-cochable .tache-texte { cursor: pointer; min-height: 44px; justify-content: center; }
+.taches-tablette .tache { min-height: 72px; gap: var(--space-4); padding: var(--space-3) var(--space-5); }
+.taches-tablette .tache-case { width: 32px; height: 32px; margin: 12px; }
+.taches-tablette .tache-libelle { font-size: 19px; line-height: 26px; font-weight: 600; }
+.taches-tablette .tache-duree { font-size: 17px; }
+
+/* Suivi (historique des statuts) */
+.timeline { list-style: none; margin: 0; padding: var(--space-4) var(--space-5); display: flex; flex-direction: column; gap: var(--space-4); }
+.timeline-etape { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: var(--space-3); position: relative; }
+.timeline-etape + .timeline-etape::before { content: ""; position: absolute; left: 34px; top: calc(-1 * var(--space-4)); height: var(--space-4); border-left: 2px solid var(--line); }
+.timeline-quand { font-family: var(--font-condensed); font-weight: 600; font-size: 16px; }
+.timeline-jour { display: block; font-family: var(--font-sans); font-weight: 400; font-size: 12px; color: var(--ink-muted); }
+.timeline-quoi { display: flex; flex-direction: column; }
+
 /* Ordres de travail : lignes de tâches du formulaire */
 .taches-editeur { border: 1px solid var(--line); border-radius: var(--radius-lg); padding: var(--space-4); margin: 0; display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
 .taches-editeur legend { padding: 0 var(--space-2); }
@@ -124,9 +142,48 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
 .tache-ligne { display: grid; grid-template-columns: 28px minmax(0, 1fr) 140px auto; gap: var(--space-3); align-items: end; }
 .tache-num { align-self: center; padding-top: 22px; text-align: center; color: var(--ink-muted); }
 
+.cartes-grille { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4); }
+
+/* Suivi atelier (kanban) */
+.kanban { display: grid; grid-template-columns: repeat(4, minmax(200px, 1fr)); gap: var(--space-4); overflow-x: auto; padding-bottom: var(--space-2); align-items: start; }
+.kanban-colonne { background: var(--surface-sunken); border-radius: var(--radius-lg); padding: var(--space-2); display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.kanban-titre { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); font-size: 18px; line-height: 24px; padding: var(--space-1) var(--space-2); }
+.kanban-compte { font-family: var(--font-condensed); font-size: 16px; min-width: 28px; height: 28px; padding: 0 var(--space-2); display: inline-grid; place-items: center; border-radius: var(--radius-sm); background: var(--surface-raised); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.kanban-cartes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.kanban-carte { display: flex; flex-direction: column; gap: var(--space-2); border-radius: var(--radius-md); }
+.kanban-carte:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); }
+.kanban .et-wo { padding: var(--space-3); }
+.kanban .et-wo-head, .kanban .et-wo-meta { flex-wrap: wrap; }
+.kanban .et-wo-ref { white-space: nowrap; }
+.kanban-vide { color: var(--ink-muted); padding: var(--space-3) var(--space-2); }
+
+/* Vue tablette atelier : pleine largeur, lue à un mètre */
+.tablette { min-height: 100vh; }
+.tablette-page { display: flex; flex-direction: column; min-height: 100vh; }
+.tablette-entete { background: var(--graphite); color: var(--on-graphite); display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-6); min-height: 64px; }
+.tablette-poste { font-family: var(--font-condensed); font-weight: 600; font-size: 22px; line-height: 28px; }
+.tablette-horloge { font-family: var(--font-condensed); font-weight: 600; font-size: 28px; line-height: 32px; font-variant-numeric: tabular-nums; }
+.tablette-corps { padding: var(--space-5) var(--space-6); }
+.tablette-grille { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.tablette-grille-pont { grid-template-columns: minmax(0, 1fr) minmax(260px, 300px); }
+.tablette-modele { font-size: 32px; line-height: 38px; }
+.tablette-infos { font-size: 17px; line-height: 24px; color: var(--ink-muted); }
+.tablette-demande { font-size: 17px; line-height: 24px; }
+.tablette-progression { display: flex; flex-direction: column; gap: var(--space-2); }
+.tablette-barre { height: 10px; border-radius: 5px; }
+.tablette-actions { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); flex-wrap: wrap; }
+.tablette-terminer { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); }
+@media (max-width: 860px) {
+  .tablette-grille-pont { grid-template-columns: 1fr; }
+  .tablette-corps, .tablette-entete { padding-left: var(--space-4); padding-right: var(--space-4); }
+}
+
 /* Toast */
-.toasts { position: fixed; right: var(--space-5); bottom: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); z-index: 50; }
-.toast { background: var(--surface-raised); border: 1px solid var(--line); box-shadow: var(--shadow-overlay); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); min-width: 260px; max-width: 420px; }
+.toasts { position: fixed; right: var(--space-5); bottom: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); z-index: 50; pointer-events: none; }
+.toasts-zone { display: flex; flex-direction: column; gap: var(--space-2); }
+.toast { pointer-events: auto; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); background: var(--surface-raised); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow-overlay); border-radius: var(--radius-md); padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4); min-width: 260px; max-width: 420px; font-weight: 500; }
+.toast-fermer { font: inherit; font-size: 22px; line-height: 1; flex: none; width: 44px; height: 44px; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--ink-muted); cursor: pointer; }
+.toast-fermer:hover { background: var(--surface-sunken); }
 .toast-success { border-left: 0; border-top: 4px solid var(--success); }
 .toast-error { border-top: 4px solid var(--danger); }
 
