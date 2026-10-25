@@ -36,7 +36,8 @@ export interface ChampRechercheListeProps {
 /**
  * Champ de recherche d'une liste (stories S8.2 et S1.5) : role="search", étiquette visible,
  * recherche lancée pendant la frappe (délai de 300 ms) ou avec Entrée, bouton « Effacer »
- * qui rend le focus au champ, nombre de résultats annoncé (aria-live polite). La liste qui
+ * qui rend le focus au champ, nombre de résultats annoncé (aria-live polite) ; une saisie en
+ * attente est appliquée dès que le champ perd le focus. La liste qui
  * l'emploie garde la saisie dans l'adresse (?q=) et repart de la page 1.
  */
 export function ChampRechercheListe({ libelle, placeholder, valeurInitiale = "", onRecherche, total = null, erreurServeur = null, className }: ChampRechercheListeProps) {
@@ -59,6 +60,7 @@ export function ChampRechercheListe({ libelle, placeholder, valeurInitiale = "",
 
   function appliquer(saisie: string, immediat: boolean) {
     window.clearTimeout(minuteur.current);
+    minuteur.current = undefined;
     const texte = saisie.trim();
     if (texte.length > 0 && texte.length < LONGUEUR_MIN_RECHERCHE) {
       if (immediat) setErreur(MESSAGE_RECHERCHE_COURTE);
@@ -82,6 +84,13 @@ export function ChampRechercheListe({ libelle, placeholder, valeurInitiale = "",
     event.preventDefault();
     appliquer(valeur, true);
     if (valeur.trim().length === 1) champ.current?.focus();
+  }
+
+  // Saisie encore en attente quand le champ perd le focus (clic sur une ligne, un filtre) :
+  // appliquée tout de suite. Appliquée après le clic, la mise à jour de l'adresse
+  // (replaceState) annulerait la navigation vers la ligne choisie.
+  function quitter() {
+    if (minuteur.current !== undefined) appliquer(valeur, false);
   }
 
   function effacer() {
@@ -110,6 +119,7 @@ export function ChampRechercheListe({ libelle, placeholder, valeurInitiale = "",
             aria-invalid={message ? true : undefined}
             aria-describedby={message ? `${id}-erreur` : undefined}
             onChange={(event) => saisir(event.target.value)}
+            onBlur={quitter}
           />
           {valeur ? (
             <button type="button" className="et-btn et-btn-quiet recherche-effacer" onClick={effacer}>
