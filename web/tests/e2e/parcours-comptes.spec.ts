@@ -4,7 +4,7 @@
  *    ouverte de l'employé est refusée à sa navigation suivante (retour à /connexion) et sa
  *    connexion est refusée ;
  * b) un nouveau gérant s'inscrit : confirmation neutre, connexion refusée tant que le compte
- *    attend, Nadia le valide comme mécanicien, la connexion réussit avec le menu du mécanicien.
+ *    attend (message générique, comme pour une adresse inconnue), Nadia le valide comme mécanicien, la connexion réussit avec le menu du mécanicien.
  *
  * Les e-mails viennent de l'identifiant d'exécution (rejouable) ; les comptes de
  * démonstration ne sont ni bloqués ni désactivés : seuls les comptes créés ici le sont.
@@ -99,7 +99,7 @@ test("inscription d'un gérant : en attente, refusée, validée comme mécanicie
 
   await test.step("tant que le compte attend, la connexion est refusée", async () => {
     await page.getByRole("link", { name: "Retour à la connexion" }).click();
-    await connexionRefusee(page, email, "Votre compte attend la validation d'un gérant.");
+    await connexionRefusee(page, email, "Identifiants invalides.");
   });
 
   await test.step("Nadia valide le compte comme mécanicien", async () => {

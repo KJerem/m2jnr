@@ -94,8 +94,10 @@ reste en attente jusqu'à sa validation par un gérant actif.
   créent qu'un seul gérant actif.
 - Sinon, la demande est enregistrée « En attente de validation » avec un message neutre ; un
   e-mail déjà connu reçoit exactement la même réponse, sans rien créer ni modifier.
-- Un compte en attente ne peut pas se connecter ; après un mot de passe correct, le message dit
-  que le compte attend la validation d'un gérant (rien n'est révélé sans le mot de passe).
+- Un compte en attente ne peut pas se connecter : « Identifiants invalides. », comme pour une
+  adresse inconnue, même avec le bon mot de passe (revue du sprint 5 : l'inscrit choisit le
+  mot de passe, un message propre au compte en attente dirait si l'adresse avait déjà un
+  compte) ; la page d'inscription annonce l'attente de la validation.
 - Le gérant valide le compte en choisissant son rôle, ou refuse la demande ; « Compte à valider »
   apparaît dans « À traiter maintenant ».
 - Mot de passe de 12 caractères au moins ; jeton CSRF exigé ; nombre de demandes en attente

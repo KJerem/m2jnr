@@ -148,10 +148,10 @@ Modèle de sécurité de l'inscription :
 
 | Risque | Parade |
 | --- | --- |
-| Savoir si un e-mail a un compte | inscription avec un e-mail connu : même réponse 202 et même message neutre, rien n'est créé ni modifié (le mot de passe du compte existant ne change pas), mot de passe haché dans tous les cas (temps de réponse comparable) ; connexion : « Identifiants invalides. » pour un e-mail inconnu, un mauvais mot de passe ou un compte désactivé |
-| Compte en attente | après le **bon** mot de passe seulement : « Votre compte attend la validation d'un gérant. » (403), ce qui n'apprend rien à qui ne connaît pas le mot de passe ; un mauvais mot de passe sur un compte en attente répond « Identifiants invalides. » |
+| Savoir si un e-mail a un compte | inscription avec un e-mail connu : même réponse 202 et même message neutre, rien n'est créé ni modifié (le mot de passe du compte existant ne change pas), mot de passe haché dans tous les cas (temps de réponse comparable) ; connexion : « Identifiants invalides. » pour un e-mail inconnu, un mauvais mot de passe, un compte désactivé ou un compte en attente. S'inscrire avec une adresse puis s'y connecter avec le mot de passe choisi donne donc la même réponse, que l'adresse ait déjà un compte ou non (revue du sprint 5) |
+| Compte en attente | « Identifiants invalides. » (401) avec ou sans le bon mot de passe, sans compteur d'échecs : aucune réponse ne confirme le mot de passe d'une demande en attente, il ne se devine donc pas en ligne avant sa validation ; la page d'inscription et la page de connexion annoncent qu'un compte demandé s'ouvre après sa validation |
 | Deux « premiers » gérants | verrou consultatif de transaction (`pg_advisory_xact_lock`) avant de compter les gérants actifs : deux premières inscriptions simultanées passent l'une après l'autre, la seconde reste en attente |
-| Inscriptions en masse | 20 demandes en attente au plus (`MAX_COMPTES_EN_ATTENTE`) : au-delà, 429 `trop_de_demandes`, vérifié avant l'e-mail |
+| Inscriptions en masse | 20 demandes en attente au plus (`MAX_COMPTES_EN_ATTENTE`) : au-delà, 429 `trop_de_demandes`, vérifié avant l'e-mail. Canal résiduel accepté : qui remplit la file jusqu'à 19 demandes apprend, au prix d'une place et une seule fois avant que la file soit pleine, si une adresse était libre |
 | Requête forgée depuis un autre site | jeton CSRF exigé comme pour toute écriture, même sans session |
 
 `GET /auth/inscription` dit seulement si la prochaine inscription créera le premier compte : il

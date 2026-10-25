@@ -16,11 +16,18 @@ Règles :
   passent l'une après l'autre : la seconde voit le gérant créé par la première et reste en
   attente ;
 - abus : au plus `max_comptes_en_attente` demandes en attente (20 par défaut) ; au-delà,
-  429 `trop_de_demandes`, contrôlé AVANT l'e-mail pour ne rien révéler sur l'adresse.
+  429 `trop_de_demandes`, contrôlé AVANT l'e-mail pour ne rien révéler sur l'adresse. Canal
+  résiduel accepté (revue du sprint 5) : qui remplit la file jusqu'à 19 demandes peut, en
+  inscrivant une adresse puis une autre, savoir si la première était libre (la seconde reçoit
+  alors 429). Ce test coûte une place de la file à chaque adresse libre, se paie de 19 demandes
+  visibles par le gérant dans « À traiter maintenant », et la file pleine bloque ensuite toute
+  inscription : il ne permet pas d'énumérer des adresses en nombre.
 
-Un compte en attente ne se connecte pas. Après un mot de passe correct seulement, la connexion
-répond 403 `compte_en_attente` (« Votre compte attend la validation d'un gérant. ») : sans le
-mot de passe, on reçoit le même « Identifiants invalides. » que pour une adresse inconnue.
+Un compte en attente ne se connecte pas : la connexion répond « Identifiants invalides. »
+(401), comme pour une adresse inconnue, même avec le bon mot de passe et sans compteur
+d'échecs. C'est l'inscrit qui choisit le mot de passe : une réponse propre au bon mot de passe
+dirait, après une inscription, si l'adresse avait déjà un compte. La page d'inscription
+annonce l'attente de la validation.
 """
 
 import logging

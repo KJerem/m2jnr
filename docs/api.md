@@ -39,7 +39,7 @@ appelle ces routes sous le préfixe `/api` (réécriture de Next.js vers l'API).
 | --- | --- | --- | --- |
 | `GET /health` | public | état de l'API et de la base | — |
 | `GET /auth/csrf` | public | jeton CSRF (crée le cookie) | — |
-| `POST /auth/login` | public | connexion `{email, mot_de_passe}` | 401 `identifiants_invalides` (e-mail inconnu, mauvais mot de passe ou compte désactivé), 403 `compte_en_attente` (bon mot de passe d'un compte pas encore validé), 423 `compte_bloque` (heure de déblocage) |
+| `POST /auth/login` | public | connexion `{email, mot_de_passe}` | 401 `identifiants_invalides` (e-mail inconnu, mauvais mot de passe, compte désactivé ou compte en attente de validation, même avec le bon mot de passe), 423 `compte_bloque` (heure de déblocage) |
 | `GET /auth/inscription` | public | `{premier_compte}` : la prochaine inscription crée-t-elle le premier compte du garage ? | — |
 | `POST /auth/register` | public (CSRF exigé) | inscription `{prenom, nom, email, mot_de_passe}` : **201** `{compte_actif: true, utilisateur}` et session pour le premier compte (aucun gérant actif) ; sinon **202** `{compte_actif: false, message}` « Demande enregistrée. Un gérant du garage doit valider votre compte avant votre première connexion. », identique pour un e-mail déjà connu (rien n'est créé ni modifié) | 422 (mot de passe de moins de 12 caractères, e-mail invalide), 429 `trop_de_demandes` (20 demandes en attente, `MAX_COMPTES_EN_ATTENTE`) |
 | `POST /auth/logout` | connecté | déconnexion | — |

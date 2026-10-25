@@ -110,8 +110,8 @@ def test_comptes_hors_service_ne_se_connectent_pas(
     ines = c.post(
         "/auth/login", json={"email": "ines.morel@exemple.test", "mot_de_passe": MDP_GERANT}
     )
-    assert ines.status_code == 403
-    assert ines.json()["code"] == "compte_en_attente"
+    assert ines.status_code == 401
+    assert ines.json()["message"] == "Identifiants invalides."
     paul = c.post(
         "/auth/login", json={"email": "paul.girard@garage.test", "mot_de_passe": MDP_MECANICIEN}
     )
