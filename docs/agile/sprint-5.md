@@ -1,4 +1,42 @@
-# Sprint 5
+# Sprint 5 — Comptes et recherche (version 1.1.0)
+
+**Dates** : 4 au 15 janvier 2027 · **Engagé** : 11 points · **Livré** : 11 points · **Tags** : `sprint-5`, `v1.1.0`
+
+## Contexte
+Après la revue du 24 décembre, le Product Owner a signalé une story du MVP absente du backlog :
+la gestion des comptes des employés par le gérant. Il a demandé en plus l'inscription autonome
+du gérant et une recherche dans chaque liste. Ce sprint, hors du calendrier initial, les livre en
+version 1.1.0 sans toucher à l'historique de la 1.0.0.
+
+**Écart d'affinage** : la story S8.2 aurait dû naître de S8.1 (connexion et rôles) lors de
+l'affinage du sprint 1 : qui crée les comptes que S8.1 protège ? Le seed et la commande
+`create-user` masquaient le besoin. Action : pour chaque story « rôles et accès », se demander
+qui administre les comptes, comment ils naissent et comment ils disparaissent.
+
+## Objectif
+Le gérant administre seul l'équipe (créer, consulter, modifier, désactiver un compte), un
+nouveau gérant s'inscrit sans intervention technique sous le contrôle d'un gérant existant, et
+chaque liste se filtre par une recherche.
+
+## Stories livrées
+| Story | Pts | Branche | Résultat |
+| --- | --- | --- | --- |
+| S8.2 Comptes des employés | 5 | `feature/S8.2-comptes-employes` | prénom, nom, e-mail, mot de passe (12 caractères, argon2id, jamais renvoyé) et rôle ; création, fiche, modification, réinitialisation du mot de passe, déblocage, désactivation et réactivation ; toujours au moins un gérant actif (verrou sur les gérants), pas d'action sur soi-même ; sessions coupées à la désactivation et à la réinitialisation ; OT d'un mécanicien désactivé signalés « Mécanicien à affecter » |
+| S8.3 Inscription du gérant | 3 | `feature/S8.3-inscription` | `POST /auth/register` et page `/inscription` ; premier compte du garage actif et connecté (verrou consultatif contre deux premières inscriptions simultanées), les suivants en attente de validation par un gérant, qui choisit le rôle ou refuse ; même réponse pour une adresse déjà connue, et refus générique pour un compte en attente : aucune énumération des comptes ; 20 demandes en attente au plus ; « Compte à valider » au tableau de bord |
+| S1.5 Recherche dans les listes | 3 | `feature/S1.5-recherche-listes` | paramètre `q` sur clients, véhicules, ordres, devis, factures et employés (sans accents ni casse, jokers pris à la lettre, filtré dans la requête paginée) ; composant de recherche commun gardé dans l'adresse (rechargement, retour arrière) ; nouvelle liste des véhicules (onglet du gérant, entrée du mécanicien) ; le mécanicien ne cherche jamais par téléphone ni e-mail |
+
+Migrations : `0016` (prénom, statut du compte, validation et désactivation), `0017` (sessions
+valables depuis). Aller-retour de toute la chaîne sur la base de test, `alembic check` sans écart.
+
+## Definition of Done
+- [x] Un commit par tâche du backlog, branches fusionnées en `--no-ff`
+- [x] API : 846 tests pytest (659 au sprint 4), ruff, mypy strict — verts, pytest lancé sans pipe
+- [x] Web : 239 tests Vitest (196 au sprint 4), ESLint, TypeScript, build — verts
+- [x] Recette Playwright : 18 tests verts sur le build de production
+- [x] Critères d'acceptation des trois stories, dont : compte désactivé refusé et session coupée à la requête suivante, dernier gérant protégé, inscription en attente validée avec choix du rôle, recherche dans chaque liste avec message quand rien ne correspond, mécanicien 403 sur la gestion des comptes
+- [x] Vérification dans le navigateur à 1024 et 1440 px, thèmes clair et sombre, console sans erreur
+- [x] README, `docs/api.md`, modèle de données, script de la démo et CHANGELOG à jour
+- [ ] Une tâche par commit : le `afterAll` de nettoyage de la recette est arrivé dans un commit de focus (`0c0415a`), signalé dans `2a338ff`
 
 ## Revue de code
 Plusieurs relecteurs indépendants (sécurité et API, front et accessibilité, recette) ont remonté
@@ -43,3 +81,32 @@ proposé :
 - La comparaison de `sessions_valides_depuis` se fait à la seconde, la précision de `iat` dans
   le jeton : une session ouverte dans la même seconde qu'une désactivation reste acceptée. Ce cas
   est accepté et testé.
+
+## Recette
+Sur le build de production de l'interface (`docker-compose.demo.yml`), 18 tests Playwright :
+les 13 de la version 1.0.0 (parcours gérant et mécanicien, accessibilité, mise en page), plus
+le parcours des comptes (création d'un employé, connexion, désactivation, session refusée à la
+navigation suivante, connexion refusée), l'inscription (confirmation neutre, connexion refusée
+tant que le compte attend, validation comme mécanicien par Nadia, menu du mécanicien), la
+recherche dans chaque liste et le retour arrière. La suite range ses comptes de test à la fin et
+ne touche jamais aux comptes de démonstration.
+
+Une course dans le test du retour arrière (lignes comptées avant l'arrivée de la liste filtrée)
+a été trouvée à la vérification de clôture et corrigée (`fix/e2e-recherche-course`) : 18 sur 18.
+
+## Démo
+Segment de 2 minutes ajouté au [script de la démo](script-demo.md) : « Employés » (création,
+désactivation), la demande d'Inès Morel validée depuis « Compte à valider », la recherche dans
+les listes.
+
+## Rétrospective
+- **Bien** : les choix de sécurité de l'inscription ont été tranchés par le PO avant le
+  développement (validation par un gérant), puis durcis par la revue (aucune énumération des
+  comptes, sessions réellement coupées).
+- **À améliorer** : l'implémentation a été interrompue deux fois (contrôle de sécurité de
+  l'outil indisponible, puis limite d'usage). Le travail non commité a été repris, vérifié et
+  découpé en commits par tâche ; des commits plus fréquents réduisent ce risque.
+- **À améliorer** : un test de recette dépendait de la vitesse de la machine. Règle pour les
+  tests Playwright : toujours attendre un signal de l'interface (annonce, ligne attendue) avant
+  de compter ou de comparer.
+- **Écart d'affinage** : voir le contexte ; la question est ajoutée à l'affinage.
