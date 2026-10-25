@@ -12,7 +12,10 @@ export type Role = "gerant" | "mecanicien";
 export interface Utilisateur {
   id: number;
   email: string;
+  prenom: string;
   nom: string;
+  /** Prénom puis nom, tels qu'ils s'affichent partout (« Karim B. »). */
+  nom_affiche: string;
   role: Role;
 }
 

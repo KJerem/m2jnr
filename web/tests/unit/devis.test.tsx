@@ -171,7 +171,7 @@ function avecRequetes(enfant: ReactNode, role: Role = "gerant", devis: DevisDeta
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } } });
   client.setQueryData(cleOrdre(ORDRE.id), ORDRE);
   client.setQueryData(["mecaniciens"], []);
-  client.setQueryData(["session"], { utilisateur: { id: 1, email: "nadia@garage.test", nom: "Nadia Benali", role } });
+  client.setQueryData(["session"], { utilisateur: { id: 1, email: "nadia@garage.test", prenom: "Nadia", nom: "Benali", nom_affiche: "Nadia Benali", role } });
   if (devis !== undefined) client.setQueryData(cleDevisOrdre(ORDRE.id), devis);
   return { client, ...render(<QueryClientProvider client={client}><ToastProvider>{enfant}</ToastProvider></QueryClientProvider>) };
 }

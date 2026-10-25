@@ -31,7 +31,7 @@ from app.models.facture import Facture
 from app.models.ordre_travail import OrdreTravail, StatutOT
 from app.models.pont import Pont
 from app.models.rendez_vous import RendezVous
-from app.models.utilisateur import Role, Utilisateur
+from app.models.utilisateur import Role, StatutCompte, Utilisateur
 from app.models.vehicule import Vehicule
 from app.services import ordres as service_ordres
 from app.services import rendez_vous as service_rendez_vous
@@ -340,7 +340,8 @@ def tableau_de_bord(db: Session, maintenant: datetime, fuseau: str) -> TableauDe
         mecaniciens_actifs=int(
             db.scalar(
                 select(func.count(Utilisateur.id)).where(
-                    Utilisateur.role == Role.MECANICIEN, Utilisateur.actif.is_(True)
+                    Utilisateur.role == Role.MECANICIEN,
+                    Utilisateur.statut == StatutCompte.ACTIF,
                 )
             )
             or 0

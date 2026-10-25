@@ -26,11 +26,12 @@ from app.services.facturation_demo import semer_facturation
 from app.services.journee_demo import semer_journee
 from app.services.utilisateurs import CompteDemo, enregistrer_compte
 
-COMPTE_GERANT = CompteDemo("nadia@garage.test", "Nadia Benali", Role.GERANT)
+# Noms des maquettes : « Karim B. » s'affiche ainsi (prénom « Karim », nom « B. »).
+COMPTE_GERANT = CompteDemo("nadia@garage.test", "Nadia", "Benali", Role.GERANT)
 COMPTES_MECANICIENS = (
-    CompteDemo("karim@garage.test", "Karim B.", Role.MECANICIEN),
-    CompteDemo("sophie@garage.test", "Sophie M.", Role.MECANICIEN),
-    CompteDemo("lucas@garage.test", "Lucas R.", Role.MECANICIEN),
+    CompteDemo("karim@garage.test", "Karim", "B.", Role.MECANICIEN),
+    CompteDemo("sophie@garage.test", "Sophie", "M.", Role.MECANICIEN),
+    CompteDemo("lucas@garage.test", "Lucas", "R.", Role.MECANICIEN),
 )
 
 
@@ -175,7 +176,7 @@ def semer(db: Session, settings: Settings, maintenant: datetime | None = None) -
     ]
     for compte, mot_de_passe in comptes:
         cree = enregistrer_compte(db, compte, mot_de_passe)
-        rapport.append(f"{'Créé' if cree else 'À jour'} : {compte.nom} ({compte.email})")
+        rapport.append(f"{'Créé' if cree else 'À jour'} : {compte.nom_affiche} ({compte.email})")
     for fiche in FICHES_DEMO:
         cree = enregistrer_fiche(db, fiche)
         v, c = fiche.vehicule, fiche.client

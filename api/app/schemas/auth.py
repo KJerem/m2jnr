@@ -11,17 +11,21 @@ class ConnexionEntree(BaseModel):
     mot_de_passe: str = Field(min_length=1, max_length=1024)
 
 
-class UtilisateurSortie(BaseModel):
+class UtilisateurSession(BaseModel):
+    """Employé connecté : prénom et nom séparés (sprint 5) et nom affiché (« Karim B. »)."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     email: str
+    prenom: str
     nom: str
+    nom_affiche: str
     role: Role
 
 
 class SessionSortie(BaseModel):
-    utilisateur: UtilisateurSortie
+    utilisateur: UtilisateurSession
 
 
 class CsrfSortie(BaseModel):

@@ -41,7 +41,7 @@ def seed() -> int:
     return 0
 
 
-def create_user(email: str, nom: str, role: str) -> int:
+def create_user(email: str, prenom: str, nom: str, role: str) -> int:
     from app.db import SessionLocal
     from app.models.utilisateur import Role
     from app.services.utilisateurs import (
@@ -56,10 +56,15 @@ def create_user(email: str, nom: str, role: str) -> int:
             raise CompteInvalideError("Les deux mots de passe ne correspondent pas.")
         with SessionLocal() as db:
             utilisateur = creer_utilisateur(
-                db, email=email, nom=nom, role=Role(role), mot_de_passe=mot_de_passe
+                db,
+                email=email,
+                prenom=prenom,
+                nom=nom,
+                role=Role(role),
+                mot_de_passe=mot_de_passe,
             )
             db.commit()
-            print(f"Compte créé : {utilisateur.nom} ({utilisateur.email}), rôle {role}.")
+            print(f"Compte créé : {utilisateur.nom_affiche} ({utilisateur.email}), rôle {role}.")
     except CompteInvalideError as exc:
         print(f"Création impossible : {exc}", file=sys.stderr)
         return 1
@@ -75,6 +80,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("seed", help="Charger le jeu de démonstration (comptes, clients, véhicules)")
     creer = sub.add_parser("create-user", help="Créer un compte employé")
     creer.add_argument("--email", required=True)
+    creer.add_argument("--prenom", required=True)
     creer.add_argument("--nom", required=True)
     creer.add_argument("--role", required=True, choices=["gerant", "mecanicien"])
 
@@ -84,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.commande == "seed":
         return seed()
     elif args.commande == "create-user":
-        return create_user(args.email, args.nom, args.role)
+        return create_user(args.email, args.prenom, args.nom, args.role)
     return 0
 
 

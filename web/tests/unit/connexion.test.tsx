@@ -63,7 +63,7 @@ describe("formulaire de connexion", () => {
   });
 
   it("envoie le jeton CSRF puis redirige vers la page demandée", async () => {
-    fetchMock.mockResolvedValueOnce(json(200, { utilisateur: { id: 1, email: "nadia@garage.test", nom: "Nadia Benali", role: "gerant" } }));
+    fetchMock.mockResolvedValueOnce(json(200, { utilisateur: { id: 1, email: "nadia@garage.test", prenom: "Nadia", nom: "Benali", nom_affiche: "Nadia Benali", role: "gerant" } }));
     render(avecQuery(<LoginForm suivant="/clients" />));
 
     await saisirEtEnvoyer("nadia@garage.test", "bon-mot-de-passe");
@@ -85,14 +85,14 @@ describe("formulaire de connexion", () => {
 });
 
 describe("déconnexion", () => {
-  const SESSION = { utilisateur: { id: 1, email: "nadia@garage.test", nom: "Nadia Benali", role: "gerant" } };
+  const SESSION = { utilisateur: { id: 1, email: "nadia@garage.test", prenom: "Nadia", nom: "Benali", nom_affiche: "Nadia Benali", role: "gerant" } };
 
   function PiedDeMenu() {
     const { utilisateur } = useSession();
     const deconnexion = useDeconnexion();
     return (
       <button type="button" onClick={() => deconnexion.mutate()}>
-        Se déconnecter ({utilisateur?.nom})
+        Se déconnecter ({utilisateur?.nom_affiche})
       </button>
     );
   }

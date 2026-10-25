@@ -535,7 +535,8 @@ def deux_devis(engine: Engine) -> Iterator[DonneesFacturation]:
     with nouvelle_session(engine) as s:
         gerant = Utilisateur(
             email="gerant.facture@garage.test",
-            nom="Nadia Facture",
+            prenom="Nadia",
+            nom="Facture",
             role=Role.GERANT,
             mot_de_passe_hash="x",
         )
