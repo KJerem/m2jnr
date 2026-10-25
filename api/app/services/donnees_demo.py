@@ -18,13 +18,14 @@ from sqlalchemy.orm import Session
 from app.clock import get_now
 from app.config import Settings
 from app.models.client import Client
-from app.models.utilisateur import Role
+from app.models.utilisateur import Role, StatutCompte
 from app.models.vehicule import Vehicule
 from app.schemas.client import ClientEntree
 from app.schemas.vehicule import VehiculeEntree
+from app.services.auth import trouver_par_email
 from app.services.facturation_demo import semer_facturation
 from app.services.journee_demo import semer_journee
-from app.services.utilisateurs import CompteDemo, enregistrer_compte
+from app.services.utilisateurs import CompteDemo, enregistrer_compte, enregistrer_compte_inactif
 
 # Noms des maquettes : « Karim B. » s'affiche ainsi (prénom « Karim », nom « B. »).
 COMPTE_GERANT = CompteDemo("nadia@garage.test", "Nadia", "Benali", Role.GERANT)
@@ -33,6 +34,12 @@ COMPTES_MECANICIENS = (
     CompteDemo("sophie@garage.test", "Sophie", "M.", Role.MECANICIEN),
     CompteDemo("lucas@garage.test", "Lucas", "R.", Role.MECANICIEN),
 )
+# Comptes hors service (sprint 5), remis dans cet état à chaque seed : une inscription en
+# attente de validation (« Compte à valider » du tableau de bord, rôle gérant demandé) et un
+# ancien mécanicien désactivé. Ils ne se connectent pas tant qu'un gérant ne les a pas
+# validés ou réactivés ; leur mot de passe est celui des comptes de démonstration du rôle.
+COMPTE_EN_ATTENTE = CompteDemo("ines.morel@exemple.test", "Inès", "Morel", Role.GERANT)
+COMPTE_DESACTIVE = CompteDemo("paul.girard@garage.test", "Paul", "Girard", Role.MECANICIEN)
 
 
 @dataclass(frozen=True)
@@ -177,6 +184,23 @@ def semer(db: Session, settings: Settings, maintenant: datetime | None = None) -
     for compte, mot_de_passe in comptes:
         cree = enregistrer_compte(db, compte, mot_de_passe)
         rapport.append(f"{'Créé' if cree else 'À jour'} : {compte.nom_affiche} ({compte.email})")
+    instant = maintenant or get_now()
+    gerant = trouver_par_email(db, COMPTE_GERANT.email)
+    for compte, mot_de_passe, statut, libelle in (
+        (
+            COMPTE_EN_ATTENTE,
+            settings.demo_password_gerant,
+            StatutCompte.EN_ATTENTE,
+            "en attente de validation",
+        ),
+        (COMPTE_DESACTIVE, settings.demo_password_mecanicien, StatutCompte.DESACTIVE, "désactivé"),
+    ):
+        cree = enregistrer_compte_inactif(
+            db, compte, mot_de_passe, statut, maintenant=instant, gerant=gerant
+        )
+        rapport.append(
+            f"{'Créé' if cree else 'À jour'} : {compte.nom_affiche} ({compte.email}, {libelle})"
+        )
     for fiche in FICHES_DEMO:
         cree = enregistrer_fiche(db, fiche)
         v, c = fiche.vehicule, fiche.client
@@ -184,7 +208,6 @@ def semer(db: Session, settings: Settings, maintenant: datetime | None = None) -
             f"{'Créé' if cree else 'À jour'} : {v.marque} {v.modele} {v.immatriculation}"
             f" ({c.prenom} {c.nom})"
         )
-    instant = maintenant or get_now()
     rapport += semer_journee(db, instant, settings.timezone)
     rapport += semer_facturation(db, instant, settings)
     return rapport

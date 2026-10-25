@@ -1,6 +1,7 @@
 """Création et mise à jour des comptes employés (utilisé par la CLI et le jeu de démonstration)."""
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -105,7 +106,59 @@ def enregistrer_compte(db: Session, compte: CompteDemo, mot_de_passe: str) -> bo
     # Déblocage : un compte de démonstration bloqué pendant une démo redevient utilisable.
     utilisateur.tentatives_echouees = 0
     utilisateur.bloque_jusqu_a = None
+    utilisateur.desactive_le = None
+    utilisateur.desactive_par = None
     if not verifier(utilisateur.mot_de_passe_hash, mot_de_passe):
         utilisateur.mot_de_passe_hash = hacher(mot_de_passe)
     db.flush()
     return False
+
+
+def enregistrer_compte_inactif(
+    db: Session,
+    compte: CompteDemo,
+    mot_de_passe: str,
+    statut: StatutCompte,
+    *,
+    maintenant: datetime,
+    gerant: Utilisateur | None,
+) -> bool:
+    """Compte de démonstration hors service (recette du sprint 5), remis dans son état à
+    chaque seed : inscription « en_attente » (jamais validée) ou ancien employé « desactive »
+    (désactivé par `gerant`, il y a 30 jours à la première création).
+
+    Renvoie True si le compte a été créé. Comme `enregistrer_compte`, le hash n'est recalculé
+    que si le mot de passe a changé.
+    """
+    if statut == StatutCompte.ACTIF:
+        raise ValueError("Compte actif : utiliser enregistrer_compte.")
+    utilisateur = trouver_par_email(db, compte.email)
+    cree = utilisateur is None
+    if utilisateur is None:
+        utilisateur = Utilisateur(
+            email=compte.email,
+            prenom=compte.prenom,
+            nom=compte.nom,
+            role=compte.role,
+            mot_de_passe_hash=hacher(mot_de_passe),
+            statut=statut,
+        )
+        if statut == StatutCompte.DESACTIVE:
+            utilisateur.derniere_connexion = maintenant - timedelta(days=45)
+        db.add(utilisateur)
+    elif not verifier(utilisateur.mot_de_passe_hash, mot_de_passe):
+        utilisateur.mot_de_passe_hash = hacher(mot_de_passe)
+    utilisateur.prenom = compte.prenom
+    utilisateur.nom = compte.nom
+    utilisateur.role = compte.role
+    utilisateur.tentatives_echouees = 0
+    utilisateur.bloque_jusqu_a = None
+    if statut == StatutCompte.EN_ATTENTE:
+        utilisateur.valide_le = utilisateur.valide_par = None
+        utilisateur.desactive_le = utilisateur.desactive_par = None
+    elif utilisateur.statut != StatutCompte.DESACTIVE or utilisateur.desactive_le is None:
+        utilisateur.desactive_le = maintenant - timedelta(days=30)
+        utilisateur.desactive_par = gerant.id if gerant is not None else None
+    utilisateur.statut = statut
+    db.flush()
+    return cree
