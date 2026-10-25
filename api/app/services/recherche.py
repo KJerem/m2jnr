@@ -160,6 +160,24 @@ def _contient(colonne: ColumnElement[Any], valeur: ColumnElement[Any]) -> Column
     return colonne.like(func.concat("%", valeur, "%"), escape="\\")
 
 
+def chaque_mot_dans(texte: ColumnElement[str], mots: tuple[str, ...]) -> ColumnElement[bool]:
+    """Chaque mot de la saisie se trouve dans `texte`, sans tenir compte des accents ni de la
+    casse (les deux côtés passent par etabli_normaliser), jokers LIKE pris à la lettre
+    (échappés après la normalisation). Sert aux recherches des listes (stories S8.2, S1.5)."""
+    normalise = func.etabli_normaliser(texte)
+    return and_(
+        *(_contient(normalise, echapper_like_sql(func.etabli_normaliser(mot))) for mot in mots)
+    )
+
+
+def mots_de(q: str | None) -> tuple[str, ...] | None:
+    """Mots d'un paramètre `q` facultatif de liste : None si absent ou vide (pas de filtre),
+    sinon la saisie contrôlée par `lire_requete` (422 « q » de 2 à 100 caractères)."""
+    if q is None or not q.strip():
+        return None
+    return tuple(lire_requete(q).split())
+
+
 def _nom_contient_chaque_mot(mots: tuple[str, ...]) -> ColumnElement[bool]:
     return and_(
         *(_contient(NOM_NORMALISE, echapper_like_sql(func.etabli_normaliser(mot))) for mot in mots)
