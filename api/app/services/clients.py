@@ -8,13 +8,14 @@ entreprise peut partager un numéro.
 
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.db import id_possible
 from app.errors import conflict, not_found
 from app.models.client import Client
 from app.schemas.client import ClientEntree
+from app.services.recherche import condition_clients_liste
 
 
 @dataclass(frozen=True)
@@ -89,12 +90,20 @@ def modifier_client(
     return client
 
 
-def lister_clients(db: Session, page: int, taille: int) -> PageClients:
-    """Clients triés par nom puis prénom (sans tenir compte de la casse)."""
-    total = db.scalar(select(func.count()).select_from(Client)) or 0
+def requete_liste_clients(q: str | None = None) -> Select[Client]:
+    """Clients triés par nom puis prénom (sans tenir compte de la casse), filtrés par la
+    recherche de la liste (story S1.5) si `q` est donné."""
+    requete = select(Client)
+    if q:
+        requete = requete.where(condition_clients_liste(q))
+    return requete
+
+
+def lister_clients(db: Session, page: int, taille: int, q: str | None = None) -> PageClients:
+    base = requete_liste_clients(q)
+    total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
     requete = (
-        select(Client)
-        .options(selectinload(Client.vehicules))
+        base.options(selectinload(Client.vehicules))
         .order_by(func.lower(Client.nom), func.lower(func.coalesce(Client.prenom, "")), Client.id)
         .offset((page - 1) * taille)
         .limit(taille)

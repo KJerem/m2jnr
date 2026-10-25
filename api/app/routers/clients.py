@@ -14,6 +14,12 @@ from app.schemas.vehicule import VehiculeEntree, VehiculeSortie
 from app.security.dependances import require_role
 from app.services import clients as service
 from app.services import vehicules as service_vehicules
+from app.services.recherche import recherche_de_liste
+
+DESCRIPTION_Q = (
+    "Recherche (2 à 100 caractères) : nom, prénom, téléphone même partiel, plaque d'un"
+    " véhicule, e-mail (saisie avec « @ » ou « . »), sans accents ni casse."
+)
 
 router = APIRouter(
     prefix="/clients", tags=["clients"], dependencies=[Depends(require_role(Role.GERANT))]
@@ -23,10 +29,11 @@ router = APIRouter(
 @router.get("")
 def lister(
     db: DbSession,
+    q: str | None = Query(None, description=DESCRIPTION_Q),
     page: int = Query(1, ge=1, le=PAGE_MAX),
     taille: int = Query(20, ge=1, le=100),
 ) -> Page[ClientSortie]:
-    resultat = service.lister_clients(db, page, taille)
+    resultat = service.lister_clients(db, page, taille, recherche_de_liste(q))
     return Page[ClientSortie](
         elements=[ClientSortie.model_validate(c) for c in resultat.elements],
         total=resultat.total,

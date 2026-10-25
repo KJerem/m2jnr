@@ -170,12 +170,19 @@ def chaque_mot_dans(texte: ColumnElement[str], mots: tuple[str, ...]) -> ColumnE
     )
 
 
-def mots_de(q: str | None) -> tuple[str, ...] | None:
-    """Mots d'un paramètre `q` facultatif de liste : None si absent ou vide (pas de filtre),
-    sinon la saisie contrôlée par `lire_requete` (422 « q » de 2 à 100 caractères)."""
+def recherche_de_liste(q: str | None) -> str | None:
+    """Paramètre `q` facultatif d'une liste (stories S8.2, S1.5) : None si absent ou vide (pas
+    de filtre), sinon la saisie contrôlée par `lire_requete` (422 « q » de 2 à 100 caractères,
+    sans caractère de contrôle)."""
     if q is None or not q.strip():
         return None
-    return tuple(lire_requete(q).split())
+    return lire_requete(q)
+
+
+def mots_de(q: str | None) -> tuple[str, ...] | None:
+    """Mots d'un paramètre `q` facultatif de liste (voir `recherche_de_liste`)."""
+    texte = recherche_de_liste(q)
+    return tuple(texte.split()) if texte else None
 
 
 def _nom_contient_chaque_mot(mots: tuple[str, ...]) -> ColumnElement[bool]:
@@ -318,3 +325,88 @@ def rechercher(db: Session, criteres: Criteres) -> Resultats:
         ordres=_ordres(db, criteres),
         factures=_factures(db, criteres),
     )
+
+
+# --- Recherche dans les listes (story S1.5) ----------------------------------------------------
+#
+# Chaque liste filtre côté base sur un paramètre `q` facultatif (lu par `lire_requete` : 2 à
+# 100 caractères, sans caractère de contrôle, 422 sinon), sans accents ni casse, jokers LIKE
+# pris à la lettre. Le filtre est une condition WHERE de la requête paginée : le total et les
+# pages restent justes.
+
+_EMAIL_POSSIBLE = re.compile(r"\S*[@.]\S*")
+
+
+def _email(texte: str) -> str | None:
+    """Un seul mot avec « @ » ou « . » (« c.laurent », « @exemple ») : lecture « e-mail »."""
+    return texte.lower() if _EMAIL_POSSIBLE.fullmatch(texte) else None
+
+
+def _plaque_liste(texte: str) -> str | None:
+    """Plaque, même partielle (« GH-482 », « 482 ») : au moins un chiffre, tirets facultatifs.
+    Une saisie faite de lettres seules est lue comme un nom, pas comme une plaque."""
+    compacte = re.sub(r"[\s-]", "", texte).upper()
+    if not _PLAQUE.fullmatch(compacte) or not any(ch.isdigit() for ch in compacte):
+        return None
+    return compacte
+
+
+def condition_clients_liste(texte: str) -> ColumnElement[bool]:
+    """Liste des clients : nom et prénom (chaque mot), téléphone (chiffres, même partiel),
+    plaque d'un de leurs véhicules et, pour une saisie qui ressemble à une adresse, e-mail.
+
+    Comme la recherche du gérant (S1.3), une UNION de branches servies par les index
+    trigrammes ; la branche e-mail, sans index, n'est ajoutée que pour un mot contenant « @ »
+    ou « . », et la saisie qui n'est qu'un nom garde la seule condition du nom."""
+    c = analyser_requete(texte)
+    par_nom = _nom_contient_chaque_mot(c.mots)
+    plaque = _plaque_liste(texte)
+    email = _email(c.texte)
+    if not c.telephone and not plaque and not email:
+        return par_nom
+    branches: list[Select[int]] = [select(Client.id).where(par_nom)]
+    if c.telephone:
+        branches.append(
+            select(Client.id).where(Client.telephone.contains(c.telephone, autoescape=True))
+        )
+    if plaque:
+        branches.append(
+            select(Vehicule.client_id).where(
+                _contient(PLAQUE_COMPACTE, literal(echapper_like(plaque)))
+            )
+        )
+    if email:
+        branches.append(
+            select(Client.id).where(func.lower(Client.email).contains(email, autoescape=True))
+        )
+    return Client.id.in_(union(*branches))
+
+
+def condition_vehicules_liste(texte: str) -> ColumnElement[bool]:
+    """Liste des véhicules (gérant et mécanicien) : plaque avec ou sans tirets, marque,
+    modèle et VIN (chaque mot), nom du propriétaire (chaque mot). Jamais le téléphone ni
+    l'e-mail du propriétaire : le mécanicien ne les voit pas.
+
+    UNION de branches : plaque (index trigrammes de la plaque), propriétaire (index du nom
+    du client), description du véhicule (marque, modèle, VIN)."""
+    c = analyser_requete(texte)
+    description = func.concat_ws(" ", Vehicule.marque, Vehicule.modele, Vehicule.vin)
+    # Propriétaires trouvés d'abord, par l'index de leur nom (CTE matérialisée : sans elle,
+    # PostgreSQL peut parcourir les véhicules et relire chaque client par sa clé, en filtrant
+    # le nom ligne à ligne).
+    proprietaires = (
+        select(Client.id)
+        .where(_nom_contient_chaque_mot(c.mots))
+        .cte("proprietaires_cherches")
+        .prefix_with("MATERIALIZED")
+    )
+    branches: list[Select[int]] = [
+        select(Vehicule.id).where(Vehicule.client_id.in_(select(proprietaires.c.id))),
+        select(Vehicule.id).where(chaque_mot_dans(description, c.mots)),
+    ]
+    plaque = _plaque_liste(texte)
+    if plaque:
+        branches.append(
+            select(Vehicule.id).where(_contient(PLAQUE_COMPACTE, literal(echapper_like(plaque))))
+        )
+    return Vehicule.id.in_(union(*branches))

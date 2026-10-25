@@ -1,15 +1,17 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
+import { ChampRechercheListe } from "@/components/ui/ChampRechercheListe";
 import { Pagination } from "@/components/ui/Pagination";
 import { Plate } from "@/components/ui/Plate";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import type { Page } from "@/lib/clients";
 import { FILTRES_PAIEMENT, formatEmission, libelleTelechargement, lienFactures, lienPdf, type FactureResume, type StatutPaiement } from "@/lib/factures";
 import { formatEuros, nomComplet } from "@/lib/format";
 import { modele } from "@/lib/ordres";
+import { aucunResultat } from "@/lib/pages";
 import { TAILLE_LISTE } from "./ListeDevis";
 import { BadgesPaiement } from "./PaiementsFacture";
 
@@ -18,39 +20,62 @@ type Filtre = StatutPaiement | "toutes";
 /**
  * Onglet « Factures » : de la plus récente à la plus ancienne, avec le PDF de chacune, le
  * statut de paiement et le reste à payer (story S4.4). Les filtres (Toutes, Impayées,
- * Partielles, Payées) sont des boutons à bascule ; le filtre suit l'adresse (?paiement=…)
- * sans recharger la page, et le focus reste sur le bouton.
+ * Partielles, Payées) sont des boutons à bascule ; la recherche (numéro de facture ou d'OT,
+ * client ou plaque figés sur la facture, story S1.5) s'y ajoute. Filtre et recherche suivent
+ * l'adresse (?paiement=…&q=…) sans recharger la page, et le focus reste où il était.
  */
-export function ListeFactures({ page, paiement = "toutes" }: { page: number; paiement?: Filtre }) {
+export function ListeFactures({ page, paiement = "toutes", q: qInitial = "" }: { page: number; paiement?: Filtre; q?: string }) {
   const [filtre, setFiltre] = useState<Filtre>(paiement);
-  // La page demandée ne vaut que pour le filtre ouvert par l'adresse.
-  const pageCourante = filtre === paiement ? page : 1;
-  const parametre = filtre === "toutes" ? "" : `&statut_paiement=${filtre}`;
+  const [q, setQ] = useState(qInitial);
+  const [pageCourante, setPage] = useState(page);
+  const parametres = new URLSearchParams({ page: String(pageCourante), taille: String(TAILLE_LISTE) });
+  if (filtre !== "toutes") parametres.set("statut_paiement", filtre);
+  if (q) parametres.set("q", q);
   const { data, isPending, isError, error } = useQuery({
-    queryKey: ["factures", "liste", filtre, pageCourante],
-    queryFn: ({ signal }) => apiFetch<Page<FactureResume>>(`/factures?page=${pageCourante}&taille=${TAILLE_LISTE}${parametre}`, { signal }),
+    queryKey: ["factures", "liste", filtre, q, pageCourante],
+    queryFn: ({ signal }) => apiFetch<Page<FactureResume>>(`/factures?${parametres.toString()}`, { signal }),
+    placeholderData: keepPreviousData,
   });
+  const erreurRecherche = isError && error instanceof ApiError && error.status === 422 ? (error.champs.q ?? error.message) : null;
 
   function changer(suivant: Filtre) {
     setFiltre(suivant);
-    window.history.replaceState(null, "", lienFactures(suivant));
+    setPage(1);
+    window.history.replaceState(null, "", lienFactures(suivant, 1, q));
+  }
+
+  function rechercher(saisie: string) {
+    setQ(saisie);
+    setPage(1);
+    window.history.replaceState(null, "", lienFactures(filtre, 1, saisie));
   }
 
   return (
     <div className="stack">
-      <div className="factures-filtres">
-        <div className="chips" role="group" aria-label="Filtrer par statut de paiement">
-          {FILTRES_PAIEMENT.map((f) => (
-            <button key={f.id} type="button" className="chip" aria-pressed={filtre === f.id} onClick={() => changer(f.id)}>
-              {f.libelle}
-            </button>
-          ))}
+      <div className="liste-filtres">
+        <ChampRechercheListe
+          libelle="Rechercher une facture"
+          placeholder="N° de facture ou d'OT, client, plaque"
+          valeurInitiale={qInitial}
+          onRecherche={rechercher}
+          total={data && q ? data.total : null}
+          erreurServeur={erreurRecherche}
+          className="recherche-liste"
+        />
+        <div className="factures-filtres">
+          <div className="chips" role="group" aria-label="Filtrer par statut de paiement">
+            {FILTRES_PAIEMENT.map((f) => (
+              <button key={f.id} type="button" className="chip" aria-pressed={filtre === f.id} onClick={() => changer(f.id)}>
+                {f.libelle}
+              </button>
+            ))}
+          </div>
+          <p className="caption" role="status">
+            {data ? `${data.total} facture${data.total > 1 ? "s" : ""}` : ""}
+          </p>
         </div>
-        <p className="caption" role="status">
-          {data ? `${data.total} facture${data.total > 1 ? "s" : ""}` : ""}
-        </p>
       </div>
-      <Contenu data={data} isPending={isPending} erreur={isError ? error.message : null} filtre={filtre} page={pageCourante} />
+      <Contenu data={data} isPending={isPending} erreur={isError && !erreurRecherche ? error.message : null} filtre={filtre} q={q} page={pageCourante} />
     </div>
   );
 }
@@ -60,10 +85,11 @@ interface ContenuProps {
   isPending: boolean;
   erreur: string | null;
   filtre: Filtre;
+  q: string;
   page: number;
 }
 
-function Contenu({ data, isPending, erreur, filtre, page }: ContenuProps) {
+function Contenu({ data, isPending, erreur, filtre, q, page }: ContenuProps) {
   if (isPending) {
     return (
       <p className="panel empty" role="status">
@@ -79,6 +105,7 @@ function Contenu({ data, isPending, erreur, filtre, page }: ContenuProps) {
     );
   }
   if (data.elements.length === 0) {
+    if (q) return <p className="panel empty">{aucunResultat("Aucune facture", q)}</p>;
     return filtre === "toutes" ? (
       <p className="panel empty">Aucune facture pour l&apos;instant : elle s&apos;établit depuis le devis d&apos;une intervention terminée.</p>
     ) : (
@@ -143,7 +170,7 @@ function Contenu({ data, isPending, erreur, filtre, page }: ContenuProps) {
           </table>
         </div>
       </section>
-      <Pagination page={page} taille={TAILLE_LISTE} total={data.total} libelle={data.total > 1 ? "factures" : "facture"} lien={(p) => lienFactures(filtre, p)} />
+      <Pagination page={page} taille={TAILLE_LISTE} total={data.total} libelle={data.total > 1 ? "factures" : "facture"} lien={(p) => lienFactures(filtre, p, q)} />
     </div>
   );
 }

@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
-import { ClientsListe } from "@/components/clients/ClientsListe";
+import { ClientsVehicules } from "@/components/clients/ClientsVehicules";
 import { RequireRole } from "@/components/session/RequireRole";
+import { numeroDePage, texteDeRecherche, type Recherche } from "@/lib/pages";
 
-export const metadata: Metadata = { title: "Clients" };
+export const metadata: Metadata = { title: "Clients & véhicules" };
 
-type Recherche = Record<string, string | string[] | undefined>;
-
+// Page réservée au gérant (l'API répond 403 au mécanicien) : onglet « Clients ».
 export default async function Clients({ searchParams }: { searchParams: Promise<Recherche> }) {
-  const { page } = await searchParams;
-  const numero = Math.max(1, Number.parseInt(typeof page === "string" ? page : "1", 10) || 1);
+  const params = await searchParams;
+  const page = numeroDePage(params.page);
+  const q = texteDeRecherche(params.q);
   return (
     <RequireRole roles={["gerant"]}>
-      <ClientsListe page={numero} />
+      <ClientsVehicules key={`clients-${q}-${page}`} onglet="clients" page={page} q={q} />
     </RequireRole>
   );
 }

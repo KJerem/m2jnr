@@ -25,7 +25,9 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/atelier", label: "Suivi atelier", icon: "kanban", roles: ["gerant", "mecanicien"] },
   { href: "/ordres", label: "Ordres de travail", icon: "wrench", roles: ["gerant", "mecanicien"] },
   { href: "/rendez-vous", label: "Rendez-vous", icon: "clock", roles: ["gerant"] },
-  { href: "/clients", label: "Clients & véhicules", icon: "users", roles: ["gerant"] },
+  { href: "/clients", label: "Clients & véhicules", icon: "users", roles: ["gerant"], aussi: ["/vehicules"] },
+  // Le mécanicien lit les véhicules et leur historique, sans fiche client (story S1.5).
+  { href: "/vehicules", label: "Véhicules", icon: "plaque", roles: ["mecanicien"] },
   { href: "/devis", label: "Devis & factures", icon: "file", roles: ["gerant"], aussi: ["/factures"] },
   { href: "/employes", label: "Employés", icon: "badge", roles: ["gerant"] },
 ];

@@ -17,18 +17,20 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import case, func, select
+from sqlalchemy import Select, case, func, select
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.sql.base import ExecutableOption
 
 from app.db import id_possible
 from app.errors import conflict, not_found
+from app.models.client import Client
 from app.models.devis import TAUX_TVA_NORMAL_BP, Devis, LigneDevis, StatutDevis
 from app.models.ordre_travail import OrdreTravail
 from app.models.utilisateur import Utilisateur
 from app.models.vehicule import Vehicule
 from app.schemas.devis import LigneEntree
 from app.services import calcul_devis
+from app.services.recherche import chaque_mot_dans
 from app.services.statut_devis import LIBELLES_STATUT_DEVIS
 
 MESSAGE_DEVIS_INTROUVABLE = "Devis introuvable."
@@ -155,13 +157,37 @@ class PageDevis:
     total: int
 
 
-def lister_devis(db: Session, page: int, taille: int) -> PageDevis:
-    """Devis du plus récent au plus ancien."""
-    total = db.scalar(select(func.count()).select_from(Devis)) or 0
+def _devis_cherches(mots: tuple[str, ...]) -> Select[int]:
+    """Identifiants des devis dont le numéro d'OT, la plaque (avec et sans tirets) ou le nom
+    du client contient chaque mot, sans accents ni casse (story S1.5)."""
+    texte = func.concat_ws(
+        " ",
+        OrdreTravail.numero,
+        Vehicule.immatriculation,
+        func.replace(Vehicule.immatriculation, "-", ""),
+        Client.prenom,
+        Client.nom,
+    )
+    return (
+        select(Devis.id)
+        .join(OrdreTravail, Devis.ordre_travail_id == OrdreTravail.id)
+        .join(Vehicule, OrdreTravail.vehicule_id == Vehicule.id)
+        .join(Client, Vehicule.client_id == Client.id)
+        .where(chaque_mot_dans(texte, mots))
+    )
+
+
+def lister_devis(
+    db: Session, page: int, taille: int, mots: tuple[str, ...] | None = None
+) -> PageDevis:
+    """Devis du plus récent au plus ancien, filtrés par la recherche de la liste."""
+    base = select(Devis)
+    if mots:
+        base = base.where(Devis.id.in_(_devis_cherches(mots)))
+    total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
     elements = list(
         db.scalars(
-            select(Devis)
-            .options(*CHARGEMENT_DEVIS)
+            base.options(*CHARGEMENT_DEVIS)
             .order_by(Devis.cree_le.desc(), Devis.id.desc())
             .offset((page - 1) * taille)
             .limit(taille)

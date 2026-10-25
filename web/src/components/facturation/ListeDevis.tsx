@@ -1,25 +1,71 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useState } from "react";
+import { ChampRechercheListe } from "@/components/ui/ChampRechercheListe";
 import { Pagination } from "@/components/ui/Pagination";
 import { Plate } from "@/components/ui/Plate";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import type { Page } from "@/lib/clients";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { BADGE_DEVIS, LIBELLE_DEVIS, type DevisResume } from "@/lib/devis";
 import { formatDateCourteOuAnnee, formatEuros, nomComplet } from "@/lib/format";
 import { modele } from "@/lib/ordres";
+import { aucunResultat, lienListe } from "@/lib/pages";
 
 export const TAILLE_LISTE = 50;
 
-/** Onglet « Devis » : numéro d'OT, véhicule, client, statut, total TTC, date (avec l'année si ce n'est pas l'année en cours). */
-export function ListeDevis({ page }: { page: number }) {
-  const { data, isPending, isError, error } = useQuery({
-    queryKey: ["devis", "liste", page],
-    queryFn: ({ signal }) => apiFetch<Page<DevisResume>>(`/devis?page=${page}&taille=${TAILLE_LISTE}`, { signal }),
-  });
+export const lienDevis = (q: string, page = 1) => lienListe("/devis", { q, page });
 
+/**
+ * Onglet « Devis » : numéro d'OT, véhicule, client, statut, total TTC, date (avec l'année si
+ * ce n'est pas l'année en cours). Recherche par numéro d'OT, plaque ou client (story S1.5),
+ * gardée dans l'adresse (?q=).
+ */
+export function ListeDevis({ page, q: qInitial = "" }: { page: number; q?: string }) {
+  const [q, setQ] = useState(qInitial);
+  const [pageCourante, setPage] = useState(page);
+  const parametres = new URLSearchParams({ page: String(pageCourante), taille: String(TAILLE_LISTE) });
+  if (q) parametres.set("q", q);
+  const { data, isPending, isError, error } = useQuery({
+    queryKey: ["devis", "liste", q, pageCourante],
+    queryFn: ({ signal }) => apiFetch<Page<DevisResume>>(`/devis?${parametres.toString()}`, { signal }),
+    placeholderData: keepPreviousData,
+  });
+  const erreurRecherche = isError && error instanceof ApiError && error.status === 422 ? (error.champs.q ?? error.message) : null;
+
+  function rechercher(saisie: string) {
+    setQ(saisie);
+    setPage(1);
+    window.history.replaceState(null, "", lienDevis(saisie));
+  }
+
+  return (
+    <div className="stack">
+      <ChampRechercheListe
+        libelle="Rechercher un devis"
+        placeholder="N° d'OT, plaque ou client"
+        valeurInitiale={qInitial}
+        onRecherche={rechercher}
+        total={data && q ? data.total : null}
+        erreurServeur={erreurRecherche}
+        className="recherche-liste"
+      />
+      <Contenu data={data} isPending={isPending} erreur={isError && !erreurRecherche ? error.message : null} q={q} page={pageCourante} />
+    </div>
+  );
+}
+
+interface ContenuProps {
+  data: Page<DevisResume> | undefined;
+  isPending: boolean;
+  erreur: string | null;
+  q: string;
+  page: number;
+}
+
+function Contenu({ data, isPending, erreur, q, page }: ContenuProps) {
   if (isPending) {
     return (
       <p className="panel empty" role="status">
@@ -27,15 +73,19 @@ export function ListeDevis({ page }: { page: number }) {
       </p>
     );
   }
-  if (isError) {
+  if (erreur !== null) {
     return (
       <p className="panel empty danger-text" role="alert">
-        {error.message}
+        {erreur}
       </p>
     );
   }
-  if (data.elements.length === 0) {
-    return <p className="panel empty">Aucun devis pour l&apos;instant : le devis se rédige depuis la fiche d&apos;un ordre de travail.</p>;
+  if (!data || data.elements.length === 0) {
+    return q ? (
+      <p className="panel empty">{aucunResultat("Aucun devis", q)}</p>
+    ) : (
+      <p className="panel empty">Aucun devis pour l&apos;instant : le devis se rédige depuis la fiche d&apos;un ordre de travail.</p>
+    );
   }
   return (
     <div className="stack">
@@ -90,7 +140,7 @@ export function ListeDevis({ page }: { page: number }) {
           </table>
         </div>
       </section>
-      <Pagination page={page} taille={TAILLE_LISTE} total={data.total} libelle="devis" lien={(p) => `/devis?page=${p}`} />
+      <Pagination page={page} taille={TAILLE_LISTE} total={data.total} libelle="devis" lien={(p) => lienDevis(q, p)} />
     </div>
   );
 }

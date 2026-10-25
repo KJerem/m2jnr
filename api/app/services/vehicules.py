@@ -1,16 +1,18 @@
 """Véhicules : rattachement à un client, immatriculation unique, contrôles de cohérence."""
 
+from dataclasses import dataclass
 from datetime import date
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, contains_eager
 
 from app.db import id_possible
 from app.errors import AppError, conflict, invalid, not_found
 from app.models.client import Client
 from app.models.vehicule import Vehicule
 from app.schemas.vehicule import VehiculeEntree
+from app.services.recherche import condition_vehicules_liste
 
 MESSAGE_IMMATRICULATION_EXISTANTE = "Cette immatriculation est déjà enregistrée."
 MESSAGE_DATE_FUTURE = "La date de mise en circulation ne peut pas être dans le futur."
@@ -30,22 +32,39 @@ def lister_vehicules_client(db: Session, client: Client) -> list[Vehicule]:
     )
 
 
-def lister_vehicules(db: Session, limite: int) -> list[Vehicule]:
-    """Tous les véhicules, groupés par propriétaire (nom, prénom) puis par plaque."""
-    return list(
+@dataclass(frozen=True)
+class PageVehicules:
+    elements: list[Vehicule]
+    total: int
+
+
+def requete_liste_vehicules(q: str | None = None) -> Select[Vehicule]:
+    """Véhicules filtrés par la recherche de la liste (story S1.5) si `q` est donné."""
+    requete = select(Vehicule)
+    if q:
+        requete = requete.where(condition_vehicules_liste(q))
+    return requete
+
+
+def lister_vehicules(db: Session, page: int, taille: int, q: str | None = None) -> PageVehicules:
+    """Véhicules groupés par propriétaire (nom, prénom) puis par plaque, page par page."""
+    base = requete_liste_vehicules(q)
+    total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    elements = list(
         db.scalars(
-            select(Vehicule)
-            .join(Vehicule.client)
-            .options(selectinload(Vehicule.client))
+            base.join(Vehicule.client)
+            .options(contains_eager(Vehicule.client))
             .order_by(
                 func.lower(Client.nom),
                 func.lower(func.coalesce(Client.prenom, "")),
                 Client.id,
                 Vehicule.immatriculation,
             )
-            .limit(limite)
+            .offset((page - 1) * taille)
+            .limit(taille)
         )
     )
+    return PageVehicules(elements=elements, total=total)
 
 
 def _immatriculation_existante(immatriculation: str, vehicule_id: int) -> AppError:

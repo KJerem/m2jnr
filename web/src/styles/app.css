@@ -329,6 +329,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
 .recherche-liste-total { min-height: 18px; }
 .badges-compte { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); }
 .cellule-email { overflow-wrap: anywhere; }
+.cellule-vin { display: block; }
 .modal-form-actions { justify-content: flex-end; }
 
 /* Adresse du client (mentions de la facture) : bloc de lignes, sans italique du navigateur. */

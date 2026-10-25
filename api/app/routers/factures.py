@@ -32,6 +32,7 @@ from app.services import ordres as service_ordres
 from app.services import paiements as service_paiements
 from app.services.paiements import StatutPaiement
 from app.services.pdf_facture import generer_pdf
+from app.services.recherche import mots_de
 
 gerant_seul = require_role(Role.GERANT)
 
@@ -71,13 +72,20 @@ def lister(
     statut_paiement: StatutPaiement | None = Query(
         None, description="impayee, partielle ou payee (story S4.4)"
     ),
+    q: str | None = Query(
+        None,
+        description=(
+            "Recherche (2 à 100 caractères) : numéro de facture ou d'OT, client ou plaque"
+            " figés sur la facture."
+        ),
+    ),
     page: int = Query(1, ge=1, le=PAGE_MAX),
     taille: int = Query(50, ge=1, le=200),
 ) -> Page[FactureResume]:
     service_ordres.jour_valide(du, au)
     depuis = bornes_jour(du, settings.timezone)[0] if du else None
     avant = bornes_jour(au, settings.timezone)[1] if au else None
-    resultat = service.lister_factures(db, depuis, avant, page, taille, statut_paiement)
+    resultat = service.lister_factures(db, depuis, avant, page, taille, statut_paiement, mots_de(q))
     return Page[FactureResume](
         elements=[resume_facture(f, jour) for f in resultat.elements],
         total=resultat.total,

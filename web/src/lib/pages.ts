@@ -11,3 +11,23 @@ export function numeroDePage(valeur: string | string[] | undefined): number {
 export function texteDeRecherche(valeur: string | string[] | undefined): string {
   return typeof valeur === "string" ? valeur.trim().slice(0, 100) : "";
 }
+
+/**
+ * Adresse d'une liste : « /clients?q=laurent&page=2 ». Les paramètres vides (null, « », page 1)
+ * sont omis, dans l'ordre donné.
+ */
+export function lienListe(chemin: string, parametres: Record<string, string | number | null | undefined>): string {
+  const params = new URLSearchParams();
+  for (const [cle, valeur] of Object.entries(parametres)) {
+    if (valeur === null || valeur === undefined || valeur === "") continue;
+    if (cle === "page" && Number(valeur) <= 1) continue;
+    params.set(cle, String(valeur));
+  }
+  const texte = params.toString();
+  return texte ? `${chemin}?${texte}` : chemin;
+}
+
+/** « Aucun client ne correspond à « xyz ». » : message d'une recherche sans résultat. */
+export function aucunResultat(aucun: string, q: string): string {
+  return `${aucun} ne correspond à « ${q} ».`;
+}
