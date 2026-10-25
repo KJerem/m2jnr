@@ -121,6 +121,15 @@ const identite = {
 export const employeModificationSchema = z.object(identite);
 export type EmployeModificationValeurs = z.infer<typeof employeModificationSchema>;
 
+/**
+ * Modification d'un compte repris sans nom de famille (migration 0016 : « Admin » → prénom
+ * « Admin », nom vide) : le nom peut rester vide, sans en inventer un (revue du sprint 5).
+ */
+export const employeSansNomModificationSchema = z.object({ ...identite, nom: z.string().trim().max(100, "100 caractères maximum.") });
+
+/** Schéma du formulaire de modification : nom facultatif seulement s'il est déjà vide. */
+export const schemaModificationEmploye = (employe: Pick<Employe, "nom">) => (employe.nom.trim() ? employeModificationSchema : employeSansNomModificationSchema);
+
 export const employeCreationSchema = z
   .object({
     ...identite,

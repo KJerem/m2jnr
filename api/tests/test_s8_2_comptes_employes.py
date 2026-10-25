@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, delete, text
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db import Base
 from app.errors import AppError
 from app.models import Role, StatutCompte, Utilisateur
@@ -284,6 +285,31 @@ def test_modification_du_nom_de_l_e_mail_et_du_role(
     assert (mecanicien.email, mecanicien.role) == ("k.benhamou@garage.test", Role.GERANT)
 
 
+def test_un_compte_repris_sans_nom_se_modifie_sans_en_inventer_un(
+    client_gerant: TestClient, make_user: MakeUser, db: Session
+) -> None:
+    """Revue du sprint 5 : « Admin » repris par la migration 0016 (prénom « Admin », nom vide)
+    se modifie (e-mail, rôle) sans 422 sur le nom."""
+    admin = make_user(Role.MECANICIEN, prenom="Admin", nom="")
+
+    reponse = client_gerant.put(
+        f"/utilisateurs/{admin.id}",
+        json={"prenom": "Admin", "nom": " ", "email": "admin@garage.test", "role": "gerant"},
+    )
+
+    assert reponse.status_code == 200, reponse.text
+    assert (reponse.json()["nom"], reponse.json()["nom_affiche"]) == ("", "Admin")
+    db.refresh(admin)
+    assert (admin.email, admin.role) == ("admin@garage.test", Role.GERANT)
+
+
+def test_la_creation_exige_toujours_un_nom(client_gerant: TestClient) -> None:
+    reponse = client_gerant.post("/utilisateurs", json=_nouveau(nom=""))
+
+    assert reponse.status_code == 422
+    assert reponse.json()["champs"] == {"nom": "Champ obligatoire."}
+
+
 def test_modification_vers_un_e_mail_pris_409(
     client_gerant: TestClient, mecanicien: Utilisateur, gerant: Utilisateur
 ) -> None:
@@ -389,6 +415,44 @@ def test_reactivation_rend_la_connexion(
     assert [m["id"] for m in client_gerant.get("/mecaniciens").json()] == [mecanicien.id]
 
 
+def test_reactiver_ne_rend_pas_vie_aux_sessions_ouvertes_avant_la_desactivation(
+    horloge: Horloge,
+    client_gerant: TestClient,
+    client_mecanicien: TestClient,
+    mecanicien: Utilisateur,
+    nouveau_client: Callable[[], TestClient],
+    db: Session,
+) -> None:
+    """Revue du sprint 5 : la tablette restée connectée ou le téléphone volé d'un employé
+    désactivé ne retrouvent pas leur session quand le compte est réactivé."""
+    horloge.avancer(minutes=5)
+    client_gerant.post(f"/utilisateurs/{mecanicien.id}/desactiver")
+    horloge.avancer(hours=2)
+
+    assert client_gerant.post(f"/utilisateurs/{mecanicien.id}/reactiver").status_code == 200
+
+    ancienne = client_mecanicien.get("/auth/me")
+    assert (ancienne.status_code, ancienne.json()["code"]) == (401, "non_authentifie")
+    db.refresh(mecanicien)
+    assert mecanicien.sessions_valides_depuis == horloge.maintenant - timedelta(hours=2)
+    nouvelle = connecter(nouveau_client(), mecanicien.email)
+    assert nouvelle.get("/auth/me").status_code == 200
+
+
+def test_session_valide_comparee_a_la_seconde(make_user: MakeUser) -> None:
+    compte = make_user(Role.MECANICIEN)
+    coupure = datetime(2027, 1, 11, 9, 30, 15, 600_000, tzinfo=UTC)
+
+    assert compte.session_valide(coupure - timedelta(days=1))
+    compte.sessions_valides_depuis = coupure
+    assert not compte.session_valide(coupure - timedelta(seconds=1))
+    # Le jeton ne garde que la seconde : une session émise dans la même seconde est acceptée.
+    assert compte.session_valide(coupure.replace(microsecond=0))
+    assert compte.session_valide(coupure + timedelta(minutes=1))
+    compte.statut = StatutCompte.DESACTIVE
+    assert not compte.session_valide(coupure + timedelta(minutes=1))
+
+
 def test_le_gerant_ne_se_desactive_pas(client_gerant: TestClient, gerant: Utilisateur) -> None:
     reponse = client_gerant.post(f"/utilisateurs/{gerant.id}/desactiver")
 
@@ -445,6 +509,46 @@ def test_reinitialisation_du_mot_de_passe_et_deblocage(
     assert reponse.json()["bloque_jusqu_a"] is None
     assert _login(nouveau_client(), mecanicien.email).status_code == 401
     assert _login(nouveau_client(), mecanicien.email, NOUVEAU_MOT_DE_PASSE).status_code == 200
+
+
+def test_reinitialisation_coupe_les_sessions_ouvertes(
+    horloge: Horloge,
+    client_gerant: TestClient,
+    client_mecanicien: TestClient,
+    mecanicien: Utilisateur,
+    nouveau_client: Callable[[], TestClient],
+) -> None:
+    """Revue du sprint 5 : le gérant réinitialise le mot de passe d'un compte compromis ; la
+    session volée ne reste pas valable jusqu'à son expiration."""
+    horloge.avancer(minutes=5)
+
+    reponse = client_gerant.post(
+        f"/utilisateurs/{mecanicien.id}/mot-de-passe", json={"mot_de_passe": NOUVEAU_MOT_DE_PASSE}
+    )
+
+    assert reponse.status_code == 200
+    assert client_mecanicien.get("/auth/me").status_code == 401
+    nouvelle = connecter(nouveau_client(), mecanicien.email, NOUVEAU_MOT_DE_PASSE)
+    assert nouvelle.get("/auth/me").status_code == 200
+
+
+def test_le_gerant_qui_change_son_propre_mot_de_passe_reste_connecte(
+    horloge: Horloge,
+    client_gerant: TestClient,
+    gerant: Utilisateur,
+    nouveau_client: Callable[[], TestClient],
+) -> None:
+    autre_appareil = connecter(nouveau_client(), gerant.email)
+    horloge.avancer(minutes=5)
+
+    reponse = client_gerant.post(
+        f"/utilisateurs/{gerant.id}/mot-de-passe", json={"mot_de_passe": NOUVEAU_MOT_DE_PASSE}
+    )
+
+    assert reponse.status_code == 200
+    assert get_settings().session_cookie_name in reponse.headers["set-cookie"]
+    assert client_gerant.get("/auth/me").status_code == 200
+    assert autre_appareil.get("/auth/me").status_code == 401
 
 
 def test_reinitialisation_exige_douze_caracteres(
@@ -707,5 +811,51 @@ def test_migration_0016_prenom_repris_et_statut_du_booleen(engine: Engine) -> No
                     ("p@m.test", "Paul Girard", False),
                 ]
                 migration.upgrade()
+        finally:
+            transaction.rollback()
+
+
+# --- Migration 0017 : sessions des comptes déjà désactivés ----------------------------------------
+
+
+def test_migration_0017_date_de_coupure_des_comptes_deja_desactives(engine: Engine) -> None:
+    """Un compte désactivé avant la migration garde ses anciens cookies refusés après sa
+    réactivation : la date de coupure reprend la date de désactivation."""
+    chemin = Path(__file__).resolve().parent.parent / "alembic" / "versions"
+    fichier = next(chemin.glob("*_0017_*.py"))
+    spec = importlib.util.spec_from_file_location(fichier.stem, fichier)
+    assert spec is not None and spec.loader is not None
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    with engine.connect() as connexion:
+        transaction = connexion.begin()
+        try:
+            contexte = MigrationContext.configure(
+                connexion, opts={"target_metadata": Base.metadata}
+            )
+            with Operations.context(contexte):
+                migration.downgrade()
+                connexion.execute(
+                    text(
+                        "INSERT INTO utilisateur"
+                        " (email, prenom, nom, mot_de_passe_hash, role, statut, desactive_le)"
+                        " VALUES"
+                        " ('p@m.test', 'Paul', 'Girard', 'x', 'mecanicien', 'desactive',"
+                        "  '2026-09-25 10:00+00'),"
+                        " ('k@m.test', 'Karim', 'B.', 'x', 'mecanicien', 'actif', NULL)"
+                    )
+                )
+                migration.upgrade()
+                lignes = connexion.execute(
+                    text(
+                        "SELECT email, sessions_valides_depuis = desactive_le,"
+                        " sessions_valides_depuis IS NULL FROM utilisateur"
+                        " WHERE email LIKE '%@m.test' ORDER BY email"
+                    )
+                ).all()
+                assert [tuple(ligne) for ligne in lignes] == [
+                    ("k@m.test", None, True),
+                    ("p@m.test", True, False),
+                ]
         finally:
             transaction.rollback()

@@ -69,6 +69,29 @@ def test_inscription_en_attente_et_ancien_employe_desactive(db: Session) -> None
     assert "Créé : Paul Girard (paul.girard@garage.test, désactivé)" in rapport
 
 
+def test_ancien_employe_desactive_avec_une_chronologie_vraisemblable(db: Session) -> None:
+    """Revue du sprint 5 : la fiche de Paul affichait « Créé le » (date du seed) après sa
+    dernière connexion et sa désactivation."""
+    _semer(db)
+    nadia = _compte(db, "nadia@garage.test")
+    paul = _compte(db, "paul.girard@garage.test")
+    db.refresh(paul)
+
+    assert paul.valide_le is not None and paul.derniere_connexion is not None
+    assert paul.desactive_le is not None
+    assert paul.cree_le <= paul.valide_le < paul.derniere_connexion < paul.desactive_le
+    assert paul.cree_le == MAINTENANT - timedelta(days=430)
+    assert paul.derniere_connexion == MAINTENANT - timedelta(days=45)
+    assert paul.valide_par == nadia.id
+
+    # Base semée avant ce correctif : « Créé le » au jour du seed, réparé au seed suivant.
+    paul.cree_le, paul.valide_le, paul.valide_par = MAINTENANT, None, None
+    db.flush()
+    _semer(db, MAINTENANT + timedelta(days=1))
+    assert paul.cree_le == MAINTENANT - timedelta(days=430)
+    assert (paul.valide_le, paul.valide_par) == (paul.cree_le, nadia.id)
+
+
 def test_seed_rejouable_remet_les_comptes_dans_leur_etat(db: Session) -> None:
     _semer(db)
     nadia = _compte(db, "nadia@garage.test")
@@ -110,8 +133,8 @@ def test_comptes_hors_service_ne_se_connectent_pas(
     ines = c.post(
         "/auth/login", json={"email": "ines.morel@exemple.test", "mot_de_passe": MDP_GERANT}
     )
-    assert ines.status_code == 403
-    assert ines.json()["code"] == "compte_en_attente"
+    assert ines.status_code == 401
+    assert ines.json()["message"] == "Identifiants invalides."
     paul = c.post(
         "/auth/login", json={"email": "paul.girard@garage.test", "mot_de_passe": MDP_MECANICIEN}
     )

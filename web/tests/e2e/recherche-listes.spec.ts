@@ -1,8 +1,9 @@
 /**
  * Recherche dans les listes (recette du sprint 5, story S1.5) : sur Clients, Véhicules, Ordres
  * de travail, Devis, Factures et Employés, le champ de recherche filtre la liste côté serveur,
- * annonce le nombre de résultats, garde la saisie dans l'adresse (?q=, relue au rechargement)
- * et montre « Aucun … ne correspond à « … ». » quand rien ne correspond.
+ * annonce le nombre de résultats, garde la saisie dans l'adresse (?q=, relue au rechargement
+ * et au retour arrière, revue du sprint 5) et montre « Aucun … ne correspond à « … ». » quand
+ * rien ne correspond.
  *
  * Les données (client, véhicule, OT, devis, facture) sont créées par l'API à chaque exécution.
  */
@@ -93,6 +94,56 @@ test("chaque liste du gérant se filtre par une recherche et dit quand rien ne c
     await expect(page.getByRole("link", { name: "Karim B." })).toBeVisible();
     await chercher(page, "Rechercher un employé", INTROUVABLE, "/employes");
     await expect(page.getByText(`Aucun employé ne correspond à « ${INTROUVABLE} ».`)).toBeVisible();
+  });
+});
+
+test("le retour arrière garde la recherche et les filtres, le lien du menu les retire", async ({ page }) => {
+  await seConnecter(page, GERANT);
+  const lignes = (nom: string) => page.getByRole("table").getByRole("link", { name: nom, exact: true });
+
+  await test.step("clients : la fiche ouverte, le retour arrière rend la liste filtrée", async () => {
+    await page.goto("/clients");
+    const nom = ordre.client.split(" ")[1]!;
+    const lien = ordre.client.split(" ").reverse().join(" ");
+    await chercher(page, "Rechercher un client", nom.toLowerCase(), "/clients");
+    await expect(lignes(lien)).toBeVisible();
+    const total = await page.getByRole("table").getByRole("row").count();
+    await lignes(lien).click();
+    await expect(page).toHaveURL(/\/clients\/\d+$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/clients\?q=/);
+    await expect(page.getByRole("searchbox", { name: "Rechercher un client" })).toHaveValue(nom.toLowerCase());
+    await annonce(page, /^\d+ résultats? pour/);
+    await expect(page.getByRole("table").getByRole("row")).toHaveCount(total);
+  });
+
+  await test.step("ordres de travail : idem après la fiche de l'OT", async () => {
+    await page.goto("/ordres");
+    await chercher(page, "Rechercher un ordre de travail", ordre.numero, "/ordres");
+    await lignes(ordre.numero).click();
+    await expect(page).toHaveURL(/\/ordres\/\d+$/);
+    await page.goBack();
+    await expect(page.getByRole("searchbox", { name: "Rechercher un ordre de travail" })).toHaveValue(ordre.numero);
+    await expect(page.getByRole("table").getByRole("row")).toHaveCount(2);
+  });
+
+  await test.step("employés : recherche et statut repris au retour, retirés par le lien du menu", async () => {
+    await page.goto("/employes");
+    await page.getByRole("group", { name: "Filtrer par statut" }).getByRole("button", { name: "Actif" }).click();
+    await chercher(page, "Rechercher un employé", "karim", "/employes");
+    await expect(page).toHaveURL(/statut=actif/);
+    await lignes("Karim B.").click();
+    await expect(page).toHaveURL(/\/employes\/\d+$/);
+    await page.goBack();
+    await expect(page.getByRole("searchbox", { name: "Rechercher un employé" })).toHaveValue("karim");
+    await expect(page.getByRole("group", { name: "Filtrer par statut" }).getByRole("button", { name: "Actif" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("table").getByRole("row")).toHaveCount(2);
+
+    await page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Employés" }).click();
+    await expect(page).toHaveURL(/\/employes$/);
+    await expect(page.getByRole("searchbox", { name: "Rechercher un employé" })).toHaveValue("");
+    await expect(page.getByRole("group", { name: "Filtrer par statut" }).getByRole("button", { name: "Tous les statuts" })).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => page.getByRole("table").getByRole("row").count()).toBeGreaterThan(2);
   });
 });
 

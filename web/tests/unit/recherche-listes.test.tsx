@@ -17,7 +17,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/api")>();
   return { ...original, apiFetch: (...args: unknown[]) => apiFetch(...args) };
 });
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), usePathname: () => "/vehicules" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), usePathname: () => window.location.pathname, useSearchParams: () => new URLSearchParams(window.location.search) }));
 
 const NADIA = { id: 1, email: "nadia@garage.test", prenom: "Nadia", nom: "Benali", nom_affiche: "Nadia Benali", role: "gerant" as const };
 const KARIM = { id: 7, email: "karim@garage.test", prenom: "Karim", nom: "B.", nom_affiche: "Karim B.", role: "mecanicien" as const };
@@ -70,6 +70,9 @@ describe("adresses et messages des listes", () => {
     expect(texteDeRecherche(["a", "b"])).toBe("");
     expect(texteDeRecherche(undefined)).toBe("");
     expect(texteDeRecherche("x".repeat(150))).toHaveLength(100);
+    // Moins de 2 caractères : l'API la refuserait, la liste s'affiche sans filtre.
+    expect(texteDeRecherche(" a ")).toBe("");
+    expect(texteDeRecherche("ab")).toBe("ab");
   });
 
   it("dit clairement qu'une recherche ne trouve rien", () => {
@@ -235,5 +238,73 @@ describe("autres listes", () => {
     expect(apiFetch).toHaveBeenCalledWith("/ordres?page=1&taille=50&statut=en_cours&q=clio", expect.anything());
     const filtres = screen.getByRole("navigation", { name: "Filtrer par statut" });
     expect(within(filtres).getByRole("link", { name: "Tous" })).toHaveAttribute("href", "/ordres?q=clio");
+  });
+});
+
+describe("listes qui suivent l'adresse (revue du sprint 5)", () => {
+  // Retour arrière : Next.js réaffiche la page avec les paramètres de son premier rendu
+  // (sans ?q=), mais useSearchParams donne l'adresse réelle.
+  it("après un retour arrière, la recherche de l'adresse revient dans le champ et la liste", async () => {
+    apiFetch.mockResolvedValue(page([]));
+    window.history.replaceState(null, "", "/clients?q=laurent");
+    afficher(<ClientsListe page={1} q="" />);
+
+    expect(await screen.findByText("Aucun client ne correspond à « laurent ».")).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Rechercher un client" })).toHaveValue("laurent");
+    expect(apiFetch).toHaveBeenCalledWith("/clients?page=1&taille=20&q=laurent", expect.anything());
+    expect(apiFetch).not.toHaveBeenCalledWith("/clients?page=1&taille=20", expect.anything());
+  });
+
+  it("une navigation vers la liste sans ?q= (lien du menu) vide le champ et la recherche", async () => {
+    apiFetch.mockResolvedValue(page([]));
+    const user = userEvent.setup({ delay: null });
+    window.history.replaceState(null, "", "/ordres");
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+    client.setQueryData(SESSION_KEY, { utilisateur: NADIA });
+    const vue = () => (
+      <QueryClientProvider client={client}>
+        <OrdresListe page={1} statut={null} q="" />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(vue());
+    await user.type(screen.getByRole("searchbox", { name: "Rechercher un ordre de travail" }), "clio{Enter}");
+    expect(await screen.findByText("Aucun ordre de travail ne correspond à « clio ».")).toBeInTheDocument();
+    expect(`${window.location.pathname}${window.location.search}`).toBe("/ordres?q=clio");
+
+    // Lien « Ordres de travail » du menu : même page, adresse sans paramètre.
+    window.history.pushState(null, "", "/ordres");
+    rerender(vue());
+
+    expect(await screen.findByText("Aucun ordre de travail pour l'instant.")).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Rechercher un ordre de travail" })).toHaveValue("");
+    expect(screen.queryByText(/pour « clio »/)).not.toBeInTheDocument();
+  });
+
+  it("une recherche en cours de frappe n'est pas effacée quand l'adresse rattrape la recherche transmise", async () => {
+    apiFetch.mockResolvedValue(page([]));
+    window.history.replaceState(null, "", "/clients");
+    afficher(<ClientsListe page={1} q="" />);
+    const champ = screen.getByRole("searchbox", { name: "Rechercher un client" });
+
+    fireEvent.change(champ, { target: { value: "lau" } });
+    fireEvent.submit(champ);
+    expect(await screen.findByText("Aucun client ne correspond à « lau ».")).toBeInTheDocument();
+    fireEvent.change(champ, { target: { value: "laur" } });
+
+    expect(champ).toHaveValue("laur");
+    expect(`${window.location.pathname}${window.location.search}`).toBe("/clients?q=lau");
+  });
+});
+
+describe("recherche d'un seul caractère dans l'adresse (revue du sprint 5)", () => {
+  it("/ordres?q=a affiche la liste sans filtre, sans annoncer une recherche vide", async () => {
+    apiFetch.mockResolvedValue(page([]));
+    window.history.replaceState(null, "", "/ordres?q=a");
+    afficher(<OrdresListe page={1} statut={null} q="" />);
+
+    expect(await screen.findByText("Aucun ordre de travail pour l'instant.")).toBeInTheDocument();
+    expect(screen.queryByText(/ne correspond à « a »/)).not.toBeInTheDocument();
+    expect(apiFetch).toHaveBeenCalledWith("/ordres?page=1&taille=50", expect.anything());
+    expect(apiFetch).not.toHaveBeenCalledWith(expect.stringContaining("q=a"), expect.anything());
   });
 });

@@ -18,7 +18,10 @@ export interface ChampRechercheListeProps {
   /** Étiquette visible du champ, par exemple « Rechercher un client ». */
   libelle: string;
   placeholder?: string;
-  /** Saisie de départ (paramètre ?q= de l'adresse). */
+  /**
+   * Recherche de l'adresse (?q=). Quand elle change sans passer par ce champ (retour arrière,
+   * lien du menu), le champ la reprend.
+   */
   valeurInitiale?: string;
   /**
    * Recherche à appliquer, sans espaces de bord ; « » quand le champ est effacé. Appelée
@@ -53,9 +56,25 @@ export function ChampRechercheListe({ libelle, placeholder, valeurInitiale = "",
   const [recherche, setRecherche] = useState(valeurInitiale.trim());
   const message = erreur ?? erreurServeur;
 
+  // Recherche de l'adresse changée par une navigation : le champ la reprend. Celle que ce
+  // champ vient de transmettre revient aussi par là, et ne touche pas à la saisie en cours.
+  const [initialeVue, setInitialeVue] = useState(valeurInitiale.trim());
+  const initiale = valeurInitiale.trim();
+  if (initiale !== initialeVue) {
+    setInitialeVue(initiale);
+    if (initiale !== recherche) {
+      setValeur(initiale);
+      setRecherche(initiale);
+      setErreur(null);
+    }
+  }
+
   useEffect(() => {
     rappel.current = onRecherche;
   });
+  useEffect(() => {
+    transmise.current = recherche;
+  }, [recherche]);
   useEffect(() => () => window.clearTimeout(minuteur.current), []);
 
   function appliquer(saisie: string, immediat: boolean) {

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api";
 import { lignesAdresse, versFormulaire, type Client, type ClientDetail, type ClientEntree } from "@/lib/clients";
 import { formatTelephone, nomComplet } from "@/lib/format";
+import { rafraichirListesVehicules } from "@/lib/vehicules";
 import { VehiculesClient } from "@/components/vehicules/VehiculesClient";
 import { ClientForm } from "./ClientForm";
 
@@ -82,8 +83,8 @@ export function FicheClient({ clientId }: { clientId: number }) {
               onSucces={(maj) => {
                 // La réponse ne contient pas les véhicules : on garde ceux déjà chargés.
                 queryClient.setQueryData<ClientDetail>(cle, (ancien) => (ancien ? { ...ancien, ...maj } : undefined));
-                void queryClient.invalidateQueries({ queryKey: ["clients", "liste"] });
-                void queryClient.invalidateQueries({ queryKey: ["recherche"] });
+                // Le nom du client s'affiche aussi dans les listes des véhicules, des OT et des devis.
+                rafraichirListesVehicules(queryClient);
                 setEdition(false);
                 setMessage("Fiche enregistrée.");
               }}
@@ -124,8 +125,7 @@ export function FicheClient({ clientId }: { clientId: number }) {
         clientId={client.id}
         vehicules={client.vehicules}
         onAjout={(vehicule) => {
-          void queryClient.invalidateQueries({ queryKey: ["clients"] });
-          void queryClient.invalidateQueries({ queryKey: ["recherche"] });
+          rafraichirListesVehicules(queryClient);
           setMessage(`Véhicule ${vehicule.immatriculation} ajouté.`);
         }}
       />

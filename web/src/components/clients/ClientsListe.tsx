@@ -2,17 +2,24 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
 import { ChampRechercheListe } from "@/components/ui/ChampRechercheListe";
 import { Pagination } from "@/components/ui/Pagination";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { Client, Page } from "@/lib/clients";
 import { formatTelephone } from "@/lib/format";
-import { aucunResultat, lienListe } from "@/lib/pages";
+import { useFiltresAdresse } from "@/lib/adresse";
+import { aucunResultat, lienListe, numeroDePage, texteDeRecherche, type Recherche } from "@/lib/pages";
 
 export const TAILLE_CLIENTS = 20;
 
 export const lienClients = (q: string, page = 1) => lienListe("/clients", { q, page });
+
+interface FiltresClients {
+  q: string;
+  page: number;
+}
+
+const lireClients = (p: Recherche): FiltresClients => ({ q: texteDeRecherche(p.q), page: numeroDePage(p.page) });
 
 /** Message de liste vide : recherche sans résultat, page vide ou fichier encore vide. */
 export function messageAucunClient(q: string, total: number): string {
@@ -23,11 +30,11 @@ export function messageAucunClient(q: string, total: number): string {
 /**
  * Onglet « Clients » de « Clients & véhicules » (gérant) : recherche par nom, prénom,
  * téléphone même partiel, plaque d'un véhicule ou e-mail (story S1.5), gardée dans l'adresse
- * (?q=) ; une nouvelle recherche repart de la page 1.
+ * (?q=), retour arrière compris ; une nouvelle recherche repart de la page 1.
  */
 export function ClientsListe({ page, q: qInitial }: { page: number; q: string }) {
-  const [q, setQ] = useState(qInitial);
-  const [pageCourante, setPage] = useState(page);
+  const [filtres, changer] = useFiltresAdresse("/clients", { q: qInitial, page }, lireClients, (f) => lienClients(f.q, f.page));
+  const { q, page: pageCourante } = filtres;
   const parametres = new URLSearchParams({ page: String(pageCourante), taille: String(TAILLE_CLIENTS) });
   if (q) parametres.set("q", q);
   const { data, isPending, isError, error } = useQuery({
@@ -38,9 +45,7 @@ export function ClientsListe({ page, q: qInitial }: { page: number; q: string })
   const erreurRecherche = isError && error instanceof ApiError && error.status === 422 ? (error.champs.q ?? error.message) : null;
 
   function rechercher(saisie: string) {
-    setQ(saisie);
-    setPage(1);
-    window.history.replaceState(null, "", lienClients(saisie));
+    changer({ q: saisie, page: 1 });
   }
 
   return (
@@ -48,7 +53,7 @@ export function ClientsListe({ page, q: qInitial }: { page: number; q: string })
       <ChampRechercheListe
         libelle="Rechercher un client"
         placeholder="Nom, téléphone, plaque ou e-mail"
-        valeurInitiale={qInitial}
+        valeurInitiale={q}
         onRecherche={rechercher}
         total={data && q ? data.total : null}
         erreurServeur={erreurRecherche}

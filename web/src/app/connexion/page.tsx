@@ -21,7 +21,7 @@ export default async function Connexion({ searchParams }: { searchParams: Promis
           <p className="muted">Accès réservé à l&apos;équipe du garage.</p>
           <LoginForm suivant={cheminDeRetour(typeof suivant === "string" ? suivant : null)} />
           <p className="caption">
-            Nouveau garage ou nouveau gérant : <Link href={PAGE_INSCRIPTION}>Créer un compte gérant</Link>
+            Nouveau garage ou nouveau gérant : <Link href={PAGE_INSCRIPTION}>Créer un compte gérant</Link>. Un compte demandé s&apos;ouvre une fois validé par un gérant du garage.
           </p>
         </div>
       </div>

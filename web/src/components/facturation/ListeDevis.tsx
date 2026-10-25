@@ -2,7 +2,6 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
 import { ChampRechercheListe } from "@/components/ui/ChampRechercheListe";
 import { Pagination } from "@/components/ui/Pagination";
 import { Plate } from "@/components/ui/Plate";
@@ -12,20 +11,28 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { BADGE_DEVIS, LIBELLE_DEVIS, type DevisResume } from "@/lib/devis";
 import { formatDateCourteOuAnnee, formatEuros, nomComplet } from "@/lib/format";
 import { modele } from "@/lib/ordres";
-import { aucunResultat, lienListe } from "@/lib/pages";
+import { useFiltresAdresse } from "@/lib/adresse";
+import { aucunResultat, lienListe, numeroDePage, texteDeRecherche, type Recherche } from "@/lib/pages";
 
 export const TAILLE_LISTE = 50;
 
 export const lienDevis = (q: string, page = 1) => lienListe("/devis", { q, page });
 
+interface FiltresDevis {
+  q: string;
+  page: number;
+}
+
+const lireDevis = (p: Recherche): FiltresDevis => ({ q: texteDeRecherche(p.q), page: numeroDePage(p.page) });
+
 /**
  * Onglet « Devis » : numéro d'OT, véhicule, client, statut, total TTC, date (avec l'année si
  * ce n'est pas l'année en cours). Recherche par numéro d'OT, plaque ou client (story S1.5),
- * gardée dans l'adresse (?q=).
+ * gardée dans l'adresse (?q=), retour arrière compris.
  */
 export function ListeDevis({ page, q: qInitial = "" }: { page: number; q?: string }) {
-  const [q, setQ] = useState(qInitial);
-  const [pageCourante, setPage] = useState(page);
+  const [filtres, changer] = useFiltresAdresse("/devis", { q: qInitial, page }, lireDevis, (f) => lienDevis(f.q, f.page));
+  const { q, page: pageCourante } = filtres;
   const parametres = new URLSearchParams({ page: String(pageCourante), taille: String(TAILLE_LISTE) });
   if (q) parametres.set("q", q);
   const { data, isPending, isError, error } = useQuery({
@@ -36,9 +43,7 @@ export function ListeDevis({ page, q: qInitial = "" }: { page: number; q?: strin
   const erreurRecherche = isError && error instanceof ApiError && error.status === 422 ? (error.champs.q ?? error.message) : null;
 
   function rechercher(saisie: string) {
-    setQ(saisie);
-    setPage(1);
-    window.history.replaceState(null, "", lienDevis(saisie));
+    changer({ q: saisie, page: 1 });
   }
 
   return (
@@ -46,7 +51,7 @@ export function ListeDevis({ page, q: qInitial = "" }: { page: number; q?: strin
       <ChampRechercheListe
         libelle="Rechercher un devis"
         placeholder="N° d'OT, plaque ou client"
-        valeurInitiale={qInitial}
+        valeurInitiale={q}
         onRecherche={rechercher}
         total={data && q ? data.total : null}
         erreurServeur={erreurRecherche}

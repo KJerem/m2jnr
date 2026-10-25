@@ -10,7 +10,7 @@ import { Onglets } from "@/components/ui/Onglets";
 import { Plate } from "@/components/ui/Plate";
 import { apiFetch } from "@/lib/api";
 import { formatDate, formatKm, nomComplet } from "@/lib/format";
-import { versFormulaireVehicule, type Vehicule, type VehiculeEntree } from "@/lib/vehicules";
+import { rafraichirListesVehicules, versFormulaireVehicule, type Vehicule, type VehiculeEntree } from "@/lib/vehicules";
 import { HistoriqueVehicule } from "./HistoriqueVehicule";
 import { VehiculeForm } from "./VehiculeForm";
 
@@ -109,8 +109,7 @@ export function FicheVehicule({ vehiculeId }: { vehiculeId: number }) {
                       envoyer={modifier}
                       onSucces={(maj) => {
                         queryClient.setQueryData(cle, maj);
-                        void queryClient.invalidateQueries({ queryKey: ["clients"] });
-                        void queryClient.invalidateQueries({ queryKey: ["recherche"] });
+                        rafraichirListesVehicules(queryClient);
                         setEdition(false);
                         setMessage("Véhicule enregistré.");
                       }}

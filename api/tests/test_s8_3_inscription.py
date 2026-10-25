@@ -105,21 +105,28 @@ def test_inscription_suivante_en_attente_avec_message_neutre(
 
 
 def test_un_compte_en_attente_ne_se_connecte_pas(
-    gerant: Utilisateur, client_anonyme: TestClient, nouveau_client: Callable[[], TestClient]
+    gerant: Utilisateur,
+    client_anonyme: TestClient,
+    nouveau_client: Callable[[], TestClient],
+    db: Session,
 ) -> None:
     client_anonyme.post("/auth/register", json=_demande())
     anonyme = nouveau_client()
 
-    # Sans le bon mot de passe : la réponse d'une adresse inconnue, jamais de blocage.
-    for _ in range(6):
-        faux = _login(anonyme, "ines.morel@exemple.test", "mauvais mot de passe")
-        assert faux.status_code == 401
-        assert faux.json()["message"] == "Identifiants invalides."
-    bon = _login(anonyme, "ines.morel@exemple.test")
-    assert bon.status_code == 403
-    assert bon.json()["code"] == "compte_en_attente"
-    assert bon.json()["message"] == "Votre compte attend la validation d'un gérant."
+    # La réponse d'une adresse inconnue, avec ou sans le bon mot de passe, jamais de blocage :
+    # aucun oracle pour deviner le mot de passe d'une demande en attente (revue du sprint 5).
+    for mot_de_passe in ["mauvais mot de passe"] * 6 + [MOT_DE_PASSE]:
+        refus = _login(anonyme, "ines.morel@exemple.test", mot_de_passe)
+        assert refus.status_code == 401
+        assert refus.json() == {
+            "code": "identifiants_invalides",
+            "message": "Identifiants invalides.",
+            "champs": {},
+        }
     assert anonyme.get("/auth/me").status_code == 401
+    ines = _compte(db, "ines.morel@exemple.test")
+    assert ines is not None
+    assert (ines.tentatives_echouees, ines.bloque_jusqu_a) == (0, None)
 
 
 def test_validation_en_mecanicien_puis_connexion_avec_ses_droits(
@@ -228,6 +235,31 @@ def test_e_mail_deja_connu_meme_reponse_et_rien_ne_change(
     assert mecanicien.mot_de_passe_hash == hash_avant
     assert verifier(mecanicien.mot_de_passe_hash, MOT_DE_PASSE_TEST)
     assert not verifier(mecanicien.mot_de_passe_hash, MOT_DE_PASSE)
+
+
+def test_s_inscrire_puis_se_connecter_ne_dit_pas_si_l_e_mail_existait(
+    gerant: Utilisateur,
+    mecanicien: Utilisateur,
+    client_anonyme: TestClient,
+    nouveau_client: Callable[[], TestClient],
+) -> None:
+    """Revue du sprint 5 : l'inscrit choisit le mot de passe, puis tente de se connecter avec. Une
+    adresse déjà prise et une adresse libre (devenue une demande en attente) répondent pareil."""
+    reponses = []
+    for email in (mecanicien.email, "adresse.libre@exemple.test"):
+        inscription_ = client_anonyme.post(
+            "/auth/register", json=_demande(email=email, mot_de_passe="Attaquant-Connu-2027")
+        )
+        connexion = _login(nouveau_client(), email, "Attaquant-Connu-2027")
+        reponses.append(
+            (inscription_.status_code, inscription_.json(), connexion.status_code, connexion.json())
+        )
+
+    assert reponses[0] == reponses[1]
+    assert reponses[0][2:] == (
+        401,
+        {"code": "identifiants_invalides", "message": "Identifiants invalides.", "champs": {}},
+    )
 
 
 def test_redemander_avec_le_meme_e_mail_ne_change_pas_la_demande(

@@ -17,6 +17,7 @@ from app.models import (
     Pont,
     RendezVous,
     Role,
+    StatutCompte,
     StatutDevis,
     StatutOT,
     Utilisateur,
@@ -26,7 +27,7 @@ from app.schemas.devis import DevisEntree
 from app.services import devis as service_devis
 from app.services import factures as service_factures
 from app.services.statut_devis import changer_statut_devis
-from app.services.tableau_de_bord import formater_retard, variation_pct
+from app.services.tableau_de_bord import formater_retard, mecanicien_a_affecter, variation_pct
 from tests.conftest import Horloge, MakeUser
 from tests.test_s4_1_devis import LIGNES_BACKLOG
 
@@ -210,6 +211,50 @@ def test_indicateurs_et_listes_de_la_journee(
             "utilisateur_id": None,
         },
     ]
+
+
+def test_ot_d_un_mecanicien_desactive_a_reaffecter(
+    horloge: Horloge,
+    client_gerant: TestClient,
+    fabrique: Callable[..., OrdreTravail],
+    db: Session,
+) -> None:
+    """Revue du sprint 5 : l'OT en cours d'un mécanicien désactivé n'apparaissait plus nulle
+    part ; il remonte dans « À traiter maintenant » comme un OT sans mécanicien."""
+    en_cours = fabrique(statut=StatutOT.EN_COURS)
+    livre = fabrique(statut=StatutOT.LIVRE, cloture=utc(2, 9))
+    assert en_cours.mecanicien is not None
+    karim = en_cours.mecanicien
+    assert client_gerant.get("/tableau-de-bord").json()["a_traiter"] == []
+
+    assert client_gerant.post(f"/utilisateurs/{karim.id}/desactiver").status_code == 200
+
+    a_traiter = client_gerant.get("/tableau-de-bord").json()["a_traiter"]
+    assert a_traiter == [
+        {
+            "type": "non_affecte",
+            "titre": "Mécanicien à affecter",
+            "detail": (
+                f"Peugeot 308 SW · {en_cours.numero} · Claire Laurent"
+                " · compte de Karim B. désactivé"
+            ),
+            "ordre_id": en_cours.id,
+            "numero": en_cours.numero,
+            "utilisateur_id": None,
+        }
+    ]
+    assert livre.id not in [a["ordre_id"] for a in a_traiter]
+
+
+def test_mecanicien_a_affecter(fabrique: Callable[..., OrdreTravail]) -> None:
+    ordre = fabrique(statut=StatutOT.A_FAIRE)
+    assert ordre.mecanicien is not None
+    assert not mecanicien_a_affecter(ordre)
+    ordre.mecanicien.statut = StatutCompte.DESACTIVE
+    assert mecanicien_a_affecter(ordre)
+    ordre.statut = StatutOT.LIVRE
+    assert not mecanicien_a_affecter(ordre)
+    assert mecanicien_a_affecter(fabrique(mecanicien=False))
 
 
 def test_retard_detecte_strictement_apres_l_heure_promise(

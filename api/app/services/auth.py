@@ -1,12 +1,13 @@
 """Connexion des employés : vérification du mot de passe et blocage après échecs répétés.
 
 Règles (story S8.1) :
-- e-mail inconnu, mauvais mot de passe ou compte désactivé : 401 « Identifiants invalides. »,
-  sans dire ce qui est faux ; un compte désactivé est traité comme un e-mail inconnu (aucun
-  compteur, jamais de blocage) ;
-- compte en attente de validation (story S8.3) : même 401 avec un mauvais mot de passe (ni
-  compteur ni blocage) ; avec le bon, 403 `compte_en_attente`, qui n'apprend rien à qui ne
-  connaît pas déjà le mot de passe ;
+- e-mail inconnu, mauvais mot de passe, compte désactivé ou compte en attente de validation
+  (story S8.3) : 401 « Identifiants invalides. », sans dire ce qui est faux ; un compte
+  désactivé ou en attente est traité comme un e-mail inconnu (aucun compteur, jamais de
+  blocage), même avec le bon mot de passe. Pour un compte en attente, c'est l'inscrit qui a
+  choisi le mot de passe : une réponse propre au bon mot de passe dirait à qui vient de
+  s'inscrire avec une adresse si elle avait déjà un compte, et servirait d'oracle pour deviner
+  sans limite le mot de passe d'une demande en attente (revue du sprint 5) ;
 - chaque échec incrémente `tentatives_echouees` ; au 5ᵉ échec consécutif, le compte est bloqué
   15 minutes (réglages `max_login_attempts` et `lockout_minutes`) ;
 - pendant le blocage, toute tentative est refusée (423), même avec le bon mot de passe, et le
@@ -25,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.errors import AppError
-from app.models.utilisateur import StatutCompte, Utilisateur
+from app.models.utilisateur import Utilisateur
 from app.security.hachage import doit_rehacher, hacher, hash_factice, verifier
 from app.services.format import formater_heure
 
@@ -38,13 +39,6 @@ def identifiants_invalides() -> AppError:
     return AppError(
         status.HTTP_401_UNAUTHORIZED, "identifiants_invalides", MESSAGE_IDENTIFIANTS_INVALIDES
     )
-
-
-MESSAGE_COMPTE_EN_ATTENTE = "Votre compte attend la validation d'un gérant."
-
-
-def compte_en_attente() -> AppError:
-    return AppError(status.HTTP_403_FORBIDDEN, "compte_en_attente", MESSAGE_COMPTE_EN_ATTENTE)
 
 
 def message_blocage(jusqu_a: datetime, settings: Settings) -> str:
@@ -92,21 +86,12 @@ def connecter(
         journal.info("Connexion refusée : e-mail inconnu.")
         raise identifiants_invalides()
 
-    if utilisateur.statut == StatutCompte.EN_ATTENTE:
-        # Inscription pas encore validée (story S8.3) : sans le bon mot de passe, la réponse
-        # d'un e-mail inconnu (ni compteur ni blocage) ; avec, un message qui ne révèle rien
-        # à qui ne connaît pas déjà le mot de passe.
-        if not verifier(utilisateur.mot_de_passe_hash, mot_de_passe):
-            journal.info("Connexion refusée : compte %s en attente.", utilisateur.id)
-            raise identifiants_invalides()
-        journal.info("Connexion refusée : compte %s en attente de validation.", utilisateur.id)
-        raise compte_en_attente()
-
     if not utilisateur.actif:
-        # Traité comme un e-mail inconnu : ni compteur ni blocage (un 423 révélerait que
-        # l'adresse existe), et un temps de réponse comparable grâce au hash factice.
+        # Compte désactivé ou en attente de validation : traité comme un e-mail inconnu, ni
+        # compteur ni blocage (un 423 révélerait que l'adresse existe), la même réponse avec ou
+        # sans le bon mot de passe, et un temps de réponse comparable grâce au hash factice.
         verifier(hash_factice(), mot_de_passe)
-        journal.info("Connexion refusée : compte %s désactivé.", utilisateur.id)
+        journal.info("Connexion refusée : compte %s %s.", utilisateur.id, utilisateur.statut.value)
         raise identifiants_invalides()
 
     if utilisateur.bloque_jusqu_a is not None:

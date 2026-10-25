@@ -16,7 +16,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
   return { ...original, apiFetch: (...args: unknown[]) => apiFetch(...args) };
 });
 const navigation = vi.hoisted(() => ({ chemin: "/devis" }));
-vi.mock("next/navigation", () => ({ usePathname: () => navigation.chemin, useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => navigation.chemin, useSearchParams: () => new URLSearchParams(window.location.search), useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 
 const DEVIS: DevisDetail = {
   id: 7,

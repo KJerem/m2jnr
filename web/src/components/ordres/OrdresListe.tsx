@@ -2,7 +2,6 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
 import { useSession } from "@/components/session/useSession";
 import { ButtonLink } from "@/components/ui/Button";
 import { ChampRechercheListe } from "@/components/ui/ChampRechercheListe";
@@ -14,8 +13,9 @@ import { ApiError, apiFetch } from "@/lib/api";
 import type { Page } from "@/lib/clients";
 import { nomComplet } from "@/lib/format";
 import { formatRestitution, modele, type OrdreResume } from "@/lib/ordres";
-import { aucunResultat, lienListe } from "@/lib/pages";
-import { BADGE_OT, LIBELLE_OT, STATUTS_OT, type StatutOT } from "@/lib/statuts";
+import { useFiltresAdresse } from "@/lib/adresse";
+import { aucunResultat, lienListe, numeroDePage, texteDeRecherche, type Recherche } from "@/lib/pages";
+import { BADGE_OT, LIBELLE_OT, lireStatutOT, STATUTS_OT, type StatutOT } from "@/lib/statuts";
 
 const TAILLE = 50;
 
@@ -23,6 +23,14 @@ const TAILLE = 50;
 export function lienOrdres(statut: StatutOT | null, page = 1, q = "") {
   return lienListe("/ordres", { statut, q, page });
 }
+
+interface FiltresOrdres {
+  statut: StatutOT | null;
+  q: string;
+  page: number;
+}
+
+const lireOrdres = (p: Recherche): FiltresOrdres => ({ statut: lireStatutOT(p.statut), q: texteDeRecherche(p.q), page: numeroDePage(p.page) });
 
 /** Message de liste vide selon le statut et la recherche. */
 export function messageAucunOrdre(statut: StatutOT | null, q: string): string {
@@ -46,10 +54,11 @@ export function Restitution({ ordre }: { ordre: OrdreResume }) {
  * par numéro, plaque, véhicule, client, mécanicien ou demande (story S1.5), gardés dans
  * l'adresse ; une nouvelle recherche repart de la page 1.
  */
-export function OrdresListe({ page, statut, q: qInitial = "" }: { page: number; statut: StatutOT | null; q?: string }) {
+export function OrdresListe({ page, statut: statutInitial, q: qInitial = "" }: { page: number; statut: StatutOT | null; q?: string }) {
   const { utilisateur } = useSession();
-  const [q, setQ] = useState(qInitial);
-  const [pageCourante, setPage] = useState(page);
+  // Statut, recherche et page suivent l'adresse, retour arrière compris.
+  const [filtres, changer] = useFiltresAdresse("/ordres", { statut: statutInitial, q: qInitial, page }, lireOrdres, (f) => lienOrdres(f.statut, f.page, f.q));
+  const { statut, q, page: pageCourante } = filtres;
   const parametres = new URLSearchParams({ page: String(pageCourante), taille: String(TAILLE) });
   if (statut) parametres.set("statut", statut);
   if (q) parametres.set("q", q);
@@ -61,9 +70,7 @@ export function OrdresListe({ page, statut, q: qInitial = "" }: { page: number; 
   const erreurRecherche = isError && error instanceof ApiError && error.status === 422 ? (error.champs.q ?? error.message) : null;
 
   function rechercher(saisie: string) {
-    setQ(saisie);
-    setPage(1);
-    window.history.replaceState(null, "", lienOrdres(statut, 1, saisie));
+    changer({ statut, q: saisie, page: 1 });
   }
 
   return (
@@ -85,7 +92,7 @@ export function OrdresListe({ page, statut, q: qInitial = "" }: { page: number; 
         <ChampRechercheListe
           libelle="Rechercher un ordre de travail"
           placeholder="N° d'OT, plaque, client, mécanicien"
-          valeurInitiale={qInitial}
+          valeurInitiale={q}
           onRecherche={rechercher}
           total={data && q ? data.total : null}
           erreurServeur={erreurRecherche}

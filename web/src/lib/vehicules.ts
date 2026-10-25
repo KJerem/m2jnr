@@ -1,4 +1,5 @@
 /** Fiche véhicule : types de l'API, normalisation de la plaque et validation (mêmes règles que l'API). */
+import type { QueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { TIMEZONE } from "./format";
 
@@ -111,4 +112,16 @@ export function versEntreeVehicule(valeurs: VehiculeFormValues): VehiculeEntree 
     vin: valeurs.vin.trim() ? (normaliserVin(valeurs.vin) ?? valeurs.vin.trim()) : null,
     date_mise_en_circulation: valeurs.date_mise_en_circulation || null,
   };
+}
+
+/**
+ * Listes à rafraîchir après l'ajout ou la modification d'un véhicule, ou la modification de
+ * son propriétaire (revue du sprint 5) : la plaque, le modèle et le nom du propriétaire
+ * s'affichent dans les listes des clients, des véhicules, des ordres de travail et des devis,
+ * et dans la recherche globale.
+ */
+export const LISTES_AVEC_VEHICULE = [["clients"], ["vehicules"], ["ordres"], ["devis"], ["recherche"]] as const;
+
+export function rafraichirListesVehicules(queryClient: QueryClient): void {
+  for (const queryKey of LISTES_AVEC_VEHICULE) void queryClient.invalidateQueries({ queryKey });
 }

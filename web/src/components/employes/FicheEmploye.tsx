@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSession } from "@/components/session/useSession";
 import { Button } from "@/components/ui/Button";
@@ -15,9 +15,9 @@ import {
   AIDE_MOT_DE_PASSE,
   cleEmploye,
   de,
-  employeModificationSchema,
   libelleDerniereConnexion,
   motDePasseSchema,
+  schemaModificationEmploye,
   versEntreeEmploye,
   versFormulaireEmploye,
   type Employe,
@@ -27,7 +27,7 @@ import {
 import { formatDateHeureOuAnnee } from "@/lib/format";
 import { appliquerErreursApi } from "@/lib/formulaires";
 import { LIBELLE_ROLE } from "@/lib/session";
-import { rafraichirApresCompte } from "./actions";
+import { prendreFicheCreee, rafraichirApresCompte } from "./actions";
 import { BadgeCompte } from "./BadgeCompte";
 import { ValidationCompte } from "./ValidationCompte";
 
@@ -46,11 +46,18 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
   const [motDePasse, setMotDePasse] = useState(false);
   const titreAcces = useRef<HTMLHeadingElement>(null);
   const titre = useRef<HTMLHeadingElement>(null);
+  const boutonModifier = useRef<HTMLButtonElement>(null);
   const cle = cleEmploye(employeId);
   const { data: employe, isPending, isError, error } = useQuery({
     queryKey: cle,
     queryFn: ({ signal }) => apiFetch<Employe>(`/utilisateurs/${employeId}`, { signal }),
   });
+  const charge = employe !== undefined;
+
+  // Arrivée depuis « Nouvel employé » : le focus va au titre de la fiche créée.
+  useEffect(() => {
+    if (charge && prendreFicheCreee(employeId)) titre.current?.focus();
+  }, [charge, employeId]);
 
   const action = useMutation({
     mutationFn: ({ chemin, corps }: { chemin: string; corps?: unknown; succes: (e: Employe) => string }) =>
@@ -106,7 +113,11 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
             <BadgeCompte employe={employe} />
           </p>
         </div>
-        {!edition && employe.statut !== "en_attente" ? <Button onClick={() => setEdition(true)}>Modifier</Button> : null}
+        {!edition && employe.statut !== "en_attente" ? (
+          <Button ref={boutonModifier} onClick={() => setEdition(true)}>
+            Modifier
+          </Button>
+        ) : null}
       </header>
 
       <div className="grid-2">
@@ -126,7 +137,11 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
                   setEdition(false);
                   window.setTimeout(() => titre.current?.focus(), 0);
                 }}
-                onAnnuler={() => setEdition(false)}
+                onAnnuler={() => {
+                  setEdition(false);
+                  // Le bouton « Modifier » réapparaît : il reprend le focus.
+                  window.setTimeout(() => boutonModifier.current?.focus(), 0);
+                }}
               />
             ) : (
               <dl className="dl">
@@ -231,7 +246,7 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
         >
           <p>
             {confirmation === "desactiver"
-              ? "Il ne pourra plus se connecter et sa session en cours s'arrêtera à sa prochaine action. Ses interventions passées restent dans l'historique."
+              ? `Il ne pourra plus se connecter et sa session en cours s'arrêtera à sa prochaine action. Ses interventions passées restent dans l'historique.${employe.role === "mecanicien" ? " Ses ordres de travail non livrés apparaîtront dans « À traiter maintenant » pour être confiés à un autre mécanicien." : ""}`
               : "Il pourra de nouveau se connecter avec son mot de passe actuel."}
           </p>
         </Modal>
@@ -260,7 +275,7 @@ function MotDePasseModal({ nom, envoi, onAnnuler, onValider }: { nom: string; en
       <form className="stack" noValidate onSubmit={handleSubmit(onValider)}>
         <TextField label="Nouveau mot de passe" required type="password" autoComplete="new-password" hint={AIDE_MOT_DE_PASSE} error={errors.mot_de_passe?.message} {...register("mot_de_passe")} />
         <TextField label="Confirmer le mot de passe" required type="password" autoComplete="new-password" error={errors.confirmation?.message} {...register("confirmation")} />
-        <p className="caption">Transmettez-le à l&apos;employé de vive voix ; le compte est aussi débloqué.</p>
+        <p className="caption">Transmettez-le à l&apos;employé de vive voix ; le compte est aussi débloqué et ses sessions ouvertes s&apos;arrêtent.</p>
         <div className="actions modal-form-actions">
           <Button onClick={onAnnuler}>Annuler</Button>
           <Button type="submit" variant="primary" loading={envoi}>
@@ -279,8 +294,12 @@ function EmployeModificationForm({ employe, soiMeme, onSucces, onAnnuler }: { em
     register,
     handleSubmit,
     setError,
+    setFocus,
     formState: { errors, isSubmitting },
-  } = useForm<EmployeModificationValeurs>({ resolver: zodResolver(employeModificationSchema), defaultValues: versFormulaireEmploye(employe) });
+  } = useForm<EmployeModificationValeurs>({ resolver: zodResolver(schemaModificationEmploye(employe)), defaultValues: versFormulaireEmploye(employe) });
+  // Le bouton « Modifier » disparaît à l'ouverture du formulaire : le focus va au premier champ.
+  useEffect(() => setFocus("prenom"), [setFocus]);
+  const sansNom = !employe.nom.trim();
   const [erreurGenerale, setErreurGenerale] = useState<string | null>(null);
 
   async function enregistrer(valeurs: EmployeModificationValeurs) {
@@ -298,7 +317,7 @@ function EmployeModificationForm({ employe, soiMeme, onSucces, onAnnuler }: { em
         {erreurGenerale}
       </div>
       <TextField label="Prénom" required maxLength={100} autoComplete="off" error={errors.prenom?.message} {...register("prenom")} />
-      <TextField label="Nom" required maxLength={100} autoComplete="off" error={errors.nom?.message} {...register("nom")} />
+      <TextField label="Nom" required={!sansNom} maxLength={100} autoComplete="off" hint={sansNom ? "Facultatif : compte repris sans nom de famille." : undefined} error={errors.nom?.message} {...register("nom")} />
       <TextField label="E-mail" required type="email" inputMode="email" autoComplete="off" error={errors.email?.message} {...register("email")} />
       {soiMeme ? (
         // Rôle non modifiable par soi-même : affiché, non envoyé autrement que tel quel.

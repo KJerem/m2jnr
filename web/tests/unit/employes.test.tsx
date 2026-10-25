@@ -3,6 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { annoncerFicheCreee } from "@/components/employes/actions";
 import { EmployesListe, messageAucunEmploye } from "@/components/employes/EmployesListe";
 import { FicheEmploye, MESSAGE_SOI_MEME_DESACTIVER } from "@/components/employes/FicheEmploye";
 import { EmployeCreationForm } from "@/components/employes/NouvelEmploye";
@@ -16,7 +17,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/api")>();
   return { ...original, apiFetch: (...args: unknown[]) => apiFetch(...args) };
 });
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), usePathname: () => "/employes" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), usePathname: () => window.location.pathname, useSearchParams: () => new URLSearchParams(window.location.search) }));
 
 const KARIM: Employe = {
   id: 7,
@@ -163,6 +164,8 @@ describe("fiche d'un employé", () => {
 
     await user.click(screen.getByRole("button", { name: "Désactiver le compte" }));
     const dialogue = screen.getByRole("dialog", { name: "Désactiver le compte de Karim B. ?" });
+    // Revue du sprint 5 : ses OT en cours ne disparaissent pas, ils sont à réaffecter.
+    expect(dialogue).toHaveTextContent("Ses ordres de travail non livrés apparaîtront dans « À traiter maintenant » pour être confiés à un autre mécanicien.");
     expect(apiFetch).not.toHaveBeenCalled();
     await user.click(within(dialogue).getByRole("button", { name: "Désactiver" }));
 
@@ -171,6 +174,60 @@ describe("fiche d'un employé", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Réactiver le compte" })).toBeInTheDocument();
     await vi.waitFor(() => expect(screen.getByRole("heading", { name: "Accès" })).toHaveFocus());
+  });
+
+  it("un compte repris sans nom de famille se modifie sans en inventer un", async () => {
+    const admin: Employe = { ...KARIM, prenom: "Admin", nom: "", nom_affiche: "Admin" };
+    apiFetch.mockResolvedValue({ ...admin, email: "admin@garage.test" });
+    const user = userEvent.setup({ delay: null });
+    fiche(admin);
+
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    const nom = screen.getByRole("textbox", { name: /^Nom/ });
+    expect(nom).not.toBeRequired();
+    expect(nom).toHaveAccessibleDescription("Facultatif : compte repris sans nom de famille.");
+    const email = screen.getByRole("textbox", { name: /^E-mail/ });
+    await user.clear(email);
+    await user.type(email, "admin@garage.test");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await vi.waitFor(() => expect(apiFetch).toHaveBeenCalledWith("/utilisateurs/7", { method: "PUT", body: { prenom: "Admin", nom: "", email: "admin@garage.test", role: "mecanicien" } }));
+    expect(screen.queryByText("Champ obligatoire.")).not.toBeInTheDocument();
+  });
+
+  it("un nom déjà renseigné reste obligatoire à la modification", async () => {
+    const user = userEvent.setup({ delay: null });
+    fiche(KARIM);
+
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    await user.clear(screen.getByRole("textbox", { name: /^Nom/ }));
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(await screen.findByText("Champ obligatoire.")).toBeInTheDocument();
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+
+  it("« Modifier » donne le focus au premier champ, « Annuler » le rend à « Modifier » (revue du sprint 5)", async () => {
+    const user = userEvent.setup({ delay: null });
+    fiche(KARIM);
+
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    await vi.waitFor(() => expect(screen.getByRole("textbox", { name: /^Prénom/ })).toHaveFocus());
+
+    await user.click(screen.getByRole("button", { name: "Annuler" }));
+    await vi.waitFor(() => expect(screen.getByRole("button", { name: "Modifier" })).toHaveFocus());
+  });
+
+  it("à l'arrivée sur la fiche d'un compte qui vient d'être créé, le focus va à son titre", async () => {
+    annoncerFicheCreee(KARIM.id);
+    fiche(KARIM);
+
+    await vi.waitFor(() => expect(screen.getByRole("heading", { level: 1, name: "Karim B." })).toHaveFocus());
+  });
+
+  it("une fiche ouverte autrement ne prend pas le focus", () => {
+    fiche(KARIM);
+    expect(screen.getByRole("heading", { level: 1, name: "Karim B." })).not.toHaveFocus();
   });
 
   it("annuler la confirmation ne change rien", async () => {

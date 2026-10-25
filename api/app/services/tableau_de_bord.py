@@ -13,7 +13,9 @@ lendemain[ sont calculées dans le fuseau du garage (journées de 23 ou 25 heure
   urgentes ou en retard d'abord, puis par heure de restitution, les livrées à la fin ;
 - arrivées prévues : rendez-vous du jour qui commencent après maintenant ;
 - à traiter : retards, factures à établir (devis accepté, non facturé, d'un OT « Prêt » ou
-  « Livré »), devis à faire valider (envoyés au client, sans réponse), OT sans mécanicien.
+  « Livré »), devis à faire valider (envoyés au client, sans réponse), OT non livrés sans
+  mécanicien ou dont le mécanicien a été désactivé (revue du sprint 5 : ils n'apparaissaient
+  plus nulle part, le compte désactivé ne voyant plus ses travaux).
 """
 
 from collections.abc import Sequence
@@ -268,17 +270,30 @@ def _devis_a_valider(devis: Sequence[Devis], jour: date, fuseau: str) -> list[AT
     ]
 
 
+def mecanicien_a_affecter(ordre: OrdreTravail) -> bool:
+    """Vrai pour un OT non livré sans mécanicien, ou dont le mécanicien n'est plus actif
+    (compte désactivé : il ne voit plus ses travaux, un autre doit les reprendre)."""
+    if ordre.statut == StatutOT.LIVRE:
+        return False
+    return ordre.mecanicien is None or not ordre.mecanicien.actif
+
+
 def _non_affectes(ordres: Sequence[OrdreTravail]) -> list[ATraiter]:
     return [
         ATraiter(
             type="non_affecte",
             titre="Mécanicien à affecter",
-            detail=f"{_vehicule(o)} · {o.numero} · {_nom(o)}",
+            detail=(
+                f"{_vehicule(o)} · {o.numero} · {_nom(o)}"
+                if o.mecanicien is None
+                else f"{_vehicule(o)} · {o.numero} · {_nom(o)} · compte de"
+                f" {o.mecanicien.nom_affiche} désactivé"
+            ),
             ordre_id=o.id,
             numero=o.numero,
         )
         for o in ordres
-        if o.statut != StatutOT.LIVRE and o.mecanicien_id is None
+        if mecanicien_a_affecter(o)
     ]
 
 
