@@ -47,6 +47,7 @@ from app.models.utilisateur import Utilisateur
 from app.services import calcul_devis
 from app.services.numerotation import PREFIXE_FACTURE, TYPE_FACTURE, prochain_numero
 from app.services.paiements import StatutPaiement, condition_statut
+from app.services.recherche import chaque_mot_dans
 from app.services.statut_devis import verifier_accepte
 
 MESSAGE_FACTURE_INTROUVABLE = "Facture introuvable."
@@ -277,6 +278,28 @@ def _filtrer(
     return requete
 
 
+def _factures_cherchees(mots: tuple[str, ...]) -> Select[int]:
+    """Identifiants des factures dont le numéro, celui de l'OT, le nom du client ou la plaque
+    figés à l'émission (avec et sans tirets) contiennent chaque mot, sans accents ni casse
+    (story S1.5). La copie figée fait foi : une fiche client modifiée depuis ne change pas
+    ce que l'on trouve."""
+    plaque = Facture.vehicule_fige["immatriculation"].astext
+    texte = func.concat_ws(
+        " ",
+        Facture.numero,
+        OrdreTravail.numero,
+        Facture.client_fige["prenom"].astext,
+        Facture.client_fige["nom"].astext,
+        plaque,
+        func.replace(plaque, "-", ""),
+    )
+    return (
+        select(Facture.id)
+        .join(OrdreTravail, Facture.ordre_travail_id == OrdreTravail.id)
+        .where(chaque_mot_dans(texte, mots))
+    )
+
+
 def lister_factures(
     db: Session,
     depuis: datetime | None,
@@ -284,12 +307,16 @@ def lister_factures(
     page: int,
     taille: int,
     statut_paiement: StatutPaiement | None = None,
+    mots: tuple[str, ...] | None = None,
 ) -> PageFactures:
     """Factures de la plus récente à la plus ancienne, émises dans [depuis, avant[, d'un
-    statut de paiement donné (story S4.4) si demandé."""
+    statut de paiement donné (story S4.4) et filtrées par la recherche (story S1.5) si
+    demandé."""
     base = _filtrer(select(Facture), depuis, avant)
     if statut_paiement is not None:
         base = base.where(condition_statut(statut_paiement))
+    if mots:
+        base = base.where(Facture.id.in_(_factures_cherchees(mots)))
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
     elements = list(
         db.scalars(

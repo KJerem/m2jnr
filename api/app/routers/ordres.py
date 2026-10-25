@@ -29,6 +29,7 @@ from app.security.dependances import require_role
 from app.services import factures as service_factures
 from app.services import ordres as service
 from app.services import transitions
+from app.services.recherche import mots_de
 
 router = APIRouter(prefix="/ordres", tags=["ordres de travail"])
 
@@ -68,6 +69,13 @@ def lister(
     du: Jour | None = Query(None, description="Ouverts à partir de ce jour (Paris)"),
     au: Jour | None = Query(None, description="Ouverts jusqu'à ce jour inclus (Paris)"),
     atelier: bool = Query(False, description="Vue atelier : non livrés et livrés du jour"),
+    q: str | None = Query(
+        None,
+        description=(
+            "Recherche (2 à 100 caractères) : numéro, plaque avec ou sans tirets, marque, modèle,"
+            " client, mécanicien ou demande, sans accents ni casse."
+        ),
+    ),
     page: int = Query(1, ge=1, le=PAGE_MAX),
     taille: int = Query(50, ge=1, le=200),
 ) -> Page[OrdreResume]:
@@ -83,6 +91,7 @@ def lister(
             if atelier
             else None
         ),
+        mots=mots_de(q),
     )
     resultat = service.lister_ordres(db, filtres, page, taille)
     contact = voit_le_contact(utilisateur)

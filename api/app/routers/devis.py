@@ -30,6 +30,7 @@ from app.services import devis as service
 from app.services import factures as service_factures
 from app.services import ordres as service_ordres
 from app.services import statut_devis
+from app.services.recherche import mots_de
 
 gerant_seul = require_role(Role.GERANT)
 
@@ -63,10 +64,14 @@ def devis_de_l_ordre(ordre_id: int, db: DbSession) -> DevisDetail:
 @router.get("/devis")
 def lister(
     db: DbSession,
+    q: str | None = Query(
+        None,
+        description="Recherche (2 à 100 caractères) : numéro d'OT, plaque ou client.",
+    ),
     page: int = Query(1, ge=1, le=PAGE_MAX),
     taille: int = Query(50, ge=1, le=200),
 ) -> Page[DevisResume]:
-    resultat = service.lister_devis(db, page, taille)
+    resultat = service.lister_devis(db, page, taille, mots_de(q))
     return Page[DevisResume](
         elements=[resume_devis(d) for d in resultat.elements],
         total=resultat.total,

@@ -16,10 +16,11 @@ from datetime import date, datetime
 
 from fastapi import status
 from sqlalchemy import Select, func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, aliased, selectinload
 
 from app.db import id_possible
 from app.errors import AppError, conflict, invalid, not_found
+from app.models.client import Client
 from app.models.ordre_travail import HistoriqueStatut, OrdreTravail, StatutOT, TacheOT
 from app.models.rendez_vous import RendezVous
 from app.models.utilisateur import Role, StatutCompte, Utilisateur
@@ -32,6 +33,7 @@ from app.schemas.ordre import (
 )
 from app.services.format import formater_km
 from app.services.numerotation import TYPE_ORDRE_TRAVAIL, prochain_numero
+from app.services.recherche import chaque_mot_dans
 from app.services.transitions import (
     MESSAGE_ORDRE_LIVRE,
     MESSAGE_ORDRE_PRET,
@@ -217,12 +219,42 @@ class FiltresOrdres:
     ouvert_avant: datetime | None = None
     # Vue « atelier » (kanban) : OT non livrés, plus ceux livrés depuis cet instant.
     livres_depuis: datetime | None = None
+    # Recherche de la liste (story S1.5) : chaque mot dans le numéro, la plaque (avec ou sans
+    # tirets), la marque, le modèle, le nom du client, celui du mécanicien ou la demande.
+    mots: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)
 class PageOrdres:
     elements: list[OrdreTravail]
     total: int
+
+
+def _ordres_cherches(mots: tuple[str, ...]) -> Select[int]:
+    """Identifiants des OT dont le texte (numéro, plaque avec et sans tirets, marque, modèle,
+    client, mécanicien, demande) contient chaque mot, sans accents ni casse. Ni téléphone ni
+    e-mail du client : le mécanicien cherche dans cette liste aussi."""
+    mecanicien = aliased(Utilisateur)
+    texte = func.concat_ws(
+        " ",
+        OrdreTravail.numero,
+        Vehicule.immatriculation,
+        func.replace(Vehicule.immatriculation, "-", ""),
+        Vehicule.marque,
+        Vehicule.modele,
+        Client.prenom,
+        Client.nom,
+        mecanicien.prenom,
+        mecanicien.nom,
+        OrdreTravail.demande_client,
+    )
+    return (
+        select(OrdreTravail.id)
+        .join(Vehicule, OrdreTravail.vehicule_id == Vehicule.id)
+        .join(Client, Vehicule.client_id == Client.id)
+        .outerjoin(mecanicien, OrdreTravail.mecanicien_id == mecanicien.id)
+        .where(chaque_mot_dans(texte, mots))
+    )
 
 
 def _filtrer(
@@ -243,6 +275,8 @@ def _filtrer(
             (OrdreTravail.statut != StatutOT.LIVRE)
             | (OrdreTravail.cloture_le >= filtres.livres_depuis)
         )
+    if filtres.mots:
+        requete = requete.where(OrdreTravail.id.in_(_ordres_cherches(filtres.mots)))
     return requete
 
 

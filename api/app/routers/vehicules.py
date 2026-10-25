@@ -12,19 +12,39 @@ from app.clock import date_locale, get_now
 from app.config import Settings, get_settings
 from app.db import DbSession
 from app.models.utilisateur import Role
+from app.schemas.commun import PAGE_MAX, Page
 from app.schemas.ordre import InterventionHistorique
 from app.schemas.vehicule import VehiculeEntree, VehiculeSortie
 from app.security.dependances import require_role
 from app.services import ordres as service_ordres
 from app.services import vehicules as service
+from app.services.recherche import recherche_de_liste
 
 router = APIRouter(prefix="/vehicules", tags=["véhicules"])
 
 
 @router.get("", dependencies=[Depends(require_role(Role.GERANT, Role.MECANICIEN))])
-def lister(db: DbSession, taille: int = Query(500, ge=1, le=1000)) -> list[VehiculeSortie]:
-    """Véhicules groupés par propriétaire (sélection du véhicule d'un OT ou d'un rendez-vous)."""
-    return [VehiculeSortie.model_validate(v) for v in service.lister_vehicules(db, taille)]
+def lister(
+    db: DbSession,
+    q: str | None = Query(
+        None,
+        description=(
+            "Recherche (2 à 100 caractères) : plaque avec ou sans tirets, marque, modèle, VIN"
+            " ou nom du propriétaire (jamais ses coordonnées), sans accents ni casse."
+        ),
+    ),
+    page: int = Query(1, ge=1, le=PAGE_MAX),
+    taille: int = Query(20, ge=1, le=1000),
+) -> Page[VehiculeSortie]:
+    """Véhicules groupés par propriétaire, page par page (story S1.5). Les listes de choix
+    (véhicule d'un OT ou d'un rendez-vous) demandent une grande page (`taille=1000`)."""
+    resultat = service.lister_vehicules(db, page, taille, recherche_de_liste(q))
+    return Page[VehiculeSortie](
+        elements=[VehiculeSortie.model_validate(v) for v in resultat.elements],
+        total=resultat.total,
+        page=page,
+        taille=taille,
+    )
 
 
 @router.get("/{vehicule_id}", dependencies=[Depends(require_role(Role.GERANT, Role.MECANICIEN))])

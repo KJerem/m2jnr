@@ -577,7 +577,9 @@ def test_liste_des_vehicules_groupes_par_proprietaire(
     reponse = client_gerant.get("/vehicules")
 
     assert reponse.status_code == 200
-    assert [(v["proprietaire"]["nom"], v["immatriculation"]) for v in reponse.json()] == [
+    assert [
+        (v["proprietaire"]["nom"], v["immatriculation"]) for v in reponse.json()["elements"]
+    ] == [
         ("Diallo", "FD-119-RT"),
         ("Laurent", "GH-482-KL"),
     ]
