@@ -16,6 +16,8 @@ const PATHS = {
   // Badge d'employé : comptes de l'équipe (story S8.2).
   badge: "M4 6h16v13H4zM9 3h6v4H9zM9.5 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6.5 17a3 3 0 0 1 6 0M14.5 11h3M14.5 15h3",
   close: "M6 6l12 12M18 6 6 18",
+  // Plaque d'immatriculation (le véhicule se montre par sa plaque, jamais par un pictogramme).
+  plaque: "M3 7h18v10H3zM7 7v10M10 12h8",
 } as const;
 
 export type IconName = keyof typeof PATHS;

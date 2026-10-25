@@ -1,35 +1,59 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { ButtonLink } from "@/components/ui/Button";
-import { Icon } from "@/components/ui/Icon";
+import { useState } from "react";
+import { ChampRechercheListe } from "@/components/ui/ChampRechercheListe";
 import { Pagination } from "@/components/ui/Pagination";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import type { Client, Page } from "@/lib/clients";
 import { formatTelephone } from "@/lib/format";
+import { aucunResultat, lienListe } from "@/lib/pages";
 
-const TAILLE = 20;
+export const TAILLE_CLIENTS = 20;
 
-export function ClientsListe({ page }: { page: number }) {
+export const lienClients = (q: string, page = 1) => lienListe("/clients", { q, page });
+
+/** Message de liste vide : recherche sans résultat, page vide ou fichier encore vide. */
+export function messageAucunClient(q: string, total: number): string {
+  if (q) return aucunResultat("Aucun client", q);
+  return total === 0 ? "Aucun client pour l'instant. Créez la première fiche." : "Aucun client sur cette page.";
+}
+
+/**
+ * Onglet « Clients » de « Clients & véhicules » (gérant) : recherche par nom, prénom,
+ * téléphone même partiel, plaque d'un véhicule ou e-mail (story S1.5), gardée dans l'adresse
+ * (?q=) ; une nouvelle recherche repart de la page 1.
+ */
+export function ClientsListe({ page, q: qInitial }: { page: number; q: string }) {
+  const [q, setQ] = useState(qInitial);
+  const [pageCourante, setPage] = useState(page);
+  const parametres = new URLSearchParams({ page: String(pageCourante), taille: String(TAILLE_CLIENTS) });
+  if (q) parametres.set("q", q);
   const { data, isPending, isError, error } = useQuery({
-    queryKey: ["clients", "liste", page],
-    queryFn: ({ signal }) => apiFetch<Page<Client>>(`/clients?page=${page}&taille=${TAILLE}`, { signal }),
+    queryKey: ["clients", "liste", q, pageCourante],
+    queryFn: ({ signal }) => apiFetch<Page<Client>>(`/clients?${parametres.toString()}`, { signal }),
+    placeholderData: keepPreviousData,
   });
+  const erreurRecherche = isError && error instanceof ApiError && error.status === 422 ? (error.champs.q ?? error.message) : null;
+
+  function rechercher(saisie: string) {
+    setQ(saisie);
+    setPage(1);
+    window.history.replaceState(null, "", lienClients(saisie));
+  }
 
   return (
-    <>
-      <header className="page-head">
-        <div>
-          <h1 className="display">Clients</h1>
-          <p className="caption sub">Fiches clients et véhicules rattachés.</p>
-        </div>
-        <ButtonLink href="/clients/nouveau" variant="primary">
-          <Icon name="plus" />
-          Nouveau client
-        </ButtonLink>
-      </header>
-
+    <div className="stack">
+      <ChampRechercheListe
+        libelle="Rechercher un client"
+        placeholder="Nom, téléphone, plaque ou e-mail"
+        valeurInitiale={qInitial}
+        onRecherche={rechercher}
+        total={data && q ? data.total : null}
+        erreurServeur={erreurRecherche}
+        className="recherche-liste"
+      />
       <section className="panel" aria-labelledby="titre-liste-clients">
         <h2 id="titre-liste-clients" className="sr-only">
           Liste des clients
@@ -38,12 +62,12 @@ export function ClientsListe({ page }: { page: number }) {
           <p className="empty" role="status">
             Chargement des clients…
           </p>
-        ) : isError ? (
+        ) : isError && !erreurRecherche ? (
           <p className="empty danger-text" role="alert">
             {error.message}
           </p>
-        ) : data.elements.length === 0 ? (
-          <p className="empty">{data.total === 0 ? "Aucun client pour l'instant. Créez la première fiche." : "Aucun client sur cette page."}</p>
+        ) : !data || data.elements.length === 0 ? (
+          <p className="empty">{messageAucunClient(q, data?.total ?? 0)}</p>
         ) : (
           <div className="table-wrap">
             <table className="table">
@@ -67,7 +91,7 @@ export function ClientsListe({ page }: { page: number }) {
                       </Link>
                     </td>
                     <td className="num">{formatTelephone(client.telephone)}</td>
-                    <td>{client.email ?? <span className="muted">—</span>}</td>
+                    <td className="cellule-email">{client.email ?? <span className="muted">—</span>}</td>
                     <td className="right num">{client.nombre_vehicules}</td>
                   </tr>
                 ))}
@@ -76,8 +100,9 @@ export function ClientsListe({ page }: { page: number }) {
           </div>
         )}
       </section>
-
-      {data && data.total > 0 ? <Pagination page={page} taille={TAILLE} total={data.total} libelle={data.total > 1 ? "clients" : "client"} lien={(p) => `/clients?page=${p}`} /> : null}
-    </>
+      {data && data.total > 0 ? (
+        <Pagination page={pageCourante} taille={TAILLE_CLIENTS} total={data.total} libelle={data.total > 1 ? "clients" : "client"} lien={(p) => lienClients(q, p)} />
+      ) : null}
+    </div>
   );
 }

@@ -131,9 +131,10 @@ export function filtrePaiement(valeur: string | string[] | undefined): StatutPai
 }
 
 /** Adresse de l'onglet Factures pour un filtre et une page. */
-export function lienFactures(filtre: StatutPaiement | "toutes", page = 1): string {
+export function lienFactures(filtre: StatutPaiement | "toutes", page = 1, q = ""): string {
   const params = new URLSearchParams();
   if (filtre !== "toutes") params.set("paiement", filtre);
+  if (q) params.set("q", q);
   if (page > 1) params.set("page", String(page));
   const texte = params.toString();
   return texte ? `/factures?${texte}` : "/factures";

@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { OrdresListe } from "@/components/ordres/OrdresListe";
+import { numeroDePage, texteDeRecherche, type Recherche } from "@/lib/pages";
 import { STATUTS_OT, type StatutOT } from "@/lib/statuts";
 
 export const metadata: Metadata = { title: "Ordres de travail" };
 
-type Recherche = Record<string, string | string[] | undefined>;
-
 export default async function Ordres({ searchParams }: { searchParams: Promise<Recherche> }) {
-  const { page, statut } = await searchParams;
-  const numero = Math.max(1, Number.parseInt(typeof page === "string" ? page : "1", 10) || 1);
-  const filtre = typeof statut === "string" && (STATUTS_OT as string[]).includes(statut) ? (statut as StatutOT) : null;
-  return <OrdresListe page={numero} statut={filtre} />;
+  const params = await searchParams;
+  const page = numeroDePage(params.page);
+  const q = texteDeRecherche(params.q);
+  const statut = typeof params.statut === "string" && (STATUTS_OT as string[]).includes(params.statut) ? (params.statut as StatutOT) : null;
+  return <OrdresListe key={`${statut}-${q}-${page}`} page={page} statut={statut} q={q} />;
 }
