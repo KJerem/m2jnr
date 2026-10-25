@@ -57,7 +57,8 @@ export class Api {
   async post<T>(chemin: string, corps?: unknown): Promise<T> {
     const reponse = await this.contexte.post(chemin, { data: corps ?? {}, headers: { "X-CSRF-Token": this.jeton } });
     expect(reponse.ok(), `${chemin} : ${await reponse.text()}`).toBeTruthy();
-    return (await reponse.json()) as T;
+    // 204 (refus d'une inscription, par exemple) : pas de corps.
+    return (reponse.status() === 204 ? undefined : await reponse.json()) as T;
   }
 
   async fermer(): Promise<void> {
