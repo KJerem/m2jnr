@@ -175,6 +175,37 @@ describe("fiche d'un employé", () => {
     await vi.waitFor(() => expect(screen.getByRole("heading", { name: "Accès" })).toHaveFocus());
   });
 
+  it("un compte repris sans nom de famille se modifie sans en inventer un", async () => {
+    const admin: Employe = { ...KARIM, prenom: "Admin", nom: "", nom_affiche: "Admin" };
+    apiFetch.mockResolvedValue({ ...admin, email: "admin@garage.test" });
+    const user = userEvent.setup({ delay: null });
+    fiche(admin);
+
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    const nom = screen.getByRole("textbox", { name: /^Nom/ });
+    expect(nom).not.toBeRequired();
+    expect(nom).toHaveAccessibleDescription("Facultatif : compte repris sans nom de famille.");
+    const email = screen.getByRole("textbox", { name: /^E-mail/ });
+    await user.clear(email);
+    await user.type(email, "admin@garage.test");
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    await vi.waitFor(() => expect(apiFetch).toHaveBeenCalledWith("/utilisateurs/7", { method: "PUT", body: { prenom: "Admin", nom: "", email: "admin@garage.test", role: "mecanicien" } }));
+    expect(screen.queryByText("Champ obligatoire.")).not.toBeInTheDocument();
+  });
+
+  it("un nom déjà renseigné reste obligatoire à la modification", async () => {
+    const user = userEvent.setup({ delay: null });
+    fiche(KARIM);
+
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    await user.clear(screen.getByRole("textbox", { name: /^Nom/ }));
+    await user.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(await screen.findByText("Champ obligatoire.")).toBeInTheDocument();
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+
   it("annuler la confirmation ne change rien", async () => {
     const user = userEvent.setup({ delay: null });
     fiche(KARIM);

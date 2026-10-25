@@ -6,7 +6,7 @@ from typing import Annotated
 from pydantic import AfterValidator, BaseModel, StringConstraints
 
 from app.models.utilisateur import Role, StatutCompte, Utilisateur
-from app.schemas.commun import TexteObligatoire100
+from app.schemas.commun import SansControle, TexteObligatoire100
 from app.services.courriel import normaliser_courriel
 from app.services.utilisateurs import LONGUEUR_MIN_MOT_DE_PASSE
 
@@ -28,21 +28,28 @@ def _mot_de_passe(valeur: str) -> str:
 
 
 MotDePasse = Annotated[str, AfterValidator(_mot_de_passe)]
+# Nom de famille à la modification : peut rester vide pour un compte repris d'avant le sprint 5
+# dont le nom n'avait qu'un mot (migration 0016, « Admin » → prénom « Admin », nom « »).
+NomModifiable = Annotated[
+    str, StringConstraints(strip_whitespace=True, max_length=100), SansControle
+]
 Email = Annotated[str, StringConstraints(max_length=254), AfterValidator(normaliser_courriel)]
 
 
 class UtilisateurModification(BaseModel):
-    """Modification d'un compte par le gérant (sans le mot de passe)."""
+    """Modification d'un compte par le gérant (sans le mot de passe). Le nom peut être vide
+    (revue du sprint 5) : un compte repris sans nom se modifie sans en inventer un."""
 
     prenom: TexteObligatoire100
-    nom: TexteObligatoire100
+    nom: NomModifiable
     email: Email
     role: Role
 
 
 class UtilisateurEntree(UtilisateurModification):
-    """Création d'un compte par le gérant : actif dès sa création."""
+    """Création d'un compte par le gérant : actif dès sa création, nom obligatoire."""
 
+    nom: TexteObligatoire100
     mot_de_passe: MotDePasse
 
 

@@ -15,9 +15,9 @@ import {
   AIDE_MOT_DE_PASSE,
   cleEmploye,
   de,
-  employeModificationSchema,
   libelleDerniereConnexion,
   motDePasseSchema,
+  schemaModificationEmploye,
   versEntreeEmploye,
   versFormulaireEmploye,
   type Employe,
@@ -280,7 +280,8 @@ function EmployeModificationForm({ employe, soiMeme, onSucces, onAnnuler }: { em
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<EmployeModificationValeurs>({ resolver: zodResolver(employeModificationSchema), defaultValues: versFormulaireEmploye(employe) });
+  } = useForm<EmployeModificationValeurs>({ resolver: zodResolver(schemaModificationEmploye(employe)), defaultValues: versFormulaireEmploye(employe) });
+  const sansNom = !employe.nom.trim();
   const [erreurGenerale, setErreurGenerale] = useState<string | null>(null);
 
   async function enregistrer(valeurs: EmployeModificationValeurs) {
@@ -298,7 +299,7 @@ function EmployeModificationForm({ employe, soiMeme, onSucces, onAnnuler }: { em
         {erreurGenerale}
       </div>
       <TextField label="Prénom" required maxLength={100} autoComplete="off" error={errors.prenom?.message} {...register("prenom")} />
-      <TextField label="Nom" required maxLength={100} autoComplete="off" error={errors.nom?.message} {...register("nom")} />
+      <TextField label="Nom" required={!sansNom} maxLength={100} autoComplete="off" hint={sansNom ? "Facultatif : compte repris sans nom de famille." : undefined} error={errors.nom?.message} {...register("nom")} />
       <TextField label="E-mail" required type="email" inputMode="email" autoComplete="off" error={errors.email?.message} {...register("email")} />
       {soiMeme ? (
         // Rôle non modifiable par soi-même : affiché, non envoyé autrement que tel quel.

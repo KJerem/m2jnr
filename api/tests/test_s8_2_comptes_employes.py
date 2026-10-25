@@ -285,6 +285,31 @@ def test_modification_du_nom_de_l_e_mail_et_du_role(
     assert (mecanicien.email, mecanicien.role) == ("k.benhamou@garage.test", Role.GERANT)
 
 
+def test_un_compte_repris_sans_nom_se_modifie_sans_en_inventer_un(
+    client_gerant: TestClient, make_user: MakeUser, db: Session
+) -> None:
+    """Revue du sprint 5 : « Admin » repris par la migration 0016 (prénom « Admin », nom vide)
+    se modifie (e-mail, rôle) sans 422 sur le nom."""
+    admin = make_user(Role.MECANICIEN, prenom="Admin", nom="")
+
+    reponse = client_gerant.put(
+        f"/utilisateurs/{admin.id}",
+        json={"prenom": "Admin", "nom": " ", "email": "admin@garage.test", "role": "gerant"},
+    )
+
+    assert reponse.status_code == 200, reponse.text
+    assert (reponse.json()["nom"], reponse.json()["nom_affiche"]) == ("", "Admin")
+    db.refresh(admin)
+    assert (admin.email, admin.role) == ("admin@garage.test", Role.GERANT)
+
+
+def test_la_creation_exige_toujours_un_nom(client_gerant: TestClient) -> None:
+    reponse = client_gerant.post("/utilisateurs", json=_nouveau(nom=""))
+
+    assert reponse.status_code == 422
+    assert reponse.json()["champs"] == {"nom": "Champ obligatoire."}
+
+
 def test_modification_vers_un_e_mail_pris_409(
     client_gerant: TestClient, mecanicien: Utilisateur, gerant: Utilisateur
 ) -> None:
