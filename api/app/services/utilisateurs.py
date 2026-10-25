@@ -125,7 +125,9 @@ def enregistrer_compte_inactif(
 ) -> bool:
     """Compte de démonstration hors service (recette du sprint 5), remis dans son état à
     chaque seed : inscription « en_attente » (jamais validée) ou ancien employé « desactive »
-    (désactivé par `gerant`, il y a 30 jours à la première création).
+    (désactivé par `gerant`, il y a 30 jours à la première création), avec une chronologie
+    vraisemblable : arrivée et validation plus d'un an avant la désactivation, dernière
+    connexion avant elle (revue du sprint 5 : « Créé le » tombait après les deux).
 
     Renvoie True si le compte a été créé. Comme `enregistrer_compte`, le hash n'est recalculé
     que si le mot de passe a changé.
@@ -143,8 +145,6 @@ def enregistrer_compte_inactif(
             mot_de_passe_hash=hacher(mot_de_passe),
             statut=statut,
         )
-        if statut == StatutCompte.DESACTIVE:
-            utilisateur.derniere_connexion = maintenant - timedelta(days=45)
         db.add(utilisateur)
     elif not verifier(utilisateur.mot_de_passe_hash, mot_de_passe):
         utilisateur.mot_de_passe_hash = hacher(mot_de_passe)
@@ -156,9 +156,27 @@ def enregistrer_compte_inactif(
     if statut == StatutCompte.EN_ATTENTE:
         utilisateur.valide_le = utilisateur.valide_par = None
         utilisateur.desactive_le = utilisateur.desactive_par = None
-    elif utilisateur.statut != StatutCompte.DESACTIVE or utilisateur.desactive_le is None:
-        utilisateur.desactive_le = maintenant - timedelta(days=30)
-        utilisateur.desactive_par = gerant.id if gerant is not None else None
+    else:
+        if utilisateur.statut != StatutCompte.DESACTIVE or utilisateur.desactive_le is None:
+            utilisateur.desactive_le = maintenant - timedelta(days=30)
+            utilisateur.desactive_par = gerant.id if gerant is not None else None
+        _chronologie_ancien_employe(utilisateur, utilisateur.desactive_le, gerant)
     utilisateur.statut = statut
     db.flush()
     return cree
+
+
+def _chronologie_ancien_employe(
+    utilisateur: Utilisateur, desactive_le: datetime, gerant: Utilisateur | None
+) -> None:
+    """Arrivée (validée par `gerant`) 400 jours avant la désactivation, dernière connexion
+    15 jours avant ; une date déjà cohérente n'est pas touchée (seed rejouable)."""
+    connexion = utilisateur.derniere_connexion
+    if connexion is None or connexion >= desactive_le:
+        connexion = utilisateur.derniere_connexion = desactive_le - timedelta(days=15)
+    if utilisateur.cree_le is None or utilisateur.cree_le >= connexion:
+        utilisateur.cree_le = desactive_le - timedelta(days=400)
+    valide = utilisateur.valide_le
+    if valide is None or not utilisateur.cree_le <= valide <= connexion:
+        utilisateur.valide_le = utilisateur.cree_le
+        utilisateur.valide_par = gerant.id if gerant is not None else None
