@@ -1,4 +1,34 @@
-# Sprint 4 — Devis, paiements, recherche et recette
+# Sprint 4 — Finitions et recette (version 1.0.0)
+
+**Dates** : 14 au 24 décembre 2026 · **Engagé** : 7 points · **Livré** : 7 points · **Tags** : `sprint-4`, `v1.0.0`
+
+## Objectif
+Finir le MVP et le prouver : suivi du devis jusqu'à l'accord du client, recherche rapide au
+comptoir, encaissement des factures, factures conformes, puis recette de bout en bout des deux
+parcours et documentation pour la revue du 24 décembre.
+
+## Stories livrées
+| Story | Pts | Branche | Résultat |
+| --- | --- | --- | --- |
+| S4.2 Statut du devis | 2 | `feature/S4.2-statut-devis` | brouillon → envoyé → accepté ou refusé, devis verrouillé dès l'envoi, remplacé après un refus, seul un devis accepté se facture ; « Devis à faire valider » au tableau de bord |
+| S1.3 Recherche | 2 | `feature/S1.3-recherche` | nom sans accents ni casse, téléphone partiel (+33 compris), plaque sans tirets, numéros d'OT et de facture, index trigrammes, message clair sans résultat ; champ du tableau de bord (maquette 4) |
+| S4.4 Suivi des paiements | 3 | `feature/S4.4-paiements` | paiements partiels, reste à payer, statuts Impayée / Partiellement payée / Payée et « En retard » ; trop-perçu refusé par l'API et par la base (trigger), paiements immuables, aucune donnée de carte |
+| Mentions de la facture | — | `feature/S4.3-mentions-facture` | complément de S4.3 décidé à la revue du sprint 3 : adresse du client (facultative) figée sur la facture, « Prestation réalisée le … » ; les factures déjà émises restent identiques à l'octet près |
+| Recette et documentation | — | `feature/recette-demo` | 13 tests Playwright (parcours gérant et mécanicien, accessibilité, mise en page), README complet, `docs/api.md`, script de la démo ; mode démonstration sur le build de production |
+
+Migrations : `0012` (statut du devis) à `0015` (adresse du client, date de prestation). Un test
+fait désormais l'aller-retour de **toutes** les migrations avec la convention de nommage de
+l'application ; `alembic check` sans écart.
+
+## Definition of Done
+- [x] Un commit par tâche du backlog, branches fusionnées en `--no-ff`
+- [x] API : 659 tests pytest (444 au sprint 3), ruff, mypy strict — verts, pytest lancé sans pipe
+- [x] Web : 196 tests Vitest (132 au sprint 3), ESLint, TypeScript, build — verts
+- [x] Recette Playwright : 13 tests verts sur le build de production (mode démonstration)
+- [x] Critères d'acceptation : devis facturable seulement accepté, recherche par nom / téléphone / plaque avec message sans résultat, paiements partiels et trop-perçu refusé, mécanicien 403 sur recherche, devis et paiements
+- [x] Vérification dans le navigateur à 1024 et 1440 px, thèmes clair et sombre
+- [x] README, `docs/api.md`, script de la démo et CHANGELOG à jour
+- [ ] Tests verts à chaque commit : non tenu sur cinq commits de la correction des migrations (voir la revue)
 
 ## Revue de code
 Plusieurs relecteurs indépendants (back et base de données, front et accessibilité, recette et
@@ -47,3 +77,34 @@ Vérifications à la fin de la revue, toutes vertes :
 - base : `alembic check`, et aller-retour `downgrade base` → `upgrade head` sur la base de test ;
 - recette Playwright contre la pile de développement : 13 tests verts en une seule exécution,
   rejouée sur la même base ; la base de développement a ensuite été remise à zéro et seedée.
+
+## Recette
+Recette finale sur le build de production de l'interface (`docker-compose.demo.yml`) :
+- parcours du gérant : client avec adresse → véhicule → rendez-vous sur un créneau libre → OT
+  ouvert depuis le rendez-vous → tâches → devis 2 × 40 € + 1 h × 60 € = **168,00 € TTC** → envoyé
+  → accepté → OT « Prêt » → facture → PDF → paiement partiel puis solde → « Payée » → recherche
+  par plaque sans tirets ;
+- parcours du mécanicien : « Mes travaux » → vue tablette → tâches cochées → « Terminer
+  l'intervention » → « Prêt » ; `/factures` affiche la page 403 et le menu n'a pas « Devis & factures » ;
+- accessibilité (aucun piège au clavier, un seul titre de niveau 1 par page) et mise en page des
+  onglets Devis et Factures et de l'en-tête du tableau de bord à 1024 et 1440 px, clair et sombre.
+
+Résultat : 13 tests sur 13 en 34 s. La base de démonstration est ensuite remise à zéro.
+
+## Démo
+Le déroulé de la revue du 24 décembre (15 minutes, deux postes, plan de secours) est écrit dans
+[script-demo.md](script-demo.md).
+
+## Rétrospective
+- **Bien** : les règles d'argent sont garanties à deux niveaux (API et base) jusqu'au bout :
+  numérotation, factures immuables, paiements plafonnés au TTC. La recette automatisée rejoue le
+  parcours complet du MVP en moins d'une minute.
+- **Bien** : l'interruption de l'implémentation par la limite d'usage n'a rien coûté : l'état de
+  la branche servait de point de reprise, et les trois commits non vérifiés ont été relus avant d'être terminés.
+- **À améliorer** : le retour arrière des migrations n'était testé qu'en partie ; deux migrations
+  ne se défaisaient pas. Un test parcourt maintenant toute la chaîne.
+- **À améliorer** : l'image de production de l'interface n'avait jamais été construite avant la
+  dernière semaine ; deux défauts y dormaient. À l'avenir, construire l'image de production dans la CI.
+- **Points ouverts pour la suite** : tableau « Interventions du jour » qui dépasse de 20 px à
+  1440 px ; tuile « Encaissé aujourd'hui » ; puis le backlog reporté après le MVP (glisser-déposer,
+  SMS et e-mails, stock, espace client, paiement en ligne, suppression des données sur demande).
