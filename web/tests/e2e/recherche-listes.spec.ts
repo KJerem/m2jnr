@@ -106,6 +106,8 @@ test("le retour arrière garde la recherche et les filtres, le lien du menu les 
     const nom = ordre.client.split(" ")[1]!;
     const lien = ordre.client.split(" ").reverse().join(" ");
     await chercher(page, "Rechercher un client", nom.toLowerCase(), "/clients");
+    // Compter seulement une fois la liste filtrée arrivée : l'adresse change avant la réponse.
+    await annonce(page, /^\d+ résultats? pour/);
     await expect(lignes(lien)).toBeVisible();
     const total = await page.getByRole("table").getByRole("row").count();
     await lignes(lien).click();
