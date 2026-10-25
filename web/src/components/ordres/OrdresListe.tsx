@@ -133,14 +133,14 @@ export function OrdresListe({ page, statut, q: qInitial = "" }: { page: number; 
               <tbody>
                 {data.elements.map((ordre) => (
                   <tr key={ordre.id}>
-                    <td>
+                    <td className="nowrap">
                       <Link href={`/ordres/${ordre.id}`} className="table-link mono">
                         {ordre.numero}
                       </Link>
                     </td>
                     <td>
-                      <span className="row nowrap">
-                        <Plate number={ordre.vehicule.immatriculation} />
+                      <span className="cellule-empilee">
+                        <Plate number={ordre.vehicule.immatriculation} size="sm" />
                         <span>{modele(ordre.vehicule)}</span>
                       </span>
                     </td>
