@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ListeFactures } from "@/components/facturation/ListeFactures";
 import { BadgesPaiement, cleFacture, PaiementsFacture } from "@/components/facturation/PaiementsFacture";
 import { ToastProvider } from "@/components/ui/Toast";
@@ -24,6 +24,8 @@ vi.mock("@/lib/api", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/api")>();
   return { ...original, apiFetch: (...args: unknown[]) => apiFetch(...args) };
 });
+// Next.js synchronise usePathname et useSearchParams avec l'adresse (replaceState compris).
+vi.mock("next/navigation", () => ({ usePathname: () => window.location.pathname, useSearchParams: () => new URLSearchParams(window.location.search) }));
 
 const FACTURE: FactureDetail = {
   id: 3,
@@ -76,6 +78,11 @@ function avecRequetes(enfant: ReactNode) {
     </QueryClientProvider>,
   );
 }
+
+// Les listes lisent leurs filtres dans l'adresse : chaque test repart de « / ».
+afterEach(() => {
+  window.history.replaceState(null, "", "/");
+});
 
 beforeEach(() => {
   apiFetch.mockReset();

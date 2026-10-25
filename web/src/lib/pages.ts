@@ -7,9 +7,18 @@ export function numeroDePage(valeur: string | string[] | undefined): number {
   return Math.max(1, Number.parseInt(typeof valeur === "string" ? valeur : "1", 10) || 1);
 }
 
-/** « ?q= » d'une liste (stories S8.2 et S1.5) : saisie sans espaces de bord, 100 caractères au plus. */
+/** Longueur minimale d'une recherche, comme l'API (422 en dessous). */
+const LONGUEUR_MIN_Q = 2;
+
+/**
+ * « ?q= » d'une liste (stories S8.2 et S1.5) : saisie sans espaces de bord, 100 caractères au
+ * plus. Moins de 2 caractères (adresse saisie à la main) : ignorée, la liste s'affiche sans
+ * filtre (revue du sprint 5 : l'API répondait 422 et la liste annonçait « Aucun … ne
+ * correspond à « a ». » sans qu'aucune recherche ait eu lieu).
+ */
 export function texteDeRecherche(valeur: string | string[] | undefined): string {
-  return typeof valeur === "string" ? valeur.trim().slice(0, 100) : "";
+  const texte = typeof valeur === "string" ? valeur.trim().slice(0, 100) : "";
+  return texte.length >= LONGUEUR_MIN_Q ? texte : "";
 }
 
 /**

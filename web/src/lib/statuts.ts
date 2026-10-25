@@ -25,3 +25,8 @@ export function statutSuivant(statut: StatutOT): StatutOT | null {
   const i = STATUTS_OT.indexOf(statut);
   return STATUTS_OT[i + 1] ?? null;
 }
+
+/** « ?statut= » d'un statut d'OT connu, null sinon. */
+export function lireStatutOT(valeur: string | string[] | undefined): StatutOT | null {
+  return typeof valeur === "string" && (STATUTS_OT as string[]).includes(valeur) ? (valeur as StatutOT) : null;
+}

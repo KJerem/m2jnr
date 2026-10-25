@@ -2,20 +2,28 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
 import { ChampRechercheListe } from "@/components/ui/ChampRechercheListe";
 import { Pagination } from "@/components/ui/Pagination";
 import { Plate } from "@/components/ui/Plate";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { Page } from "@/lib/clients";
-import { FILTRES_PAIEMENT, formatEmission, libelleTelechargement, lienFactures, lienPdf, type FactureResume, type StatutPaiement } from "@/lib/factures";
+import { useFiltresAdresse } from "@/lib/adresse";
+import { FILTRES_PAIEMENT, filtrePaiement, formatEmission, libelleTelechargement, lienFactures, lienPdf, type FactureResume, type StatutPaiement } from "@/lib/factures";
 import { formatEuros, nomComplet } from "@/lib/format";
 import { modele } from "@/lib/ordres";
-import { aucunResultat } from "@/lib/pages";
+import { aucunResultat, numeroDePage, texteDeRecherche, type Recherche } from "@/lib/pages";
 import { TAILLE_LISTE } from "./ListeDevis";
 import { BadgesPaiement } from "./PaiementsFacture";
 
 type Filtre = StatutPaiement | "toutes";
+
+interface FiltresFactures {
+  filtre: Filtre;
+  q: string;
+  page: number;
+}
+
+const lireFactures = (p: Recherche): FiltresFactures => ({ filtre: filtrePaiement(p.paiement), q: texteDeRecherche(p.q), page: numeroDePage(p.page) });
 
 /**
  * Onglet « Factures » : de la plus récente à la plus ancienne, avec le PDF de chacune, le
@@ -25,9 +33,8 @@ type Filtre = StatutPaiement | "toutes";
  * l'adresse (?paiement=…&q=…) sans recharger la page, et le focus reste où il était.
  */
 export function ListeFactures({ page, paiement = "toutes", q: qInitial = "" }: { page: number; paiement?: Filtre; q?: string }) {
-  const [filtre, setFiltre] = useState<Filtre>(paiement);
-  const [q, setQ] = useState(qInitial);
-  const [pageCourante, setPage] = useState(page);
+  const [filtres, changerFiltres] = useFiltresAdresse("/factures", { filtre: paiement, q: qInitial, page }, lireFactures, (f) => lienFactures(f.filtre, f.page, f.q));
+  const { filtre, q, page: pageCourante } = filtres;
   const parametres = new URLSearchParams({ page: String(pageCourante), taille: String(TAILLE_LISTE) });
   if (filtre !== "toutes") parametres.set("statut_paiement", filtre);
   if (q) parametres.set("q", q);
@@ -39,15 +46,11 @@ export function ListeFactures({ page, paiement = "toutes", q: qInitial = "" }: {
   const erreurRecherche = isError && error instanceof ApiError && error.status === 422 ? (error.champs.q ?? error.message) : null;
 
   function changer(suivant: Filtre) {
-    setFiltre(suivant);
-    setPage(1);
-    window.history.replaceState(null, "", lienFactures(suivant, 1, q));
+    changerFiltres({ filtre: suivant, q, page: 1 });
   }
 
   function rechercher(saisie: string) {
-    setQ(saisie);
-    setPage(1);
-    window.history.replaceState(null, "", lienFactures(filtre, 1, saisie));
+    changerFiltres({ filtre, q: saisie, page: 1 });
   }
 
   return (
@@ -56,7 +59,7 @@ export function ListeFactures({ page, paiement = "toutes", q: qInitial = "" }: {
         <ChampRechercheListe
           libelle="Rechercher une facture"
           placeholder="N° de facture ou d'OT, client, plaque"
-          valeurInitiale={qInitial}
+          valeurInitiale={q}
           onRecherche={rechercher}
           total={data && q ? data.total : null}
           erreurServeur={erreurRecherche}

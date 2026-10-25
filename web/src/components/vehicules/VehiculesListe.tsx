@@ -2,7 +2,6 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
 import { useSession } from "@/components/session/useSession";
 import { ChampRechercheListe } from "@/components/ui/ChampRechercheListe";
 import { Pagination } from "@/components/ui/Pagination";
@@ -10,12 +9,20 @@ import { Plate } from "@/components/ui/Plate";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { Page } from "@/lib/clients";
 import { formatKm, nomComplet } from "@/lib/format";
-import { aucunResultat, lienListe } from "@/lib/pages";
+import { useFiltresAdresse } from "@/lib/adresse";
+import { aucunResultat, lienListe, numeroDePage, texteDeRecherche, type Recherche } from "@/lib/pages";
 import type { Vehicule } from "@/lib/vehicules";
 
 export const TAILLE_VEHICULES = 20;
 
 export const lienVehicules = (q: string, page = 1) => lienListe("/vehicules", { q, page });
+
+interface FiltresVehicules {
+  q: string;
+  page: number;
+}
+
+const lireVehicules = (p: Recherche): FiltresVehicules => ({ q: texteDeRecherche(p.q), page: numeroDePage(p.page) });
 
 /** Message de liste vide : recherche sans résultat ou parc encore vide. */
 export function messageAucunVehicule(q: string): string {
@@ -30,9 +37,10 @@ export function messageAucunVehicule(q: string): string {
  */
 export function VehiculesListe({ page, q: qInitial }: { page: number; q: string }) {
   const { utilisateur } = useSession();
-  const [q, setQ] = useState(qInitial);
-  // Une nouvelle recherche repart de la page 1.
-  const [pageCourante, setPage] = useState(page);
+  // Recherche et page suivent l'adresse (retour arrière compris) ; une nouvelle recherche
+  // repart de la page 1.
+  const [filtres, changer] = useFiltresAdresse("/vehicules", { q: qInitial, page }, lireVehicules, (f) => lienVehicules(f.q, f.page));
+  const { q, page: pageCourante } = filtres;
   const parametres = new URLSearchParams({ page: String(pageCourante), taille: String(TAILLE_VEHICULES) });
   if (q) parametres.set("q", q);
   const { data, isPending, isError, error } = useQuery({
@@ -43,9 +51,7 @@ export function VehiculesListe({ page, q: qInitial }: { page: number; q: string 
   const erreurRecherche = isError && error instanceof ApiError && error.status === 422 ? (error.champs.q ?? error.message) : null;
 
   function rechercher(saisie: string) {
-    setQ(saisie);
-    setPage(1);
-    window.history.replaceState(null, "", lienVehicules(saisie));
+    changer({ q: saisie, page: 1 });
   }
 
   return (
@@ -53,7 +59,7 @@ export function VehiculesListe({ page, q: qInitial }: { page: number; q: string 
       <ChampRechercheListe
         libelle="Rechercher un véhicule"
         placeholder="Plaque, marque, modèle, VIN ou propriétaire"
-        valeurInitiale={qInitial}
+        valeurInitiale={q}
         onRecherche={rechercher}
         total={data && q ? data.total : null}
         erreurServeur={erreurRecherche}

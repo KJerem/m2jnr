@@ -2,18 +2,21 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
 import { ButtonLink } from "@/components/ui/Button";
 import { ChampRechercheListe } from "@/components/ui/ChampRechercheListe";
 import { Icon } from "@/components/ui/Icon";
 import { Pagination } from "@/components/ui/Pagination";
+import { useFiltresAdresse } from "@/lib/adresse";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { Page } from "@/lib/clients";
-import { lienEmployes, LIBELLE_ROLE_PLURIEL, LIBELLE_STATUT_COMPTE, libelleDerniereConnexion, requeteEmployes, ROLES, STATUTS_COMPTE, type Employe, type FiltresEmployes } from "@/lib/employes";
+import { lienEmployes, LIBELLE_ROLE_PLURIEL, LIBELLE_STATUT_COMPTE, libelleDerniereConnexion, lireRole, lireStatut, requeteEmployes, ROLES, STATUTS_COMPTE, type Employe, type FiltresEmployes } from "@/lib/employes";
+import { numeroDePage, texteDeRecherche, type Recherche } from "@/lib/pages";
 import { LIBELLE_ROLE } from "@/lib/session";
 import { BadgeCompte } from "./BadgeCompte";
 
 export const TAILLE_EMPLOYES = 20;
+
+const lireEmployes = (p: Recherche): FiltresEmployes => ({ q: texteDeRecherche(p.q), role: lireRole(p.role), statut: lireStatut(p.statut), page: numeroDePage(p.page) });
 
 /** Message de liste vide selon les filtres. */
 export function messageAucunEmploye(filtres: FiltresEmployes): string {
@@ -25,10 +28,11 @@ export function messageAucunEmploye(filtres: FiltresEmployes): string {
 /**
  * Liste des comptes de l'équipe (story S8.2) : recherche (prénom, nom, e-mail), filtres par
  * rôle et par statut, comptes en attente de validation d'abord. Recherche et filtres suivent
- * l'adresse (?q=, ?role=, ?statut=) sans recharger la page et repartent de la page 1.
+ * l'adresse (?q=, ?role=, ?statut=) sans recharger la page et repartent de la page 1 ; le
+ * retour arrière et le lien « Employés » du menu les reprennent de l'adresse.
  */
 export function EmployesListe({ initial }: { initial: FiltresEmployes }) {
-  const [filtres, setFiltres] = useState<FiltresEmployes>(initial);
+  const [filtres, changerFiltres] = useFiltresAdresse("/employes", initial, lireEmployes, lienEmployes);
   const { data, isPending, isError, error } = useQuery({
     queryKey: ["utilisateurs", "liste", filtres],
     queryFn: ({ signal }) => apiFetch<Page<Employe>>(requeteEmployes(filtres, TAILLE_EMPLOYES), { signal }),
@@ -37,9 +41,7 @@ export function EmployesListe({ initial }: { initial: FiltresEmployes }) {
   const erreurRecherche = isError && error instanceof ApiError && error.status === 422 ? (error.champs.q ?? error.message) : null;
 
   function changer(modif: Partial<FiltresEmployes>) {
-    const suivant = { ...filtres, ...modif, page: 1 };
-    setFiltres(suivant);
-    window.history.replaceState(null, "", lienEmployes(suivant));
+    changerFiltres({ ...filtres, ...modif, page: 1 });
   }
 
   return (
@@ -59,7 +61,7 @@ export function EmployesListe({ initial }: { initial: FiltresEmployes }) {
         <ChampRechercheListe
           libelle="Rechercher un employé"
           placeholder="Prénom, nom ou e-mail"
-          valeurInitiale={initial.q}
+          valeurInitiale={filtres.q}
           onRecherche={(q) => changer({ q })}
           total={data && filtres.q ? data.total : null}
           erreurServeur={erreurRecherche}
