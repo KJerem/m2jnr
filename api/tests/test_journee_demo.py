@@ -59,7 +59,7 @@ def test_ordres_de_la_maquette(db: Session) -> None:
 
     peugeot = _ordre(db, "GH-482-KL", "Bruit au freinage")
     assert peugeot.statut == StatutOT.EN_COURS
-    assert peugeot.mecanicien is not None and peugeot.mecanicien.nom == "Karim B."
+    assert peugeot.mecanicien is not None and peugeot.mecanicien.nom_affiche == "Karim B."
     assert [(t.libelle, t.duree_prevue_minutes, t.terminee) for t in peugeot.taches] == [
         ("Diagnostic bruit de freinage", 30, True),
         ("Remplacement plaquettes et disques avant", 90, False),

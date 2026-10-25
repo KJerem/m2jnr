@@ -22,7 +22,7 @@ from app.db import id_possible
 from app.errors import AppError, conflict, invalid, not_found
 from app.models.ordre_travail import HistoriqueStatut, OrdreTravail, StatutOT, TacheOT
 from app.models.rendez_vous import RendezVous
-from app.models.utilisateur import Role, Utilisateur
+from app.models.utilisateur import Role, StatutCompte, Utilisateur
 from app.models.vehicule import Vehicule
 from app.schemas.ordre import (
     MESSAGE_VEHICULE_OBLIGATOIRE,
@@ -111,8 +111,8 @@ def lister_mecaniciens(db: Session) -> list[Utilisateur]:
     return list(
         db.scalars(
             select(Utilisateur)
-            .where(Utilisateur.role == Role.MECANICIEN, Utilisateur.actif.is_(True))
-            .order_by(Utilisateur.nom, Utilisateur.id)
+            .where(Utilisateur.role == Role.MECANICIEN, Utilisateur.statut == StatutCompte.ACTIF)
+            .order_by(Utilisateur.prenom, Utilisateur.nom, Utilisateur.id)
         )
     )
 

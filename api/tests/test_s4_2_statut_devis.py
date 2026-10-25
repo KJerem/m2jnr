@@ -507,7 +507,11 @@ def test_migration_0012_devis_factures_acceptes_les_autres_en_brouillon(engine: 
         try:
             s = Session(bind=connexion, join_transaction_mode="create_savepoint")
             gerant = Utilisateur(
-                email="migration@garage.test", nom="Nadia", role=Role.GERANT, mot_de_passe_hash="x"
+                email="migration@garage.test",
+                prenom="Nadia",
+                nom="Migration",
+                role=Role.GERANT,
+                mot_de_passe_hash="x",
             )
             client = Client(nom="Migration", telephone="0612483075")
             s.add_all([gerant, client])

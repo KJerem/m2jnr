@@ -31,8 +31,9 @@ from app.clock import get_now
 from app.config import get_settings
 from app.db import get_db
 from app.main import create_app
-from app.models import Role, Utilisateur
+from app.models import Role, StatutCompte, Utilisateur
 from app.security.hachage import hacher
+from app.services.utilisateurs import separer_nom
 
 API_DIR = Path(__file__).resolve().parent.parent
 
@@ -144,19 +145,25 @@ def make_user(db: Session) -> MakeUser:
         *,
         email: str | None = None,
         nom: str | None = None,
+        prenom: str | None = None,
         mot_de_passe: str = MOT_DE_PASSE_TEST,
         actif: bool = True,
+        statut: StatutCompte | None = None,
     ) -> Utilisateur:
         role = Role(role)
         n = next(numeros)
+        # `nom` seul est un nom affiché (« Karim B. »), coupé comme par la migration 0016.
+        if prenom is None:
+            prenom, nom = separer_nom(nom or f"{role.value.capitalize()} {n}")
         utilisateur = Utilisateur(
             email=email or f"{role.value}{n}@garage.test",
-            nom=nom or f"{role.value.capitalize()} {n}",
+            prenom=prenom,
+            nom=nom if nom is not None else f"{n}",
             role=role,
             mot_de_passe_hash=(
                 _hash_par_defaut() if mot_de_passe == MOT_DE_PASSE_TEST else hacher(mot_de_passe)
             ),
-            actif=actif,
+            statut=statut or (StatutCompte.ACTIF if actif else StatutCompte.DESACTIVE),
         )
         db.add(utilisateur)
         db.flush()

@@ -8,7 +8,7 @@ from app.clock import get_now
 from app.config import Settings, get_settings
 from app.db import DbSession
 from app.models.utilisateur import Utilisateur
-from app.schemas.auth import ConnexionEntree, CsrfSortie, SessionSortie, UtilisateurSortie
+from app.schemas.auth import ConnexionEntree, CsrfSortie, SessionSortie, UtilisateurSession
 from app.security.csrf import generer_jeton, poser_cookie_csrf
 from app.security.dependances import get_current_user
 from app.security.jetons import creer_jeton_session
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/auth", tags=["connexion"])
 
 
 def _session(utilisateur: Utilisateur) -> SessionSortie:
-    return SessionSortie(utilisateur=UtilisateurSortie.model_validate(utilisateur))
+    return SessionSortie(utilisateur=UtilisateurSession.model_validate(utilisateur))
 
 
 @router.get("/csrf")

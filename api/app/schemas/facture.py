@@ -167,7 +167,7 @@ def sortie_paiement(paiement: Paiement) -> PaiementSortie:
         mode=paiement.mode,
         recu_le=paiement.recu_le,
         reference=paiement.reference,
-        cree_par=UtilisateurResume(id=paiement.createur.id, nom=paiement.createur.nom),
+        cree_par=UtilisateurResume(id=paiement.createur.id, nom=paiement.createur.nom_affiche),
     )
 
 

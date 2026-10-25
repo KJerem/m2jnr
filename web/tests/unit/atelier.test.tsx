@@ -50,7 +50,7 @@ const ORDRE: OrdreDetail = {
 function avecRequetes(enfant: ReactNode, ordre: OrdreDetail = ORDRE) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity }, mutations: { retry: false } } });
   client.setQueryData(cleOrdre(ordre.id), ordre);
-  client.setQueryData(["session"], { utilisateur: { id: 2, email: "karim@garage.test", nom: "Karim B.", role: "mecanicien" } });
+  client.setQueryData(["session"], { utilisateur: { id: 2, email: "karim@garage.test", prenom: "Karim", nom: "B.", nom_affiche: "Karim B.", role: "mecanicien" } });
   return { client, ...render(<QueryClientProvider client={client}><ToastProvider>{enfant}</ToastProvider></QueryClientProvider>) };
 }
 

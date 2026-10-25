@@ -422,7 +422,8 @@ def facture_validee(engine: Engine) -> Iterator[DonneesPaiement]:
     with nouvelle_session(engine) as s:
         gerant = Utilisateur(
             email="gerant.paiement@garage.test",
-            nom="Nadia Paiement",
+            prenom="Nadia",
+            nom="Paiement",
             role=Role.GERANT,
             mot_de_passe_hash="x",
         )

@@ -63,7 +63,7 @@ export function useBasculerTache(ordreId: number) {
       await queryClient.cancelQueries({ queryKey: cle });
       const avant = queryClient.getQueryData<OrdreDetail>(cle);
       if (avant) {
-        queryClient.setQueryData(cle, basculerTache(avant, tacheId, terminee, utilisateur ? { id: utilisateur.id, nom: utilisateur.nom } : null));
+        queryClient.setQueryData(cle, basculerTache(avant, tacheId, terminee, utilisateur ? { id: utilisateur.id, nom: utilisateur.nom_affiche } : null));
       }
       return { avant };
     },

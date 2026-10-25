@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pied = (
     <>
       <div className="who">
-        <strong>{utilisateur.nom}</strong>
+        <strong>{utilisateur.nom_affiche}</strong>
         {LIBELLE_ROLE[utilisateur.role]}
       </div>
       <button

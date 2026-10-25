@@ -52,6 +52,6 @@ export function MesTravaux({ mecanicienId, nom }: { mecanicienId: number; nom: s
 export function Accueil() {
   const { utilisateur } = useSession();
   if (!utilisateur) return null;
-  if (utilisateur.role === "mecanicien") return <MesTravaux mecanicienId={utilisateur.id} nom={utilisateur.nom} />;
+  if (utilisateur.role === "mecanicien") return <MesTravaux mecanicienId={utilisateur.id} nom={utilisateur.nom_affiche} />;
   return <TableauDeBord />;
 }

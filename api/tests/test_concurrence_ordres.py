@@ -52,13 +52,15 @@ def donnees(engine: Engine) -> Iterator[Donnees]:
     with nouvelle_session(engine) as s:
         gerant = Utilisateur(
             email="gerant.concurrence@garage.test",
-            nom="Nadia Concurrence",
+            prenom="Nadia",
+            nom="Concurrence",
             role=Role.GERANT,
             mot_de_passe_hash="x",
         )
         mecanicien = Utilisateur(
             email="meca.concurrence@garage.test",
-            nom="Karim Concurrence",
+            prenom="Karim",
+            nom="Concurrence",
             role=Role.MECANICIEN,
             mot_de_passe_hash="x",
         )

@@ -16,6 +16,7 @@ from app.routers import (
     recherche,
     rendez_vous,
     tableau_de_bord,
+    utilisateurs,
     vehicules,
 )
 from app.security.csrf import CsrfMiddleware
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(factures.router)
     app.include_router(tableau_de_bord.router)
     app.include_router(recherche.router)
+    app.include_router(utilisateurs.router)
     return app
 
 

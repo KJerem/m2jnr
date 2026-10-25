@@ -486,7 +486,8 @@ def devis_valide(engine: Engine) -> Iterator[DonneesDevis]:
     with nouvelle_session(engine) as s:
         gerant = Utilisateur(
             email="gerant.devis@garage.test",
-            nom="Nadia Devis",
+            prenom="Nadia",
+            nom="Devis",
             role=Role.GERANT,
             mot_de_passe_hash="x",
         )

@@ -4,6 +4,9 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une
 
 ## [Non publié]
 
+### Ajouté
+- S8.2 Comptes des employés (absente du backlog du MVP, ajoutée après la revue du 24 décembre) : routes `/utilisateurs` réservées au gérant (403 pour le mécanicien) pour lister (recherche sans accents ni casse sur prénom, nom et e-mail, filtres rôle et statut, en attente puis actifs puis désactivés), créer, consulter, modifier, réinitialiser le mot de passe (débloque aussi le compte), débloquer, désactiver et réactiver un compte ; e-mail unique sans tenir compte de la casse (409 `email_existant`), mot de passe de 12 caractères au moins haché en argon2id et jamais renvoyé ; le gérant ne change pas son rôle et ne se désactive pas (409 `soi_meme`), il reste toujours un gérant actif (409 `dernier_gerant`, lignes des gérants verrouillées, testé avec deux connexions) ; un compte désactivé ne se connecte plus (« Identifiants invalides. ») et sa session ouverte est refusée dès la requête suivante ; migration 0016 : prénom repris du nom (coupé au premier espace, affichage inchangé : « Karim B. », « Nadia Benali »), type `statut_compte` (actif, en_attente, desactive) à la place du booléen `actif`, dates et auteurs de validation et de désactivation ; `create-user --prenom` ; écrans « Employés » (liste avec recherche, filtres et statut en pastille + mot, « Bloqué jusqu'à … »), « Nouvel employé » et fiche (modification, mot de passe, déblocage, désactivation et réactivation confirmées, actions sur soi-même désactivées et expliquées).
+
 ## [1.0.0] — sprint-4 : finitions et recette (14 au 24 décembre 2026)
 
 ### Ajouté

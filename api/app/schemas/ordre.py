@@ -5,6 +5,7 @@ from typing import Annotated
 
 from pydantic import (
     AfterValidator,
+    AliasChoices,
     BaseModel,
     BeforeValidator,
     ConfigDict,
@@ -95,10 +96,13 @@ class OrdreModification(BaseModel):
 
 
 class UtilisateurResume(BaseModel):
+    """Employé cité dans une fiche (mécanicien, auteur) : `nom` est le nom affiché, prénom
+    puis nom (« Karim B. »), comme avant l'ajout du prénom (sprint 5)."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    nom: str
+    nom: str = Field(validation_alias=AliasChoices("nom_affiche", "nom"))
 
 
 class VehiculeOrdre(BaseModel):

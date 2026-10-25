@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import Role, Utilisateur
+from app.models import Role, StatutCompte, Utilisateur
 from app.security.hachage import hacher, verifier
 from app.security.jetons import creer_jeton_session, lire_jeton_session
 from app.services.donnees_demo import SeedImpossibleError, semer
@@ -41,7 +41,9 @@ def test_connexion_reussie_renvoie_l_utilisateur_et_pose_un_cookie_httponly(
         "utilisateur": {
             "id": gerant.id,
             "email": "gerant@garage.test",
-            "nom": "Nadia Benali",
+            "prenom": "Nadia",
+            "nom": "Benali",
+            "nom_affiche": "Nadia Benali",
             "role": "gerant",
         }
     }
@@ -191,7 +193,7 @@ def test_me_renvoie_l_utilisateur_connecte(client_mecanicien: TestClient) -> Non
 
     assert reponse.status_code == 200
     assert reponse.json()["utilisateur"]["role"] == "mecanicien"
-    assert reponse.json()["utilisateur"]["nom"] == "Karim B."
+    assert reponse.json()["utilisateur"]["nom_affiche"] == "Karim B."
 
 
 def test_sans_session_401(client: TestClient) -> None:
@@ -219,7 +221,7 @@ def test_session_expiree_401(client_gerant: TestClient, horloge: Horloge) -> Non
 def test_compte_desactive_apres_connexion_401(
     client_gerant: TestClient, gerant: Utilisateur, db: Session
 ) -> None:
-    gerant.actif = False
+    gerant.statut = StatutCompte.DESACTIVE
     db.flush()
 
     assert client_gerant.get("/auth/me").status_code == 401
@@ -367,7 +369,7 @@ def test_seed_cree_les_comptes_de_demo_et_reste_idempotent(db: Session) -> None:
     total = db.scalar(select(func.count()).select_from(Utilisateur))
     assert total == 4
     db.refresh(nadia)
-    assert (nadia.nom, nadia.role) == ("Nadia Benali", Role.GERANT)
+    assert (nadia.prenom, nadia.nom, nadia.role) == ("Nadia", "Benali", Role.GERANT)
     # Relancer le seed débloque un compte de démonstration bloqué.
     assert (nadia.tentatives_echouees, nadia.bloque_jusqu_a) == (0, None)
     assert verifier(nadia.mot_de_passe_hash, "demo-gerant-motdepasse")
@@ -387,12 +389,17 @@ def test_seed_refuse_sans_mots_de_passe(db: Session) -> None:
 def test_creation_de_compte_exige_douze_caracteres_et_un_e_mail_libre(db: Session) -> None:
     with pytest.raises(CompteInvalideError, match="12 caractères"):
         creer_utilisateur(
-            db, email="a@garage.test", nom="A", role=Role.MECANICIEN, mot_de_passe="court"
+            db,
+            email="a@garage.test",
+            prenom="A",
+            nom="A",
+            role=Role.MECANICIEN,
+            mot_de_passe="court",
         )
     creer_utilisateur(
-        db, email="a@garage.test", nom="A", role=Role.MECANICIEN, mot_de_passe="x" * 12
+        db, email="a@garage.test", prenom="A", nom="A", role=Role.MECANICIEN, mot_de_passe="x" * 12
     )
     with pytest.raises(CompteInvalideError, match="existe déjà"):
         creer_utilisateur(
-            db, email="A@garage.test", nom="B", role=Role.GERANT, mot_de_passe="y" * 12
+            db, email="A@garage.test", prenom="B", nom="B", role=Role.GERANT, mot_de_passe="y" * 12
         )

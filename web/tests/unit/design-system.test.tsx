@@ -73,7 +73,7 @@ describe("cibles tactiles de 44 px", () => {
   it("déconnexion et bascule de thème en taille md", () => {
     vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     const client = new QueryClient();
-    client.setQueryData(SESSION_KEY, { utilisateur: { id: 1, email: "nadia@garage.test", nom: "Nadia Benali", role: "gerant" } });
+    client.setQueryData(SESSION_KEY, { utilisateur: { id: 1, email: "nadia@garage.test", prenom: "Nadia", nom: "Benali", nom_affiche: "Nadia Benali", role: "gerant" } });
     render(
       <QueryClientProvider client={client}>
         <AppShell>contenu</AppShell>

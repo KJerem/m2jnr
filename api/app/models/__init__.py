@@ -9,7 +9,7 @@ from app.models.ordre_travail import HistoriqueStatut, OrdreTravail, StatutOT, T
 from app.models.paiement import ModePaiement, Paiement
 from app.models.pont import Pont
 from app.models.rendez_vous import RendezVous
-from app.models.utilisateur import Role, Utilisateur
+from app.models.utilisateur import Role, StatutCompte, Utilisateur
 from app.models.vehicule import Vehicule
 
 __all__ = [
@@ -27,6 +27,7 @@ __all__ = [
     "Pont",
     "RendezVous",
     "Role",
+    "StatutCompte",
     "StatutDevis",
     "StatutOT",
     "TacheOT",

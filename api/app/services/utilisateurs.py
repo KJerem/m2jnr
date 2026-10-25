@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.models.utilisateur import Role, Utilisateur
+from app.models.utilisateur import Role, StatutCompte, Utilisateur
 from app.security.hachage import hacher, verifier
 from app.services.auth import trouver_par_email
 from app.services.courriel import normaliser_courriel
@@ -14,6 +14,15 @@ LONGUEUR_MIN_MOT_DE_PASSE = 12
 
 class CompteInvalideError(ValueError):
     """Donnée de compte refusée ; le message est affiché tel quel."""
+
+
+def separer_nom(nom_complet: str) -> tuple[str, str]:
+    """Prénom et nom d'un nom saisi d'un bloc, coupé au premier espace (même règle que la
+    migration 0016) : « Nadia Benali » → (« Nadia », « Benali ») ; « Karim B. » → (« Karim »,
+    « B. ») ; un seul mot devient le prénom, avec un nom vide."""
+    texte = nom_complet.strip()
+    prenom, _, nom = texte.partition(" ")
+    return prenom, nom.strip()
 
 
 def valider_email(email: str) -> str:
@@ -32,17 +41,24 @@ def valider_mot_de_passe(mot_de_passe: str) -> str:
 
 
 def creer_utilisateur(
-    db: Session, *, email: str, nom: str, role: Role, mot_de_passe: str
+    db: Session, *, email: str, prenom: str, nom: str, role: Role, mot_de_passe: str
 ) -> Utilisateur:
     email = valider_email(email)
-    nom = nom.strip()
+    prenom, nom = prenom.strip(), nom.strip()
+    if not prenom:
+        raise CompteInvalideError("Le prénom est obligatoire.")
     if not nom:
         raise CompteInvalideError("Le nom est obligatoire.")
     valider_mot_de_passe(mot_de_passe)
     if trouver_par_email(db, email) is not None:
         raise CompteInvalideError(f"Un compte existe déjà pour {email}.")
     utilisateur = Utilisateur(
-        email=email, nom=nom, role=role, mot_de_passe_hash=hacher(mot_de_passe), actif=True
+        email=email,
+        prenom=prenom,
+        nom=nom,
+        role=role,
+        mot_de_passe_hash=hacher(mot_de_passe),
+        statut=StatutCompte.ACTIF,
     )
     db.add(utilisateur)
     db.flush()
@@ -52,12 +68,18 @@ def creer_utilisateur(
 @dataclass(frozen=True)
 class CompteDemo:
     email: str
+    prenom: str
     nom: str
     role: Role
 
+    @property
+    def nom_affiche(self) -> str:
+        return " ".join(part for part in (self.prenom, self.nom) if part)
+
 
 def enregistrer_compte(db: Session, compte: CompteDemo, mot_de_passe: str) -> bool:
-    """Crée le compte ou le remet à jour (nom, rôle, mot de passe, déblocage).
+    """Crée le compte ou le remet à jour (prénom, nom, rôle, mot de passe, réactivation et
+    déblocage).
 
     Renvoie True si le compte a été créé. Le hash n'est recalculé que si le mot de passe a
     changé : relancer le seed ne modifie rien.
@@ -67,17 +89,19 @@ def enregistrer_compte(db: Session, compte: CompteDemo, mot_de_passe: str) -> bo
         db.add(
             Utilisateur(
                 email=compte.email,
+                prenom=compte.prenom,
                 nom=compte.nom,
                 role=compte.role,
                 mot_de_passe_hash=hacher(mot_de_passe),
-                actif=True,
+                statut=StatutCompte.ACTIF,
             )
         )
         db.flush()
         return True
+    utilisateur.prenom = compte.prenom
     utilisateur.nom = compte.nom
     utilisateur.role = compte.role
-    utilisateur.actif = True
+    utilisateur.statut = StatutCompte.ACTIF
     # Déblocage : un compte de démonstration bloqué pendant une démo redevient utilisable.
     utilisateur.tentatives_echouees = 0
     utilisateur.bloque_jusqu_a = None
