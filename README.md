@@ -49,6 +49,16 @@ docker compose exec api python -m app.cli seed
 docker compose restart api web    # les connexions ouvertes gardent des requêtes préparées sur l'ancien schéma
 ```
 
+### Mode démonstration (build de production)
+
+Pour une démonstration ou une recette, l'interface tourne sur son build de production, sans
+sources montées ni rechargement à chaud :
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build web
+docker compose up -d --build web     # retour au mode développement
+```
+
 Autres commandes : `python -m app.cli init-db` (schéma) et
 `docker compose exec api python -m app.cli create-user --email … --nom … --role gerant|mecanicien`
 (mot de passe de 12 caractères au moins, demandé deux fois).
@@ -231,8 +241,9 @@ Méthode : [Definition of Done](docs/agile/definition-of-done.md),
 ## Dépannage
 
 - **Une page répond 404 alors qu'elle existe (Docker Desktop sous Windows)** : le serveur
-  Turbopack du conteneur ne voit pas toujours les fichiers modifiés depuis Windows. Toucher la
-  page dans le conteneur, par exemple
+  Turbopack du conteneur ne voit pas toujours les fichiers modifiés depuis Windows. Pour une
+  démonstration, utiliser le mode démonstration (build de production), qui n'a pas ce défaut.
+  En développement, toucher la page dans le conteneur, par exemple
   `docker compose exec web touch "/app/src/app/(app)/recherche/page.tsx"`, ou repartir d'un
   cache propre : `docker compose down`, `docker volume rm etabli_web_next`, `docker compose up -d`.
 - **Port déjà utilisé (5433, 3000 ou 8000)** : arrêter l'autre service, ou changer

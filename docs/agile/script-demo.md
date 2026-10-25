@@ -22,8 +22,13 @@ docker compose up -d --build
 docker compose exec api alembic downgrade base      # efface les factures et clients « Recette… »
 docker compose exec api alembic upgrade head
 docker compose exec api python -m app.cli seed     # le matin même : la journée est datée du jour
-docker compose restart api web                      # connexions et pages repartent du nouveau schéma
+docker compose restart api
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build web   # build de production
 ```
+
+L'interface de la démo tourne sur son **build de production** (`docker-compose.demo.yml`) : le
+serveur de développement Turbopack peut répondre 404 sur une route sous Docker Desktop pour
+Windows, le build de production non. La recette ci-dessus peut tourner sur l'un ou l'autre mode.
 
 Le seed est relancé **le 24 au matin** : la journée d'atelier, les retards et « Facturé
 aujourd'hui » sont calculés par rapport à l'heure de la démo. La recette émet et paie de vraies
@@ -65,8 +70,10 @@ recevrait pas le numéro `F-2026-003` annoncé à 8:30. Ouvrir à l'avance un on
 
 ## Plan de secours
 
-- **Une page répond 404** (Turbopack sous Docker Desktop) : `docker compose exec web touch
-  "/app/src/app/(app)/<page>/page.tsx"`, ou `docker compose restart web` (30 s).
+- **Une page répond 404** : vérifier que l'interface tourne bien sur le build de production
+  (`docker compose ps web` : image construite par `docker-compose.demo.yml`, aucun volume monté) ;
+  sinon relancer la dernière commande de la préparation (2 minutes). En mode développement
+  seulement : `docker compose exec web touch "/app/src/app/(app)/<page>/page.tsx"`.
 - **Données abîmées pendant la démo** (facture émise par erreur, paiement en trop…) : remettre
   la base à zéro (2 minutes) :
 
@@ -74,7 +81,7 @@ recevrait pas le numéro `F-2026-003` annoncé à 8:30. Ouvrir à l'avance un on
   docker compose exec api alembic downgrade base
   docker compose exec api alembic upgrade head
   docker compose exec api python -m app.cli seed
-  docker compose restart api web
+  docker compose restart api
   ```
 
 - **Compte bloqué** : relancer le seed (débloque les comptes de démonstration).
