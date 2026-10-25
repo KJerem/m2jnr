@@ -52,6 +52,21 @@ class MotDePasseEntree(BaseModel):
     mot_de_passe: MotDePasse
 
 
+class InscriptionEntree(BaseModel):
+    """Inscription autonome (story S8.3) : le rôle n'est pas choisi par le demandeur."""
+
+    prenom: TexteObligatoire100
+    nom: TexteObligatoire100
+    email: Email
+    mot_de_passe: MotDePasse
+
+
+class ValidationEntree(BaseModel):
+    """Validation d'une inscription par un gérant : rôle définitif du compte."""
+
+    role: Role
+
+
 class UtilisateurSortie(BaseModel):
     id: int
     prenom: str

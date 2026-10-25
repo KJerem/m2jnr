@@ -17,6 +17,7 @@ import {
   filtrerInterventions,
   LIBELLE_FILTRE,
   libelleVariation,
+  lienATraiter,
   montantSansSymbole,
   restitution,
   sousTitre,
@@ -225,8 +226,8 @@ function ATraiterMaintenant({ elements }: { elements: ATraiter[] }) {
       ) : (
         <ul className="tdb-liste">
           {elements.map((e) => (
-            <li key={`${e.type}-${e.ordre_id}`}>
-              <Link href={`/ordres/${e.ordre_id}`} className="tdb-a-traiter">
+            <li key={`${e.type}-${e.ordre_id ?? e.utilisateur_id}`}>
+              <Link href={lienATraiter(e)} className="tdb-a-traiter">
                 <span className={`strong${e.type === "retard" ? " danger-text" : ""}`}>{e.titre}</span>
                 <span className="caption">{e.detail}</span>
               </Link>

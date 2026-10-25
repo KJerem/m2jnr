@@ -149,3 +149,8 @@ export function versFormulaireEmploye(employe: Employe): EmployeModificationVale
 
 /** Clés de cache : invalider ["utilisateurs"] rafraîchit la liste et les fiches. */
 export const cleEmploye = (id: number) => ["utilisateurs", "fiche", id] as const;
+
+/** « de Karim B. », « d'Inès Morel » : élision devant une voyelle ou un h muet supposé. */
+export function de(nom: string): string {
+  return /^[aeiouyhàâäéèêëîïôöùûüÿœæ]/i.test(nom) ? `d'${nom}` : `de ${nom}`;
+}

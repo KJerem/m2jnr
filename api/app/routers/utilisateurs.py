@@ -1,5 +1,5 @@
-"""Comptes des employés (story S8.2) : réservés au gérant (403 pour le mécanicien sur toutes
-les routes). Le hash du mot de passe n'est jamais renvoyé."""
+"""Comptes des employés (stories S8.2 et S8.3) : réservés au gérant (403 pour le mécanicien sur
+toutes les routes). Le hash du mot de passe n'est jamais renvoyé."""
 
 from datetime import datetime
 
@@ -14,6 +14,7 @@ from app.schemas.utilisateur import (
     UtilisateurEntree,
     UtilisateurModification,
     UtilisateurSortie,
+    ValidationEntree,
     sortie_utilisateur,
 )
 from app.security.dependances import require_role
@@ -109,3 +110,22 @@ def reactiver(
     utilisateur_id: int, db: DbSession, maintenant: datetime = Depends(get_now)
 ) -> UtilisateurSortie:
     return sortie_utilisateur(service.reactiver(db, utilisateur_id), maintenant)
+
+
+@router.post("/{utilisateur_id}/valider")
+def valider(
+    utilisateur_id: int,
+    entree: ValidationEntree,
+    db: DbSession,
+    acteur: Utilisateur = Depends(gerant_seul),
+    maintenant: datetime = Depends(get_now),
+) -> UtilisateurSortie:
+    """Validation d'une inscription en attente (story S8.3), avec le rôle choisi."""
+    utilisateur = service.valider(db, utilisateur_id, entree.role, acteur, maintenant)
+    return sortie_utilisateur(utilisateur, maintenant)
+
+
+@router.post("/{utilisateur_id}/refuser", status_code=status.HTTP_204_NO_CONTENT)
+def refuser(utilisateur_id: int, db: DbSession) -> None:
+    """Refus d'une inscription en attente : la demande est supprimée."""
+    service.refuser(db, utilisateur_id)

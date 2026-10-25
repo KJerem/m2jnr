@@ -14,6 +14,7 @@ import { apiFetch } from "@/lib/api";
 import {
   AIDE_MOT_DE_PASSE,
   cleEmploye,
+  de,
   employeModificationSchema,
   libelleDerniereConnexion,
   motDePasseSchema,
@@ -28,6 +29,7 @@ import { appliquerErreursApi } from "@/lib/formulaires";
 import { LIBELLE_ROLE } from "@/lib/session";
 import { rafraichirApresCompte } from "./actions";
 import { BadgeCompte } from "./BadgeCompte";
+import { ValidationCompte } from "./ValidationCompte";
 
 export const MESSAGE_SOI_MEME_ROLE = "Vous ne pouvez pas changer votre propre rôle.";
 export const MESSAGE_SOI_MEME_DESACTIVER = "Vous ne pouvez pas désactiver votre propre compte : un autre gérant doit le faire.";
@@ -120,7 +122,7 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
                 onSucces={(maj) => {
                   queryClient.setQueryData(cle, maj);
                   void rafraichirApresCompte(queryClient);
-                  notifier({ type: "success", message: `Compte de ${maj.nom_affiche} enregistré.` });
+                  notifier({ type: "success", message: `Compte ${de(maj.nom_affiche)} enregistré.` });
                   setEdition(false);
                   window.setTimeout(() => titre.current?.focus(), 0);
                 }}
@@ -160,12 +162,12 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
         <section className="panel" aria-labelledby="titre-acces">
           <div className="panel-head">
             <h2 id="titre-acces" ref={titreAcces} tabIndex={-1}>
-              Accès
+              {employe.statut === "en_attente" ? "Validation du compte" : "Accès"}
             </h2>
           </div>
           <div className="panel-body">
             {employe.statut === "en_attente" ? (
-              <p className="muted">Ce compte attend la validation d&apos;un gérant.</p>
+              <ValidationCompte employe={employe} onValide={() => window.setTimeout(() => titreAcces.current?.focus(), 0)} />
             ) : (
               <>
                 <div className="stack-sm">
@@ -176,7 +178,7 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
                   <div className="stack-sm">
                     <Button
                       loading={action.isPending && action.variables?.chemin === "debloquer"}
-                      onClick={() => action.mutate({ chemin: "debloquer", succes: (e) => `Compte de ${e.nom_affiche} débloqué.` })}
+                      onClick={() => action.mutate({ chemin: "debloquer", succes: (e) => `Compte ${de(e.nom_affiche)} débloqué.` })}
                     >
                       Débloquer
                     </Button>
@@ -206,7 +208,7 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
 
       {confirmation ? (
         <Modal
-          titre={confirmation === "desactiver" ? `Désactiver le compte de ${nom} ?` : `Réactiver le compte de ${nom} ?`}
+          titre={confirmation === "desactiver" ? `Désactiver le compte ${de(nom)} ?` : `Réactiver le compte ${de(nom)} ?`}
           onClose={() => setConfirmation(null)}
           actions={
             <>
@@ -217,8 +219,8 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
                 onClick={() =>
                   action.mutate(
                     confirmation === "desactiver"
-                      ? { chemin: "desactiver", succes: (e) => `Compte de ${e.nom_affiche} désactivé.` }
-                      : { chemin: "reactiver", succes: (e) => `Compte de ${e.nom_affiche} réactivé.` },
+                      ? { chemin: "desactiver", succes: (e) => `Compte ${de(e.nom_affiche)} désactivé.` }
+                      : { chemin: "reactiver", succes: (e) => `Compte ${de(e.nom_affiche)} réactivé.` },
                   )
                 }
               >
@@ -240,7 +242,7 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
           nom={nom}
           envoi={action.isPending}
           onAnnuler={() => setMotDePasse(false)}
-          onValider={(valeurs) => action.mutate({ chemin: "mot-de-passe", corps: { mot_de_passe: valeurs.mot_de_passe }, succes: (e) => `Mot de passe de ${e.nom_affiche} réinitialisé.` })}
+          onValider={(valeurs) => action.mutate({ chemin: "mot-de-passe", corps: { mot_de_passe: valeurs.mot_de_passe }, succes: (e) => `Mot de passe ${de(e.nom_affiche)} réinitialisé.` })}
         />
       ) : null}
     </>

@@ -151,7 +151,7 @@ describe("en-tête et tuiles", () => {
           ordre_id: null,
         },
       ],
-      a_traiter: [{ type: "retard", titre: "Aminata Kone attend", detail: "Dacia Sandero · OT-2026-004 · promis à 12 h 00, retard de 2 h 40", ordre_id: 1, numero: "OT-2026-004" }],
+      a_traiter: [{ type: "retard", titre: "Aminata Kone attend", detail: "Dacia Sandero · OT-2026-004 · promis à 12 h 00, retard de 2 h 40", ordre_id: 1, numero: "OT-2026-004", utilisateur_id: null }],
     };
     apiFetch.mockResolvedValue(donnees);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

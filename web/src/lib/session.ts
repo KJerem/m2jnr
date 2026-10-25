@@ -6,6 +6,10 @@ export const CSRF_COOKIE = "csrf_token";
 export const CSRF_HEADER = "X-CSRF-Token";
 
 export const PAGE_CONNEXION = "/connexion";
+/** Inscription autonome d'un gérant (story S8.3) : publique, comme la connexion. */
+export const PAGE_INSCRIPTION = "/inscription";
+/** Pages ouvertes sans session. */
+export const PAGES_PUBLIQUES: readonly string[] = [PAGE_CONNEXION, PAGE_INSCRIPTION];
 
 export type Role = "gerant" | "mecanicien";
 

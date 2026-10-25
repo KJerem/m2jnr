@@ -46,7 +46,9 @@ from app.services.format import (
 INTERVENTIONS_MAX = 200
 STATUTS_FACTURABLES = (StatutOT.TERMINE, StatutOT.LIVRE)
 
-TypeATraiter = Literal["retard", "facture_a_etablir", "devis_a_valider", "non_affecte"]
+TypeATraiter = Literal[
+    "retard", "facture_a_etablir", "devis_a_valider", "non_affecte", "compte_a_valider"
+]
 
 
 @dataclass(frozen=True)
@@ -66,11 +68,15 @@ class Indicateurs:
 
 @dataclass(frozen=True)
 class ATraiter:
+    """Élément de « À traiter maintenant » : lié à un OT (ordre_id, numero) ou, pour un
+    compte à valider (story S8.3), à la fiche de l'employé (utilisateur_id)."""
+
     type: TypeATraiter
     titre: str
     detail: str
-    ordre_id: int
-    numero: str
+    ordre_id: int | None = None
+    numero: str | None = None
+    utilisateur_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -276,6 +282,29 @@ def _non_affectes(ordres: Sequence[OrdreTravail]) -> list[ATraiter]:
     ]
 
 
+def comptes_a_valider(db: Session) -> list[Utilisateur]:
+    """Inscriptions en attente de validation (story S8.3), de la plus ancienne à la plus récente."""
+    return list(
+        db.scalars(
+            select(Utilisateur)
+            .where(Utilisateur.statut == StatutCompte.EN_ATTENTE)
+            .order_by(Utilisateur.cree_le, Utilisateur.id)
+        )
+    )
+
+
+def _comptes_a_valider(comptes: Sequence[Utilisateur]) -> list[ATraiter]:
+    return [
+        ATraiter(
+            type="compte_a_valider",
+            titre="Compte à valider",
+            detail=f"{u.nom_affiche} · {u.email}",
+            utilisateur_id=u.id,
+        )
+        for u in comptes
+    ]
+
+
 def tableau_de_bord(db: Session, maintenant: datetime, fuseau: str) -> TableauDeBord:
     jour = date_locale(maintenant, fuseau)
     debut, fin = bornes_jour(jour, fuseau)
@@ -333,6 +362,7 @@ def tableau_de_bord(db: Session, maintenant: datetime, fuseau: str) -> TableauDe
         + _factures_a_etablir(devis_a_facturer(db))
         + _devis_a_valider(devis_a_valider(db), jour, fuseau)
         + _non_affectes(interventions)
+        + _comptes_a_valider(comptes_a_valider(db))
     )
     return TableauDeBord(
         jour=jour,
