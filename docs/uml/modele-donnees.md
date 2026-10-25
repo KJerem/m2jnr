@@ -37,6 +37,7 @@ erDiagram
         int valide_par FK "gérant, SET NULL"
         timestamptz desactive_le "dernière désactivation"
         int desactive_par FK "gérant, SET NULL"
+        timestamptz sessions_valides_depuis "sessions émises avant : refusées"
     }
     CLIENT {
         int id PK
@@ -218,14 +219,16 @@ stateDiagram-v2
     [*] --> en_attente : inscription (POST /auth/register)
     en_attente --> actif : validé par un gérant (rôle choisi, valide_le, valide_par)
     en_attente --> [*] : refusé par un gérant (demande supprimée)
-    actif --> desactive : désactivé par un gérant (desactive_le, desactive_par)
-    desactive --> actif : réactivé par un gérant
+    actif --> desactive : désactivé par un gérant (desactive_le, desactive_par, sessions_valides_depuis)
+    desactive --> actif : réactivé par un gérant (les anciennes sessions restent refusées)
 ```
 
 Badges : `actif` → « Actif » (`pret`), `en_attente` → « En attente de validation »
 (`en-cours`), `desactive` → « Désactivé » (`livre`) ; un compte bloqué après 5 échecs porte en plus
 « Bloqué jusqu'à 15 h 02 » (`urgent`). Il reste toujours au moins un gérant actif : l'API verrouille les
-lignes des gérants actifs (`SELECT … FOR UPDATE`) avant de les compter.
+lignes des gérants actifs (`SELECT … FOR UPDATE`) avant de les compter. Une session (jeton
+JWT) émise avant `sessions_valides_depuis`, datée par la désactivation et par la réinitialisation du
+mot de passe, est refusée à la seconde près (migration 0017, revue du sprint 5).
 
 ## Statuts du devis
 

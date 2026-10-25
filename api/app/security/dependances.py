@@ -23,8 +23,10 @@ def get_current_user(
     maintenant: datetime = Depends(get_now),
     settings: Settings = Depends(get_settings),
 ) -> Utilisateur:
-    """Utilisateur de la session ; 401 si le cookie manque, est invalide ou expiré, ou si le
-    compte a été désactivé depuis. Le rôle est relu en base, pas dans le jeton."""
+    """Utilisateur de la session ; 401 si le cookie manque, est invalide ou expiré, si le
+    compte n'est pas actif, ou si le jeton a été émis avant une désactivation ou une
+    réinitialisation du mot de passe (`sessions_valides_depuis`) : réactiver un compte ne
+    rend pas vie à ses anciennes sessions. Le rôle est relu en base, pas dans le jeton."""
     jeton = request.cookies.get(settings.session_cookie_name)
     if not jeton:
         raise non_authentifie()
@@ -32,7 +34,7 @@ def get_current_user(
     if session is None:
         raise non_authentifie()
     utilisateur = db.get(Utilisateur, session.utilisateur_id)
-    if utilisateur is None or not utilisateur.actif:
+    if utilisateur is None or not utilisateur.session_valide(session.emise_le):
         raise non_authentifie()
     return utilisateur
 

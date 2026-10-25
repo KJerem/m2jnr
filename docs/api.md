@@ -58,10 +58,10 @@ bloque_jusqu_a, derniere_connexion, cree_le, valide_le, desactive_le}` (`statut`
 | `POST /utilisateurs` | création `{prenom, nom, email, mot_de_passe, role}` → 201, compte actif | 422 (mot de passe de moins de 12 caractères), 409 `email_existant` (sans tenir compte de la casse) |
 | `GET /utilisateurs/{id}` | fiche | 404 |
 | `PUT /utilisateurs/{id}` | modification `{prenom, nom, email, role}` | 409 `email_existant`, `soi_meme` (changer son propre rôle), `dernier_gerant` « Il doit rester au moins un gérant actif. » |
-| `POST /utilisateurs/{id}/mot-de-passe` | réinitialisation `{mot_de_passe}` (12 caractères au moins), débloque aussi le compte | 404, 422 |
+| `POST /utilisateurs/{id}/mot-de-passe` | réinitialisation `{mot_de_passe}` (12 caractères au moins), débloque aussi le compte et coupe ses sessions ouvertes (le gérant qui change son propre mot de passe reçoit une nouvelle session) | 404, 422 |
 | `POST /utilisateurs/{id}/debloquer` | remet à zéro les échecs et le blocage | 404 |
-| `POST /utilisateurs/{id}/desactiver` | actif → désactivé (date et auteur gardés) ; ses sessions s'arrêtent | 409 `soi_meme`, `dernier_gerant`, `statut_incompatible` |
-| `POST /utilisateurs/{id}/reactiver` | désactivé → actif | 409 `statut_incompatible` |
+| `POST /utilisateurs/{id}/desactiver` | actif → désactivé (date et auteur gardés) ; ses sessions s'arrêtent et ne reprennent pas à la réactivation | 409 `soi_meme`, `dernier_gerant`, `statut_incompatible` |
+| `POST /utilisateurs/{id}/reactiver` | désactivé → actif ; l'employé se reconnecte (les sessions d'avant la désactivation restent refusées) | 409 `statut_incompatible` |
 | `POST /utilisateurs/{id}/valider` | inscription en attente → actif, `{role}` choisi par le gérant (date et auteur gardés) | 409 `statut_incompatible` (le compte n'attend pas de validation) |
 | `POST /utilisateurs/{id}/refuser` | refus d'une inscription en attente : la demande est supprimée → 204 | 409 `statut_incompatible` |
 

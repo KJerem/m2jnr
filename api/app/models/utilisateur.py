@@ -67,11 +67,22 @@ class Utilisateur(TimestampMixin, Base):
     desactive_par: Mapped[int | None] = mapped_column(
         ForeignKey("utilisateur.id", ondelete="SET NULL")
     )
+    # Une session émise avant cette date est refusée (désactivation, nouveau mot de passe).
+    sessions_valides_depuis: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     @property
     def actif(self) -> bool:
         """Vrai si le compte peut se connecter (statut « actif »)."""
         return self.statut == StatutCompte.ACTIF
+
+    def session_valide(self, emise_le: datetime) -> bool:
+        """Vrai si une session émise à `emise_le` vaut encore pour ce compte : il est actif et
+        aucune désactivation ni réinitialisation du mot de passe n'a eu lieu depuis. La
+        comparaison se fait à la seconde, la précision du jeton (`iat`)."""
+        if not self.actif:
+            return False
+        depuis = self.sessions_valides_depuis
+        return depuis is None or int(emise_le.timestamp()) >= int(depuis.timestamp())
 
     @property
     def nom_affiche(self) -> str:

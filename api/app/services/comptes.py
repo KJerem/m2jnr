@@ -18,7 +18,10 @@ Règles :
 
 Un compte désactivé ne se connecte plus (même réponse qu'un e-mail inconnu) et sa session
 ouverte est refusée à la requête suivante : `get_current_user` relit le compte à chaque
-requête et n'accepte que le statut « actif ».
+requête et n'accepte que le statut « actif ». La désactivation et la réinitialisation du
+mot de passe datent aussi `sessions_valides_depuis` : les sessions ouvertes avant restent
+refusées après une réactivation, et un mot de passe réinitialisé coupe les sessions de
+l'ancien (revue du sprint 5).
 """
 
 from collections.abc import Collection
@@ -218,10 +221,14 @@ def modifier_compte(
     return _enregistrer(db, cible)
 
 
-def reinitialiser_mot_de_passe(db: Session, utilisateur_id: int, mot_de_passe: str) -> Utilisateur:
-    """Nouveau mot de passe choisi par le gérant ; le compte est aussi débloqué."""
+def reinitialiser_mot_de_passe(
+    db: Session, utilisateur_id: int, mot_de_passe: str, maintenant: datetime
+) -> Utilisateur:
+    """Nouveau mot de passe choisi par le gérant ; le compte est aussi débloqué et ses
+    sessions ouvertes sont coupées (une session volée ne survit pas à la réinitialisation)."""
     cible = obtenir_utilisateur(db, utilisateur_id, verrouiller=True)
     cible.mot_de_passe_hash = hacher(mot_de_passe)
+    cible.sessions_valides_depuis = maintenant
     cible.tentatives_echouees = 0
     cible.bloque_jusqu_a = None
     db.flush()
@@ -253,6 +260,7 @@ def desactiver(
     cible.statut = StatutCompte.DESACTIVE
     cible.desactive_le = maintenant
     cible.desactive_par = acteur.id
+    cible.sessions_valides_depuis = maintenant
     db.flush()
     return cible
 

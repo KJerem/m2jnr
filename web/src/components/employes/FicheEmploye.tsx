@@ -260,7 +260,7 @@ function MotDePasseModal({ nom, envoi, onAnnuler, onValider }: { nom: string; en
       <form className="stack" noValidate onSubmit={handleSubmit(onValider)}>
         <TextField label="Nouveau mot de passe" required type="password" autoComplete="new-password" hint={AIDE_MOT_DE_PASSE} error={errors.mot_de_passe?.message} {...register("mot_de_passe")} />
         <TextField label="Confirmer le mot de passe" required type="password" autoComplete="new-password" error={errors.confirmation?.message} {...register("confirmation")} />
-        <p className="caption">Transmettez-le à l&apos;employé de vive voix ; le compte est aussi débloqué.</p>
+        <p className="caption">Transmettez-le à l&apos;employé de vive voix ; le compte est aussi débloqué et ses sessions ouvertes s&apos;arrêtent.</p>
         <div className="actions modal-form-actions">
           <Button onClick={onAnnuler}>Annuler</Button>
           <Button type="submit" variant="primary" loading={envoi}>

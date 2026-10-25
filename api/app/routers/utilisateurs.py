@@ -3,9 +3,10 @@ toutes les routes). Le hash du mot de passe n'est jamais renvoyé."""
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.clock import get_now
+from app.config import Settings, get_settings
 from app.db import DbSession
 from app.models.utilisateur import Role, StatutCompte, Utilisateur
 from app.schemas.commun import PAGE_MAX, Page
@@ -18,6 +19,7 @@ from app.schemas.utilisateur import (
     sortie_utilisateur,
 )
 from app.security.dependances import require_role
+from app.security.jetons import poser_cookie_session
 from app.services import comptes as service
 from app.services.recherche import mots_de
 
@@ -80,10 +82,19 @@ def modifier(
 def reinitialiser_mot_de_passe(
     utilisateur_id: int,
     entree: MotDePasseEntree,
+    response: Response,
     db: DbSession,
+    acteur: Utilisateur = Depends(gerant_seul),
     maintenant: datetime = Depends(get_now),
+    settings: Settings = Depends(get_settings),
 ) -> UtilisateurSortie:
-    utilisateur = service.reinitialiser_mot_de_passe(db, utilisateur_id, entree.mot_de_passe)
+    """Les sessions ouvertes du compte sont coupées ; le gérant qui change son propre mot de
+    passe reçoit une nouvelle session et reste connecté."""
+    utilisateur = service.reinitialiser_mot_de_passe(
+        db, utilisateur_id, entree.mot_de_passe, maintenant
+    )
+    if utilisateur.id == acteur.id:
+        poser_cookie_session(response, utilisateur, maintenant, settings)
     return sortie_utilisateur(utilisateur, maintenant)
 
 
