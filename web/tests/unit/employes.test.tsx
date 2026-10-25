@@ -163,6 +163,8 @@ describe("fiche d'un employé", () => {
 
     await user.click(screen.getByRole("button", { name: "Désactiver le compte" }));
     const dialogue = screen.getByRole("dialog", { name: "Désactiver le compte de Karim B. ?" });
+    // Revue du sprint 5 : ses OT en cours ne disparaissent pas, ils sont à réaffecter.
+    expect(dialogue).toHaveTextContent("Ses ordres de travail non livrés apparaîtront dans « À traiter maintenant » pour être confiés à un autre mécanicien.");
     expect(apiFetch).not.toHaveBeenCalled();
     await user.click(within(dialogue).getByRole("button", { name: "Désactiver" }));
 

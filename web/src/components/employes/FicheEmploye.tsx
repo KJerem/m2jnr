@@ -231,7 +231,7 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
         >
           <p>
             {confirmation === "desactiver"
-              ? "Il ne pourra plus se connecter et sa session en cours s'arrêtera à sa prochaine action. Ses interventions passées restent dans l'historique."
+              ? `Il ne pourra plus se connecter et sa session en cours s'arrêtera à sa prochaine action. Ses interventions passées restent dans l'historique.${employe.role === "mecanicien" ? " Ses ordres de travail non livrés apparaîtront dans « À traiter maintenant » pour être confiés à un autre mécanicien." : ""}`
               : "Il pourra de nouveau se connecter avec son mot de passe actuel."}
           </p>
         </Modal>
