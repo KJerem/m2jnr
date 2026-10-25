@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { cheminDeRetour } from "@/lib/session";
+import { cheminDeRetour, PAGE_INSCRIPTION } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Connexion" };
 
@@ -19,6 +20,9 @@ export default async function Connexion({ searchParams }: { searchParams: Promis
           <h1>Connexion</h1>
           <p className="muted">Accès réservé à l&apos;équipe du garage.</p>
           <LoginForm suivant={cheminDeRetour(typeof suivant === "string" ? suivant : null)} />
+          <p className="caption">
+            Nouveau garage ou nouveau gérant : <Link href={PAGE_INSCRIPTION}>Créer un compte gérant</Link>
+          </p>
         </div>
       </div>
     </main>

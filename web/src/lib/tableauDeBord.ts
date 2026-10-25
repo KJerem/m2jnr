@@ -15,11 +15,20 @@ export interface Arrivee {
 }
 
 export interface ATraiter {
-  type: "retard" | "facture_a_etablir" | "devis_a_valider" | "non_affecte";
+  type: "retard" | "facture_a_etablir" | "devis_a_valider" | "non_affecte" | "compte_a_valider";
   titre: string;
   detail: string;
-  ordre_id: number;
-  numero: string;
+  /** OT concerné ; null pour un compte à valider (story S8.3). */
+  ordre_id: number | null;
+  numero: string | null;
+  /** Inscription en attente de validation : lien vers la fiche de l'employé. */
+  utilisateur_id: number | null;
+}
+
+/** Page ouverte par un élément de « À traiter maintenant ». */
+export function lienATraiter(element: ATraiter): string {
+  if (element.type === "compte_a_valider" && element.utilisateur_id !== null) return `/employes/${element.utilisateur_id}`;
+  return `/ordres/${element.ordre_id}`;
 }
 
 export interface TableauDeBord {
