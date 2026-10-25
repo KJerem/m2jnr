@@ -68,6 +68,23 @@ recevrait pas le numéro `F-2026-003` annoncé à 8:30. Ouvrir à l'avance un on
 | 12:00 | Terminal ou capture | recette Playwright verte (13 tests, mise en page à 1024 px comprise), 659 tests pytest, 196 tests Vitest | **Recette** : parcours gérant et mécanicien automatisés, accessibilité (clavier, un seul titre par page, focus visible, thème sombre). |
 | 13:00 | — | questions du PO | Points ouverts : glisser-déposer du planning, SMS, stock, espace client, suppression des données sur demande (hors MVP). |
 
+## Segment « Sprint 5 » — comptes et recherche (2 minutes)
+
+À jouer à la revue du sprint 5 (15 janvier 2027), après le déroulé ci-dessus ou seul. Données :
+le seed du matin crée l'inscription en attente d'**Inès Morel** (`ines.morel@exemple.test`,
+gérant demandé, mot de passe `DEMO_PASSWORD_GERANT`) et l'ancien mécanicien **Paul Girard**
+(désactivé) ; relancer le seed les remet dans cet état après une répétition.
+
+| Minute | Écran | Ce qu'on montre | Ce qu'on dit |
+| --- | --- | --- | --- |
+| 0:00 | Tableau de bord (Nadia) | « À traiter maintenant » : « Compte à valider — Inès Morel · ines.morel@exemple.test » | **S8.3 Inscription** : inscription ouverte, mais tout nouveau compte attend un gérant ; seul le premier compte d'un garage vide est actif d'emblée. Message neutre pour un e-mail déjà connu, verrou contre deux « premiers » gérants simultanés, 20 demandes en attente au plus. |
+| 0:20 | `/employes` | liste : Inès en tête « En attente de validation », Paul « Désactivé », filtres rôle et statut | **S8.2 Comptes des employés** : story absente du backlog du MVP, ajoutée après la revue du 24 décembre. Mot de passe de 12 caractères au moins, haché, jamais réaffiché. |
+| 0:40 | Fiche d'Inès | rôle « Mécanicien » choisi, « Valider le compte » → « Actif » ; puis sur la fiche de Nadia, « Désactiver le compte » grisé et expliqué | Le gérant choisit le rôle à la validation ; il ne peut ni se désactiver ni se rétrograder, et il reste toujours un gérant actif, même avec deux gérants qui agissent en même temps (lignes verrouillées). |
+| 1:00 | Tablette (Inès, 1024 px) | connexion d'Inès avec le menu du mécanicien ; Nadia la désactive, Inès clique sur « Ordres de travail » → retour à `/connexion`, puis « Identifiants invalides. » | Une session ouverte s'arrête à la requête suivante : l'API relit le compte à chaque appel. |
+| 1:30 | `/ordres`, `/vehicules`, `/factures` | `clio` dans les ordres (avec les filtres de statut), `gh482kl` dans les véhicules, `laurent` dans les factures, puis `zzz` → « Aucune facture ne correspond à « zzz ». » ; rechargement : la recherche reste (`?q=`) | **S1.5 Recherche dans les listes** : filtre côté serveur (pagination juste), sans accents ni casse, nombre de résultats annoncé aux lecteurs d'écran ; le mécanicien cherche les véhicules et les OT, jamais par le téléphone ou l'e-mail d'un client. |
+
+Après la répétition, relancer le seed (Inès revient « en attente », Paul « désactivé »).
+
 ## Plan de secours
 
 - **Une page répond 404** : vérifier que l'interface tourne bien sur le build de production

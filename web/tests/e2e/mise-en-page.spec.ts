@@ -1,8 +1,10 @@
 /**
  * Mise en page à 1024 px (règle « utilisable à 1024 px ») et sur grand écran, en thème clair
  * et en thème sombre (revue du sprint 4) :
- * - onglets Devis et Factures : le tableau tient dans son cadre, la page ne défile pas à
- *   l'horizontale, les numéros d'OT et de facture et les plaques restent sur une ligne ;
+ * - onglets Devis et Factures, et listes avec leur champ de recherche (ordres de travail,
+ *   clients, véhicules, employés, sprint 5) : le tableau tient dans son cadre, la page ne
+ *   défile pas à l'horizontale, les numéros d'OT et de facture et les plaques restent sur une
+ *   ligne ;
  * - tableau de bord : le champ « Rechercher » et « Nouvelle intervention » sur une même
  *   ligne (maquette 4).
  */
@@ -49,10 +51,10 @@ for (const theme of THEMES) {
     test.use({ colorScheme: theme });
 
     for (const largeur of [1024, 1440]) {
-      test(`onglets Devis et Factures sans défilement horizontal à ${largeur} px`, async ({ page }) => {
+      test(`listes sans défilement horizontal à ${largeur} px`, async ({ page }) => {
         await page.setViewportSize({ width: largeur, height: 900 });
         await seConnecter(page, GERANT);
-        for (const chemin of ["/factures", "/devis"]) {
+        for (const chemin of ["/factures", "/devis", "/ordres", "/clients", "/vehicules", "/employes"]) {
           await page.goto(chemin);
           const mesures = await mesurer(page);
           expect(mesures.pageDefile, `${chemin} : la page défile à l'horizontale`).toBe(false);

@@ -68,7 +68,7 @@ test("formulaire de paiement : aucun piège au clavier", async ({ page }) => {
   await sansPiegeClavier(page, formulaire, paiements.getByLabel(/^Montant/));
 });
 
-const PAGES = ["/", "/planning", "/atelier", "/ordres", "/rendez-vous", "/clients", "/devis", "/factures", "/recherche?q=peugeot"];
+const PAGES = ["/", "/planning", "/atelier", "/ordres", "/rendez-vous", "/clients", "/vehicules", "/devis", "/factures", "/employes", "/employes/nouveau", "/recherche?q=peugeot"];
 
 test("un seul titre de niveau 1 par page principale", async ({ page }) => {
   await seConnecter(page, GERANT);

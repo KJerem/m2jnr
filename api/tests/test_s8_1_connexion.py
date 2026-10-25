@@ -360,14 +360,15 @@ def test_seed_cree_les_comptes_de_demo_et_reste_idempotent(db: Session) -> None:
     nadia.bloque_jusqu_a = datetime(2099, 1, 1, tzinfo=UTC)
     db.flush()
     second = semer(db, _reglages_demo())
-    # 4 comptes, 8 véhicules, 10 ordres de travail et 3 rendez-vous à venir de la journée,
-    # 6 devis (dont celui de la Clio, sprint 4), 3 factures et leurs 3 paiements.
-    assert len(premier) == len(second) == 37
+    # 4 comptes actifs, 2 hors service (sprint 5), 8 véhicules, 10 ordres de travail et 3
+    # rendez-vous à venir de la journée, 6 devis (dont celui de la Clio, sprint 4), 3 factures
+    # et leurs 3 paiements.
+    assert len(premier) == len(second) == 39
 
     assert all(ligne.startswith("Créé") for ligne in premier)
     assert all(ligne.startswith("À jour") for ligne in second)
     total = db.scalar(select(func.count()).select_from(Utilisateur))
-    assert total == 4
+    assert total == 6
     db.refresh(nadia)
     assert (nadia.prenom, nadia.nom, nadia.role) == ("Nadia", "Benali", Role.GERANT)
     # Relancer le seed débloque un compte de démonstration bloqué.
@@ -376,7 +377,12 @@ def test_seed_cree_les_comptes_de_demo_et_reste_idempotent(db: Session) -> None:
     mecaniciens = db.scalars(
         select(Utilisateur.email).where(Utilisateur.role == Role.MECANICIEN)
     ).all()
-    assert sorted(mecaniciens) == ["karim@garage.test", "lucas@garage.test", "sophie@garage.test"]
+    assert sorted(mecaniciens) == [
+        "karim@garage.test",
+        "lucas@garage.test",
+        "paul.girard@garage.test",
+        "sophie@garage.test",
+    ]
 
 
 def test_seed_refuse_sans_mots_de_passe(db: Session) -> None:
