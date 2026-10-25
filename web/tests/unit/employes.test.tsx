@@ -3,6 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { annoncerFicheCreee } from "@/components/employes/actions";
 import { EmployesListe, messageAucunEmploye } from "@/components/employes/EmployesListe";
 import { FicheEmploye, MESSAGE_SOI_MEME_DESACTIVER } from "@/components/employes/FicheEmploye";
 import { EmployeCreationForm } from "@/components/employes/NouvelEmploye";
@@ -204,6 +205,29 @@ describe("fiche d'un employé", () => {
 
     expect(await screen.findByText("Champ obligatoire.")).toBeInTheDocument();
     expect(apiFetch).not.toHaveBeenCalled();
+  });
+
+  it("« Modifier » donne le focus au premier champ, « Annuler » le rend à « Modifier » (revue du sprint 5)", async () => {
+    const user = userEvent.setup({ delay: null });
+    fiche(KARIM);
+
+    await user.click(screen.getByRole("button", { name: "Modifier" }));
+    await vi.waitFor(() => expect(screen.getByRole("textbox", { name: /^Prénom/ })).toHaveFocus());
+
+    await user.click(screen.getByRole("button", { name: "Annuler" }));
+    await vi.waitFor(() => expect(screen.getByRole("button", { name: "Modifier" })).toHaveFocus());
+  });
+
+  it("à l'arrivée sur la fiche d'un compte qui vient d'être créé, le focus va à son titre", async () => {
+    annoncerFicheCreee(KARIM.id);
+    fiche(KARIM);
+
+    await vi.waitFor(() => expect(screen.getByRole("heading", { level: 1, name: "Karim B." })).toHaveFocus());
+  });
+
+  it("une fiche ouverte autrement ne prend pas le focus", () => {
+    fiche(KARIM);
+    expect(screen.getByRole("heading", { level: 1, name: "Karim B." })).not.toHaveFocus();
   });
 
   it("annuler la confirmation ne change rien", async () => {

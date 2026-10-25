@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSession } from "@/components/session/useSession";
 import { Button } from "@/components/ui/Button";
@@ -27,7 +27,7 @@ import {
 import { formatDateHeureOuAnnee } from "@/lib/format";
 import { appliquerErreursApi } from "@/lib/formulaires";
 import { LIBELLE_ROLE } from "@/lib/session";
-import { rafraichirApresCompte } from "./actions";
+import { prendreFicheCreee, rafraichirApresCompte } from "./actions";
 import { BadgeCompte } from "./BadgeCompte";
 import { ValidationCompte } from "./ValidationCompte";
 
@@ -46,11 +46,18 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
   const [motDePasse, setMotDePasse] = useState(false);
   const titreAcces = useRef<HTMLHeadingElement>(null);
   const titre = useRef<HTMLHeadingElement>(null);
+  const boutonModifier = useRef<HTMLButtonElement>(null);
   const cle = cleEmploye(employeId);
   const { data: employe, isPending, isError, error } = useQuery({
     queryKey: cle,
     queryFn: ({ signal }) => apiFetch<Employe>(`/utilisateurs/${employeId}`, { signal }),
   });
+  const charge = employe !== undefined;
+
+  // Arrivée depuis « Nouvel employé » : le focus va au titre de la fiche créée.
+  useEffect(() => {
+    if (charge && prendreFicheCreee(employeId)) titre.current?.focus();
+  }, [charge, employeId]);
 
   const action = useMutation({
     mutationFn: ({ chemin, corps }: { chemin: string; corps?: unknown; succes: (e: Employe) => string }) =>
@@ -106,7 +113,11 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
             <BadgeCompte employe={employe} />
           </p>
         </div>
-        {!edition && employe.statut !== "en_attente" ? <Button onClick={() => setEdition(true)}>Modifier</Button> : null}
+        {!edition && employe.statut !== "en_attente" ? (
+          <Button ref={boutonModifier} onClick={() => setEdition(true)}>
+            Modifier
+          </Button>
+        ) : null}
       </header>
 
       <div className="grid-2">
@@ -126,7 +137,11 @@ export function FicheEmploye({ employeId }: { employeId: number }) {
                   setEdition(false);
                   window.setTimeout(() => titre.current?.focus(), 0);
                 }}
-                onAnnuler={() => setEdition(false)}
+                onAnnuler={() => {
+                  setEdition(false);
+                  // Le bouton « Modifier » réapparaît : il reprend le focus.
+                  window.setTimeout(() => boutonModifier.current?.focus(), 0);
+                }}
               />
             ) : (
               <dl className="dl">
@@ -279,8 +294,11 @@ function EmployeModificationForm({ employe, soiMeme, onSucces, onAnnuler }: { em
     register,
     handleSubmit,
     setError,
+    setFocus,
     formState: { errors, isSubmitting },
   } = useForm<EmployeModificationValeurs>({ resolver: zodResolver(schemaModificationEmploye(employe)), defaultValues: versFormulaireEmploye(employe) });
+  // Le bouton « Modifier » disparaît à l'ouverture du formulaire : le focus va au premier champ.
+  useEffect(() => setFocus("prenom"), [setFocus]);
   const sansNom = !employe.nom.trim();
   const [erreurGenerale, setErreurGenerale] = useState<string | null>(null);
 

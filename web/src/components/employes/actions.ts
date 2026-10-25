@@ -16,3 +16,18 @@ export function rafraichirApresCompte(queryClient: QueryClient): Promise<void> {
     queryClient.invalidateQueries({ queryKey: SESSION_KEY }),
   ]).then(() => undefined);
 }
+
+// Fiche qui vient d'être créée (« Nouvel employé ») : son titre reçoit le focus à l'arrivée,
+// sinon il reste sur <body> après la navigation (revue du sprint 5).
+let ficheCreee: number | null = null;
+
+export function annoncerFicheCreee(id: number): void {
+  ficheCreee = id;
+}
+
+/** Vrai une seule fois pour la fiche annoncée par `annoncerFicheCreee`. */
+export function prendreFicheCreee(id: number): boolean {
+  if (ficheCreee !== id) return false;
+  ficheCreee = null;
+  return true;
+}

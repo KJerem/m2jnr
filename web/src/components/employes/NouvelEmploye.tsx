@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { apiFetch } from "@/lib/api";
-import { AIDE_MOT_DE_PASSE, de, EMPLOYE_VIDE, employeCreationSchema, versEntreeEmploye, type Employe, type EmployeCreationValeurs } from "@/lib/employes";
+import { AIDE_MOT_DE_PASSE, cleEmploye, de, EMPLOYE_VIDE, employeCreationSchema, versEntreeEmploye, type Employe, type EmployeCreationValeurs } from "@/lib/employes";
 import { appliquerErreursApi } from "@/lib/formulaires";
-import { rafraichirApresCompte } from "./actions";
+import { annoncerFicheCreee, rafraichirApresCompte } from "./actions";
 
 const CHAMPS = ["prenom", "nom", "email", "role", "mot_de_passe"] as const;
 
@@ -86,7 +86,9 @@ export function NouvelEmploye() {
           <EmployeCreationForm
             onSucces={(employe) => {
               void rafraichirApresCompte(queryClient);
+              queryClient.setQueryData(cleEmploye(employe.id), employe);
               notifier({ type: "success", message: `Compte ${de(employe.nom_affiche)} créé.` });
+              annoncerFicheCreee(employe.id);
               router.push(`/employes/${employe.id}`);
             }}
             onAnnuler={() => router.push("/employes")}

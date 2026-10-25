@@ -7,12 +7,41 @@
  *    attend (message générique, comme pour une adresse inconnue), Nadia le valide comme mécanicien, la connexion réussit avec le menu du mécanicien.
  *
  * Les e-mails viennent de l'identifiant d'exécution (rejouable) ; les comptes de
- * démonstration ne sont ni bloqués ni désactivés : seuls les comptes créés ici le sont.
+ * démonstration ne sont ni bloqués ni désactivés : seuls les comptes créés ici le sont. À la
+ * fin du fichier, réussi ou non, les comptes créés ici encore actifs sont désactivés et les
+ * demandes encore en attente refusées : chaque exécution ajoutait un mécanicien actif (listes
+ * d'affectation, « N mécaniciens actifs ») et, en cas d'échec, une demande en attente qui
+ * rapprochait de la limite de 20 (revue du sprint 5).
  */
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { GERANT, numeroExecution, seConnecter } from "./outils";
+import { Api, GERANT, numeroExecution, seConnecter } from "./outils";
 
 const MOT_DE_PASSE = "Recette-Sprint5-2027";
+const EMAIL_EMPLOYE = `employe.${numeroExecution(301)}@exemple.test`;
+const EMAIL_INSCRIPTION = `inscription.${numeroExecution(302)}@exemple.test`;
+
+interface CompteListe {
+  id: number;
+  email: string;
+  statut: "actif" | "en_attente" | "desactive";
+}
+
+/** Désactive (actif) ou refuse (en attente) les comptes de recette créés par ce fichier. */
+async function rangerComptes(emails: string[]): Promise<void> {
+  const api = await Api.connecter(GERANT);
+  for (const email of emails) {
+    const { elements } = await api.get<{ elements: CompteListe[] }>(`/api/utilisateurs?q=${encodeURIComponent(email)}`);
+    for (const compte of elements.filter((c) => c.email === email)) {
+      if (compte.statut === "en_attente") await api.post(`/api/utilisateurs/${compte.id}/refuser`);
+      else if (compte.statut === "actif") await api.post(`/api/utilisateurs/${compte.id}/desactiver`);
+    }
+  }
+  await api.fermer();
+}
+
+test.afterAll(async () => {
+  await rangerComptes([EMAIL_EMPLOYE, EMAIL_INSCRIPTION]);
+});
 
 async function nouvellePage(browser: Browser): Promise<Page> {
   const contexte = await browser.newContext();
@@ -30,7 +59,7 @@ async function connexionRefusee(page: Page, email: string, message: string): Pro
 
 test("le gérant crée un employé puis le désactive : session arrêtée, connexion refusée", async ({ page, browser }) => {
   const numero = numeroExecution(301);
-  const email = `employe.${numero}@exemple.test`;
+  const email = EMAIL_EMPLOYE;
   const nom = `Recette${numero}`;
   await seConnecter(page, GERANT);
 
@@ -48,6 +77,8 @@ test("le gérant crée un employé puis le désactive : session arrêtée, conne
     await page.getByRole("button", { name: "Créer le compte" }).click();
     await expect(page).toHaveURL(/\/employes\/\d+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Julie ${nom}`);
+    // Revue du sprint 5 : le focus arrive sur le titre de la fiche créée, pas sur <body>.
+    await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
   });
 
   const employe = await nouvellePage(browser);
@@ -80,7 +111,7 @@ test("le gérant crée un employé puis le désactive : session arrêtée, conne
 
 test("inscription d'un gérant : en attente, refusée, validée comme mécanicien, connectée", async ({ page, browser }) => {
   const numero = numeroExecution(302);
-  const email = `inscription.${numero}@exemple.test`;
+  const email = EMAIL_INSCRIPTION;
   const nom = `Inscrit${numero}`;
 
   await test.step("le formulaire public d'inscription donne la confirmation neutre", async () => {
