@@ -191,6 +191,7 @@ def test_indicateurs_et_listes_de_la_journee(
             ),
             "ordre_id": dacia.id,
             "numero": dacia.numero,
+            "utilisateur_id": None,
         },
         {
             "type": "facture_a_etablir",
@@ -198,6 +199,7 @@ def test_indicateurs_et_listes_de_la_journee(
             "detail": f"Claire Laurent · Peugeot 308 SW · {pret.numero} · 168,00{NBSP}€ TTC",
             "ordre_id": pret.id,
             "numero": pret.numero,
+            "utilisateur_id": None,
         },
         {
             "type": "non_affecte",
@@ -205,6 +207,7 @@ def test_indicateurs_et_listes_de_la_journee(
             "detail": f"Citroën C3 · {sans_mecanicien.numero} · Claire Laurent",
             "ordre_id": sans_mecanicien.id,
             "numero": sans_mecanicien.numero,
+            "utilisateur_id": None,
         },
     ]
 

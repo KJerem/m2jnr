@@ -38,11 +38,15 @@ class ArriveeSortie(BaseModel):
 
 
 class ATraiterSortie(BaseModel):
-    type: Literal["retard", "facture_a_etablir", "devis_a_valider", "non_affecte"]
+    type: Literal[
+        "retard", "facture_a_etablir", "devis_a_valider", "non_affecte", "compte_a_valider"
+    ]
     titre: str
     detail: str
-    ordre_id: int
-    numero: str
+    # OT concerné ; null pour un compte à valider, qui renvoie à la fiche de l'employé.
+    ordre_id: int | None
+    numero: str | None
+    utilisateur_id: int | None
 
 
 class TableauDeBordSortie(BaseModel):
@@ -94,7 +98,12 @@ def sortie_tableau_de_bord(donnees: TableauDeBord, maintenant: datetime) -> Tabl
         arrivees=[_arrivee(r) for r in donnees.arrivees],
         a_traiter=[
             ATraiterSortie(
-                type=a.type, titre=a.titre, detail=a.detail, ordre_id=a.ordre_id, numero=a.numero
+                type=a.type,
+                titre=a.titre,
+                detail=a.detail,
+                ordre_id=a.ordre_id,
+                numero=a.numero,
+                utilisateur_id=a.utilisateur_id,
             )
             for a in donnees.a_traiter
         ],

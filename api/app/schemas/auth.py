@@ -30,3 +30,19 @@ class SessionSortie(BaseModel):
 
 class CsrfSortie(BaseModel):
     jeton: str
+
+
+class InscriptionEtat(BaseModel):
+    """La prochaine inscription crée-t-elle le premier compte du garage (actif, gérant) ? Ne
+    révèle que l'installation ou non du garage."""
+
+    premier_compte: bool
+
+
+class InscriptionSortie(BaseModel):
+    """Réponse de l'inscription (story S8.3) : 201 avec la session pour le premier compte du
+    garage, 202 avec le message neutre et sans utilisateur sinon."""
+
+    compte_actif: bool
+    message: str
+    utilisateur: UtilisateurSession | None

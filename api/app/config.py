@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE")
     max_login_attempts: int = 5
     lockout_minutes: int = 15
+    # Inscription autonome (story S8.3) : demandes en attente de validation au plus.
+    max_comptes_en_attente: int = Field(default=20, ge=1, alias="MAX_COMPTES_EN_ATTENTE")
 
     # Comptes de démonstration (seed)
     demo_password_gerant: str = Field(default="", alias="DEMO_PASSWORD_GERANT")

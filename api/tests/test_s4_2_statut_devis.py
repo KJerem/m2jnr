@@ -464,6 +464,7 @@ def test_tableau_de_bord_devis_a_faire_valider_et_facture_a_etablir(
             "detail": f"Moussa Diallo · Renault Clio V · {accepte.numero} · 168,00{NBSP}€ TTC",
             "ordre_id": accepte.id,
             "numero": accepte.numero,
+            "utilisateur_id": None,
         },
         {
             "type": "devis_a_valider",
@@ -473,6 +474,7 @@ def test_tableau_de_bord_devis_a_faire_valider_et_facture_a_etablir(
             ),
             "ordre_id": envoye.id,
             "numero": envoye.numero,
+            "utilisateur_id": None,
         },
     ]
 

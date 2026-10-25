@@ -11,7 +11,8 @@ Règles :
   gérants qui se rétrogradent ou se désactivent l'un l'autre en même temps passent l'un après
   l'autre, et le second voit qu'il ne resterait personne ;
 - désactiver : actif → desactive (date et auteur gardés) ; réactiver : desactive → actif ;
-  un compte en attente se valide ou se refuse (story S8.3) ;
+  un compte en attente se valide (rôle choisi par le gérant) ou se refuse, ce qui supprime
+  la demande (story S8.3) ;
 - réinitialiser le mot de passe débloque aussi le compte ; débloquer remet le compteur
   d'échecs à zéro.
 
@@ -44,6 +45,7 @@ MESSAGE_SOI_MEME_DESACTIVER = "Vous ne pouvez pas désactiver votre propre compt
 MESSAGE_DEJA_ACTIF = "Ce compte est déjà actif."
 MESSAGE_DEJA_DESACTIVE = "Ce compte est déjà désactivé."
 MESSAGE_EN_ATTENTE = "Ce compte attend sa validation : validez-le ou refusez la demande."
+MESSAGE_PAS_EN_ATTENTE = "Ce compte n'attend pas de validation."
 
 # Comptes en attente d'abord (à traiter), puis actifs, puis désactivés.
 ORDRE_STATUT = case(
@@ -264,3 +266,33 @@ def reactiver(db: Session, utilisateur_id: int) -> Utilisateur:
     cible.statut = StatutCompte.ACTIF
     db.flush()
     return cible
+
+
+# --- Inscriptions en attente (story S8.3) ---------------------------------------------------
+
+
+def _en_attente(db: Session, utilisateur_id: int) -> Utilisateur:
+    cible = obtenir_utilisateur(db, utilisateur_id, verrouiller=True)
+    if cible.statut != StatutCompte.EN_ATTENTE:
+        raise conflict("statut_incompatible", MESSAGE_PAS_EN_ATTENTE)
+    return cible
+
+
+def valider(
+    db: Session, utilisateur_id: int, role: Role, acteur: Utilisateur, maintenant: datetime
+) -> Utilisateur:
+    """Le gérant valide une inscription en choisissant le rôle définitif du compte."""
+    cible = _en_attente(db, utilisateur_id)
+    cible.statut = StatutCompte.ACTIF
+    cible.role = role
+    cible.valide_le = maintenant
+    cible.valide_par = acteur.id
+    db.flush()
+    return cible
+
+
+def refuser(db: Session, utilisateur_id: int) -> None:
+    """Refus d'une inscription : la demande est supprimée (rien n'est gardé d'une personne qui
+    n'a jamais travaillé au garage) ; l'e-mail peut servir à une nouvelle demande."""
+    db.delete(_en_attente(db, utilisateur_id))
+    db.flush()
