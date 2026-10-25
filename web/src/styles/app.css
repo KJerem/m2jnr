@@ -321,6 +321,16 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
 .recherche-lien-ot { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); }
 .recherche-lien-ot .recherche-texte { min-width: 0; }
 
+/* Recherche dans une liste (S8.2, S1.5) : champ, « Effacer », nombre de résultats, filtres. */
+.liste-filtres { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3) var(--space-5); }
+.recherche-liste-form { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.recherche-liste { width: min(420px, 100%); }
+.recherche-effacer { flex: none; }
+.recherche-liste-total { min-height: 18px; }
+.badges-compte { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); }
+.cellule-email { overflow-wrap: anywhere; }
+.modal-form-actions { justify-content: flex-end; }
+
 /* Adresse du client (mentions de la facture) : bloc de lignes, sans italique du navigateur. */
 .adresse { font-style: normal; display: flex; flex-direction: column; }
 .fieldset-adresse { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }

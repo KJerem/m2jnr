@@ -27,6 +27,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/rendez-vous", label: "Rendez-vous", icon: "clock", roles: ["gerant"] },
   { href: "/clients", label: "Clients & véhicules", icon: "users", roles: ["gerant"] },
   { href: "/devis", label: "Devis & factures", icon: "file", roles: ["gerant"], aussi: ["/factures"] },
+  { href: "/employes", label: "Employés", icon: "badge", roles: ["gerant"] },
 ];
 
 export function isActive(pathname: string, href: string) {

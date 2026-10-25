@@ -13,6 +13,9 @@ const PATHS = {
   logout: "M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10",
   plus: "M12 5v14M5 12h14",
   check: "M5 12.5l4.5 4.5L19 7.5",
+  // Badge d'employé : comptes de l'équipe (story S8.2).
+  badge: "M4 6h16v13H4zM9 3h6v4H9zM9.5 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6.5 17a3 3 0 0 1 6 0M14.5 11h3M14.5 15h3",
+  close: "M6 6l12 12M18 6 6 18",
 } as const;
 
 export type IconName = keyof typeof PATHS;
