@@ -106,6 +106,25 @@ describe("champ de recherche d'une liste", () => {
     expect(onRecherche).toHaveBeenCalledWith("laurent");
   });
 
+  it("applique la saisie en attente dès que le champ perd le focus (clic sur une ligne)", () => {
+    vi.useFakeTimers();
+    const onRecherche = vi.fn();
+    render(<ChampRechercheListe libelle="Rechercher un client" onRecherche={onRecherche} />);
+    const champ = screen.getByRole("searchbox", { name: "Rechercher un client" });
+
+    fireEvent.change(champ, { target: { value: "laurent" } });
+    fireEvent.blur(champ);
+
+    expect(onRecherche).toHaveBeenCalledTimes(1);
+    expect(onRecherche).toHaveBeenCalledWith("laurent");
+    act(() => vi.advanceTimersByTime(DELAI_RECHERCHE_MS));
+    expect(onRecherche).toHaveBeenCalledTimes(1);
+    // Sans saisie en attente, quitter le champ ne relance rien.
+    fireEvent.focus(champ);
+    fireEvent.blur(champ);
+    expect(onRecherche).toHaveBeenCalledTimes(1);
+  });
+
   it("Entrée lance la recherche tout de suite, sans second appel après le délai", async () => {
     const onRecherche = vi.fn();
     const user = userEvent.setup({ delay: null });
