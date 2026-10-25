@@ -16,8 +16,12 @@ CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
 
 # Production : build standalone, image minimale.
 FROM deps AS build
+# Next calcule les réécritures /api/* au build : l'adresse de l'API est figée dans l'image.
+ARG API_INTERNAL_URL=http://api:8000
+ENV API_INTERNAL_URL=$API_INTERNAL_URL
 COPY . .
-RUN npm run build
+# Le projet n'a pas (encore) de fichiers statiques : le dossier doit exister pour l'étape suivante.
+RUN mkdir -p public && npm run build
 
 FROM base AS prod
 ENV NODE_ENV=production
