@@ -18,17 +18,19 @@ deux rôles, et rappeler ce que chaque sprint a apporté.
 
 ```bash
 docker compose up -d --build
-docker compose exec api alembic downgrade base
+(cd web && npm run e2e)                             # recette verte, AVANT la remise à zéro
+docker compose exec api alembic downgrade base      # efface les factures et clients « Recette… »
 docker compose exec api alembic upgrade head
 docker compose exec api python -m app.cli seed     # le matin même : la journée est datée du jour
 docker compose restart api web                      # connexions et pages repartent du nouveau schéma
-cd web && npm run e2e                               # recette verte : 5 parcours
 ```
 
 Le seed est relancé **le 24 au matin** : la journée d'atelier, les retards et « Facturé
-aujourd'hui » sont calculés par rapport à l'heure de la démo. Relancer la recette crée des
-clients « Recette… » : la relancer **avant** le seed final, pas après. Ouvrir à l'avance un
-onglet par écran pour éviter la première compilation des pages en direct.
+aujourd'hui » sont calculés par rapport à l'heure de la démo. La recette émet et paie de vraies
+factures (immuables, elles prennent des numéros) et crée des clients « Recette… » qu'un seed ne
+retire pas : elle passe donc **avant** la remise à zéro, jamais après, sinon la Toyota ne
+recevrait pas le numéro `F-2026-003` annoncé à 8:30. Ouvrir à l'avance un onglet par écran pour
+éviter la première compilation des pages en direct.
 
 ## Données de la démo (jeu de démonstration)
 
@@ -56,9 +58,9 @@ onglet par écran pour éviter la première compilation des pages en direct.
 | 5:30 | Fiche `OT-2026-003` (Peugeot) | tâches, suivi horodaté, devis 379,00 HT / 75,80 TVA / **454,80 € TTC**, badge « Accepté » | **S4.1 et S4.2** : calcul au centime (même règle côté écran et côté API), statut du devis ; on ne modifie plus un devis envoyé, on le refuse et on en fait un nouveau. |
 | 7:00 | Tablette (Karim, 1024 px) | « Mes travaux », OT de Karim, cases à cocher, « Terminer l'intervention » | **S3.2** : le mécanicien fait avancer le statut ; il ne voit ni montants ni coordonnées ; `/factures` lui répond 403. |
 | 8:30 | Fiche OT Toyota (Nadia) | « Générer la facture » → confirmation → numéro `F-2026-003`, PDF | **S4.3** : numérotation sans trou, facture figée et immuable (triggers de la base), PDF avec mentions légales, adresse du client et date de la prestation. |
-| 10:00 | Facture `F-2026-002` | paiements, reste 104,92 €, paiement partiel de 50,00 € puis solde, « Payée » ; essai à 200 € → « Le paiement dépasse le reste à payer » | **S4.4** : paiements partiels, trop-perçu refusé par l'API et par la base, aucune donnée de carte (terminal du garage). |
-| 11:30 | Onglet Factures | filtres Impayées / Partielles / Payées, « En retard » | Suivi des encaissements pour le gérant. |
-| 12:00 | Terminal ou capture | recette Playwright verte, 645 tests pytest, 190 tests Vitest | **Recette** : parcours gérant et mécanicien automatisés, accessibilité (clavier, un seul titre par page, focus visible, thème sombre). |
+| 10:00 | Facture `F-2026-002` | paiements, reste 104,92 € ; essai à 200 € d'abord → « Le paiement dépasse le reste à payer (104,92 €). » ; paiement partiel de 50,00 € puis solde de 54,92 €, « Payée » (le formulaire disparaît) | **S4.4** : paiements partiels, trop-perçu refusé par l'API et par la base, aucune donnée de carte (terminal du garage). |
+| 11:30 | Onglet Factures | filtres Impayées / Partielles / Payées, colonnes « Paiement » et « Reste à payer » | Suivi des encaissements pour le gérant ; une facture impayée le lendemain de son échéance porte « En retard » en toutes lettres (aucune facture de démonstration n'est en retard : on le dit, on ne le montre pas). |
+| 12:00 | Terminal ou capture | recette Playwright verte (13 tests, mise en page à 1024 px comprise), 659 tests pytest, 196 tests Vitest | **Recette** : parcours gérant et mécanicien automatisés, accessibilité (clavier, un seul titre par page, focus visible, thème sombre). |
 | 13:00 | — | questions du PO | Points ouverts : glisser-déposer du planning, SMS, stock, espace client, suppression des données sur demande (hors MVP). |
 
 ## Plan de secours

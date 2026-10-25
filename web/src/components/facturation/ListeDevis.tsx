@@ -58,14 +58,14 @@ export function ListeDevis({ page }: { page: number }) {
             <tbody>
               {data.elements.map((devis) => (
                 <tr key={devis.id}>
-                  <td>
+                  <td className="nowrap">
                     <Link href={`/ordres/${devis.ordre.id}`} className="table-link mono">
                       {devis.ordre.numero}
                     </Link>
                   </td>
                   <td>
-                    <span className="row nowrap">
-                      <Plate number={devis.vehicule.immatriculation} />
+                    <span className="cellule-empilee">
+                      <Plate number={devis.vehicule.immatriculation} size="sm" />
                       <span>{modele(devis.vehicule)}</span>
                     </span>
                   </td>
@@ -75,7 +75,7 @@ export function ListeDevis({ page }: { page: number }) {
                   </td>
                   <td className="right num nowrap strong">{formatEuros(devis.total_ttc_centimes)}</td>
                   <td className="nowrap">{formatDateCourteOuAnnee(devis.modifie_le)}</td>
-                  <td>
+                  <td className="nowrap">
                     {devis.facture ? (
                       <Link href={`/factures/${devis.facture.id}`} className="table-link mono">
                         {devis.facture.numero}

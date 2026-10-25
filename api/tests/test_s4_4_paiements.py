@@ -245,6 +245,32 @@ def test_reception_avant_l_emission_422(
     assert reponse.status_code == 201
 
 
+def test_reception_saisie_dans_la_minute_de_l_emission(
+    horloge: Horloge, client_gerant: TestClient, db: Session, gerant: Utilisateur
+) -> None:
+    """Le formulaire envoie une heure à la minute (« 2026-11-02T14:47 ») alors que la facture
+    est émise à 14 h 47 min 40 s : le paiement est accepté et daté de l'émission, jamais avant."""
+    horloge.avancer(seconds=40)
+    connecter(client_gerant, gerant.email)
+    emise = _facturer(
+        client_gerant, _devis(client_gerant, _ordre(db, gerant), LIGNES_BACKLOG)["id"]
+    )
+    assert emise["emise_le"] == "2026-11-02T13:47:40Z"
+    horloge.avancer(minutes=5)
+
+    reponse = _payer(client_gerant, emise["id"], montant_centimes=100, recu_le="2026-11-02T14:47")
+    assert reponse.status_code == 201, reponse.text
+    assert reponse.json()["paiements"][0]["recu_le"] == "2026-11-02T13:47:40Z"
+
+    # La minute précédente reste refusée.
+    reponse = _payer(client_gerant, emise["id"], montant_centimes=100, recu_le="2026-11-02T14:46")
+    assert reponse.status_code == 422
+    assert reponse.json()["champs"] == {
+        "recu_le": "Le paiement ne peut pas précéder l'émission de la facture"
+        f" (02/11/2026 à 14{NBSP}h{NBSP}47)."
+    }
+
+
 @pytest.mark.parametrize("recu_le", ["1999-12-31T10:00:00", "demain", "2026-13-01T10:00"])
 def test_reception_invalide_422(client_gerant: TestClient, facture: Any, recu_le: str) -> None:
     reponse = _payer(client_gerant, facture["id"], montant_centimes=100, recu_le=recu_le)

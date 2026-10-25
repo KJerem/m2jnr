@@ -8,7 +8,7 @@
  */
 import { z } from "zod";
 import type { BadgeStatus } from "@/components/ui/StatusBadge";
-import { formatDateHeure, formatEuros, NBSP, parseEurosToCentimes } from "./format";
+import { formatDateHeureOuAnnee, formatEuros, NBSP, parseEurosToCentimes } from "./format";
 import type { StatutOT } from "./statuts";
 
 export type TypeLigne = "piece" | "main_oeuvre";
@@ -54,9 +54,13 @@ export function devisModifiable(devis: Pick<DevisDetail, "statut" | "facture">):
   return devis.statut === "brouillon" && !devis.facture;
 }
 
-/** Phrase d'état sous le devis : « Envoyé au client le mar. 22 déc. à 10 h 15, en attente de sa réponse. » */
-export function phraseStatutDevis(devis: Pick<DevisDetail, "statut" | "envoye_le" | "decide_le" | "decide_par">): string {
-  const le = (iso: string | null) => (iso ? ` le ${formatDateHeure(iso)}` : "");
+/** Phrase d'état sous le devis : « Envoyé au client le mar. 22 déc. à 10 h 15, en attente de sa réponse. »
+ * L'année est écrite pour une date d'une autre année (« ven. 24 oct. 2025 à 9 h 30 »). */
+export function phraseStatutDevis(
+  devis: Pick<DevisDetail, "statut" | "envoye_le" | "decide_le" | "decide_par">,
+  maintenant: Date = new Date(),
+): string {
+  const le = (iso: string | null) => (iso ? ` le ${formatDateHeureOuAnnee(iso, maintenant)}` : "");
   const par = devis.decide_par ? `, noté par ${devis.decide_par.nom}` : "";
   switch (devis.statut) {
     case "brouillon":

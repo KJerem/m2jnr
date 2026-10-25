@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateCourte, formatEuros, formatHeure, formatKm, parseEurosToCentimes } from "@/lib/format";
+import { formatDateCourte, formatDateHeureOuAnnee, formatEuros, formatHeure, formatKm, parseEurosToCentimes } from "@/lib/format";
 
 const normalise = (s: string) => s.replace(/[  ]/g, " ");
 
@@ -17,6 +17,12 @@ describe("format", () => {
 
   it("formate les dates courtes", () => {
     expect(formatDateCourte("2026-10-14T10:00:00Z")).toBe("mer. 14 oct.");
+  });
+
+  it("donne l'année d'une date et heure d'une autre année, pas celle de l'année en cours", () => {
+    const maintenant = new Date("2026-10-25T10:00:00Z");
+    expect(normalise(formatDateHeureOuAnnee("2025-10-27T08:30:00Z", maintenant))).toBe("lun. 27 oct. 2025 à 9 h 30");
+    expect(normalise(formatDateHeureOuAnnee("2026-10-23T07:30:00Z", maintenant))).toBe("ven. 23 oct. à 9 h 30");
   });
 
   it("formate le kilométrage", () => {

@@ -4,14 +4,15 @@
  * facture et PDF → paiement partiel puis solde → « Payée » → recherche par plaque.
  */
 import { expect, test } from "@playwright/test";
-import { GERANT, jourDansNJours, numeroExecution, plaqueUnique, seConnecter, telephoneUnique } from "./outils";
+import { Api, creneauLibre, GERANT, numeroExecution, plaqueUnique, seConnecter, telephoneUnique } from "./outils";
 
 test("parcours complet du gérant, du client au paiement", async ({ page }) => {
   const plaque = plaqueUnique(0);
   const nom = `Recette${numeroExecution(0)}`;
-  // Créneau libre : un jour à venir propre à l'exécution, sur le pont 3.
-  const jour = jourDansNJours(30 + (numeroExecution(0) % 300));
-  const heure = `${String(8 + (numeroExecution(0) % 8)).padStart(2, "0")}:00`;
+  // Créneau libre sur le pont 3, lu dans les rendez-vous déjà pris (durée par défaut : 1 h).
+  const api = await Api.connecter(GERANT);
+  const { jour, heure } = await creneauLibre(api, "Pont 3", 60);
+  await api.fermer();
 
   await seConnecter(page, GERANT);
 

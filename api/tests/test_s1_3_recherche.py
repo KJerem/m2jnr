@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import event, select
+from sqlalchemy import event, select, text
 from sqlalchemy.orm import Session
 
 from app.models import Client, OrdreTravail, StatutOT, Utilisateur, Vehicule
@@ -18,6 +18,7 @@ from app.services.recherche import (
     RESULTATS_MAX,
     analyser_requete,
     echapper_like,
+    requete_clients,
 )
 from tests.conftest import Horloge
 from tests.test_s4_1_devis import LIGNES_BACKLOG
@@ -91,6 +92,9 @@ def _noms(resultats: dict[str, Any]) -> list[str]:
         ("4830", "4830"),
         ("Diallo", None),
         ("GH482KL", None),
+        ("+33 (0)6 12 48 30 75", "0612483075"),
+        ("0033 (0)6 12 48", "061248"),
+        ("+33 0612", "0612"),
         ("+44 20 7946", None),
         ("06+12", None),
     ],
@@ -200,7 +204,15 @@ def test_clients_par_pertinence_puis_par_nom(client_gerant: TestClient, db: Sess
 
 
 @pytest.mark.parametrize(
-    "saisie", ["06 12 48", "+33 6 12 48 30 75", "0033612483075", "06.12.48.30.75", "483075"]
+    "saisie",
+    [
+        "06 12 48",
+        "+33 6 12 48 30 75",
+        "+33 (0)6 12 48 30 75",
+        "0033612483075",
+        "06.12.48.30.75",
+        "483075",
+    ],
 )
 def test_telephone_complet_ou_partiel(
     client_gerant: TestClient, fichier: dict[str, Any], saisie: str
@@ -339,7 +351,25 @@ def test_cent_caracteres_acceptes(client_gerant: TestClient) -> None:
     assert _chercher(client_gerant, "x" * 100)["clients"] == []
 
 
-@pytest.mark.parametrize("saisie", ["%%", "__", "%_", "\\%", "a%", "_e"])
+@pytest.mark.parametrize(
+    "saisie",
+    [
+        "%%",
+        "__",
+        "%_",
+        "\\%",
+        "a%",
+        "_e",
+        # Formes pleine chasse et petites formes : unaccent les ramène à « % », « _ » et « \ »,
+        # qui doivent rester des caractères ordinaires après la normalisation.
+        "\uff05\uff05",
+        "\uff3f\uff3f",
+        "\ufe6a\ufe6a",
+        "\uff3c\uff05",
+        "\uff3c\uff3c",
+        "l\uff3furent",
+    ],
+)
 def test_jokers_like_pris_a_la_lettre(
     client_gerant: TestClient, fichier: dict[str, Any], saisie: str
 ) -> None:
@@ -351,6 +381,10 @@ def test_jokers_trouves_quand_ils_sont_dans_le_nom(client_gerant: TestClient, db
     _client(db, "Garage_50%", None, "0611111111")
     _client(db, "Garage X 50", None, "0622222222")
     assert [c["nom"] for c in _chercher(client_gerant, "e_50%")["clients"]] == ["Garage_50%"]
+    # Pleine chasse : normalisée en « e_50% », toujours à la lettre.
+    assert [c["nom"] for c in _chercher(client_gerant, "e\uff3f50\uff05")["clients"]] == [
+        "Garage_50%"
+    ]
 
 
 def test_injection_sql_sans_effet(client_gerant: TestClient, fichier: dict[str, Any]) -> None:
@@ -398,6 +432,32 @@ def test_nombre_de_requetes_independant_du_nombre_de_resultats(
         resultats = _chercher(client_gerant, "petit")
     assert len(resultats["clients"]) == 9
     assert len(beaucoup) == len(peu)
+
+
+def _plan(db: Session, saisie: str) -> str:
+    """Plan de la requête des clients, parcours séquentiels découragés : s'il reste un
+    « Seq Scan on client », aucun plan par index n'existe pour cette requête."""
+    requete = requete_clients(analyser_requete(saisie)).compile(dialect=db.get_bind().dialect)
+    db.execute(text("SET LOCAL enable_seqscan = off"))
+    lignes = db.connection().exec_driver_sql(f"EXPLAIN {requete}", dict(requete.params))
+    return "\n".join(str(ligne[0]) for ligne in lignes)
+
+
+@pytest.mark.parametrize(
+    ("saisie", "index"),
+    [
+        ("laurent", "ix_client_nom_prenom_trgm"),
+        ("06 12 48", "ix_client_telephone_trgm"),
+        ("gh482kl", "ix_vehicule_immatriculation_trgm"),
+    ],
+)
+def test_clients_cherches_par_les_index_trigrammes(
+    db: Session, fichier: dict[str, Any], saisie: str, index: str
+) -> None:
+    plan = _plan(db, saisie)
+    assert "Seq Scan on client" not in plan, plan
+    assert index in plan, plan
+    assert "ix_client_nom_prenom_trgm" in plan, plan
 
 
 # --- Accès ---------------------------------------------------------------------------------

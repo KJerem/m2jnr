@@ -92,15 +92,16 @@ function Contenu({ data, isPending, erreur, filtre, page }: ContenuProps) {
           <table className="table">
             <thead>
               <tr>
-                <th scope="col">Numéro</th>
-                <th scope="col">Émise le</th>
+                <th scope="col" className="th-replie">
+                  Numéro · <span className="nowrap">émise le</span>
+                </th>
                 <th scope="col">Client</th>
                 <th scope="col">Véhicule</th>
                 <th scope="col" className="right">
                   Total TTC
                 </th>
                 <th scope="col">Paiement</th>
-                <th scope="col" className="right">
+                <th scope="col" className="right th-replie">
                   Reste à payer
                 </th>
                 <th scope="col">
@@ -112,15 +113,17 @@ function Contenu({ data, isPending, erreur, filtre, page }: ContenuProps) {
               {data.elements.map((facture) => (
                 <tr key={facture.id}>
                   <td className="nowrap">
-                    <Link href={`/factures/${facture.id}`} className="table-link mono">
-                      {facture.numero}
-                    </Link>
+                    <span className="cellule-empilee">
+                      <Link href={`/factures/${facture.id}`} className="table-link mono">
+                        {facture.numero}
+                      </Link>
+                      <span className="caption">{formatEmission(facture.emise_le)}</span>
+                    </span>
                   </td>
-                  <td className="nowrap">{formatEmission(facture.emise_le)}</td>
                   <td>{nomComplet(facture.client)}</td>
                   <td>
-                    <span className="row nowrap">
-                      <Plate number={facture.vehicule.immatriculation} />
+                    <span className="cellule-empilee">
+                      <Plate number={facture.vehicule.immatriculation} size="sm" />
                       <span>{modele(facture.vehicule)}</span>
                     </span>
                   </td>

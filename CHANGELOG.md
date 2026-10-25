@@ -12,6 +12,17 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une
 - Recette et documentation : parcours Playwright de bout en bout contre la pile Docker (gérant du client au paiement et à la recherche par plaque, mécanicien sur la tablette avec refus des factures, aucun piège au clavier dans l'éditeur du devis et le formulaire de paiement, un seul titre de niveau 1 par page), rejouables, hors CI (`npm run e2e`, `E2E_BASE_URL`, `PW_CHROMIUM_PATH`) ; README réécrit (démarrage, comptes, fonctionnalités par rôle, architecture, règles garanties par la base, sécurité et RGPD, tests, dépannage) ; `docs/api.md` (routes, rôles, codes d'erreur) ; script de la démo du 24 décembre (`docs/agile/script-demo.md`).
 
 ### Corrigé
+- Revue du sprint 4 :
+  - recherche : « ％ » et « ＿ » sont pris à la lettre, car l'échappement se fait après unaccent [S1.3] ;
+  - recherche : « +33 (0)6 … » trouve le client [S1.3] ;
+  - recherche : la rubrique Clients passe par les index trigrammes (UNION de branches au lieu d'un parcours de toute la table) [S1.3] ;
+  - un paiement saisi dans la minute d'émission de la facture est accepté et daté de l'émission [S4.4] ;
+  - l'année est écrite pour un paiement ou une décision de devis d'une autre année [S4.4, S4.2] ;
+  - à 1024 px, les onglets Factures et Devis tiennent dans l'écran sans défilement horizontal (modèle sous la plaque, date sous le numéro, numéros sur une ligne, `.sr-only` gardés dans le cadre) [S4.4, S4.2] ;
+  - « Rechercher » et « Nouvelle intervention » sont sur une ligne dans l'en-tête du tableau de bord, comme sur la maquette 4 [S1.3] ;
+  - les données des tests e2e viennent d'un identifiant d'exécution (`E2E_EXECUTION`) et le rendez-vous est pris sur un créneau libre, ce qui évite les 409 d'une exécution à l'autre ; nouveau parcours de mise en page à 1024 et 1440 px [recette] ;
+  - `docs/api.md` donne le bon paramètre (`confirmer_doublon`) et le bon format des dates ; le script de la démo se joue de bout en bout (recette avant la remise à zéro, essai de trop-perçu avant le solde) [recette] ;
+  - les commits rouges de `develop` (`6eac1ba`, `faf2123`, `934dabe`, `26c9c73`, `038932d`) sont consignés dans `docs/agile/sprint-4.md`, et la Definition of Done impose de vérifier pytest, ruff et mypy un par un avant chaque commit et chaque fusion [S4.2].
 - Le downgrade de la migration 0015 doublait aussi le nom de sa contrainte (même correctif) [S4.3].
 - Le downgrade de la migration 0012 échouait sous `alembic downgrade` (nom de contrainte préfixé deux fois par la convention de nommage), ce qui empêchait tout retour à `base` ; test d'aller-retour de toutes les migrations avec la convention de l'application [S4.2].
 

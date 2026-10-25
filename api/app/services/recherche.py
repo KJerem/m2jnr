@@ -5,14 +5,16 @@ Une seule saisie, plusieurs lectures (`analyser_requete`, fonction pure) :
   de la casse (« helene » trouve « Hélène ») ; recherche « contient » servie par l'index
   trigrammes de la migration 0013 ;
 - téléphone : une saisie faite de chiffres (espaces, points, tirets, parenthèses et « +33 »
-  permis) cherche les numéros qui contiennent ces chiffres ; « +33 » et « 0033 » valent 0 ;
+  permis) cherche les numéros qui contiennent ces chiffres ; « +33 » et « 0033 » valent 0,
+  y compris suivis du 0 national (« +33 (0)6 … ») ;
 - immatriculation : lettres et chiffres mêlés, tirets facultatifs, casse ignorée
   (« gh482kl » trouve « GH-482-KL ») ; les OT du véhicule sont aussi proposés ;
 - numéro d'OT (« OT-2026-003 », « 2026-003 ») et de facture (« F-2026-001 ») : par début de
   numéro.
 
 La saisie n'entre jamais dans le SQL autrement qu'en paramètre ; dans un motif LIKE, « % »,
-« _ » et « \\ » sont échappés (pris à la lettre). Vingt résultats au plus par rubrique, les
+« _ » et « \\ » sont échappés (pris à la lettre), après la normalisation sans accents pour
+le nom (unaccent change « ％ » en « % »). Vingt résultats au plus par rubrique, les
 plus pertinents d'abord puis par nom ; une requête par rubrique (pas de N+1).
 """
 
@@ -22,6 +24,7 @@ from typing import Any
 
 from sqlalchemy import (
     ColumnElement,
+    Select,
     String,
     and_,
     case,
@@ -31,6 +34,7 @@ from sqlalchemy import (
     literal_column,
     or_,
     select,
+    union,
 )
 from sqlalchemy.orm import Session, contains_eager
 from sqlalchemy.sql.elements import ColumnClause
@@ -98,10 +102,11 @@ def _telephone(texte: str) -> str | None:
     if "+" in compact[1:] or (compact.startswith("+") and not compact.startswith("+33")):
         return None
     chiffres = re.sub(r"[^0-9]", "", compact)
-    if compact.startswith("+33"):
-        chiffres = "0" + chiffres[2:]
-    elif chiffres.startswith("0033"):
-        chiffres = "0" + chiffres[4:]
+    if compact.startswith("+33") or chiffres.startswith("0033"):
+        national = chiffres[2:] if compact.startswith("+33") else chiffres[4:]
+        # « +33 (0)6 … » et « +33 06 … » : le 0 national écrit après l'indicatif ne compte
+        # qu'une fois.
+        chiffres = "0" + national.removeprefix("0")
     return chiffres if len(chiffres) >= LONGUEUR_MIN else None
 
 
@@ -144,13 +149,20 @@ def echapper_like(texte: str) -> str:
     return texte.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def echapper_like_sql(valeur: ColumnElement[str]) -> ColumnElement[str]:
+    """`echapper_like` côté base, à appliquer APRÈS `etabli_normaliser` : unaccent ramène
+    « ％ », « ﹪ », « ＿ » et « ＼ » à « % », « _ » et « \\ », qui seraient sinon des jokers."""
+    sans_barre = func.replace(valeur, "\\", "\\\\")
+    return func.replace(func.replace(sans_barre, "%", "\\%"), "_", "\\_")
+
+
 def _contient(colonne: ColumnElement[Any], valeur: ColumnElement[Any]) -> ColumnElement[bool]:
     return colonne.like(func.concat("%", valeur, "%"), escape="\\")
 
 
 def _nom_contient_chaque_mot(mots: tuple[str, ...]) -> ColumnElement[bool]:
     return and_(
-        *(_contient(NOM_NORMALISE, func.etabli_normaliser(echapper_like(mot))) for mot in mots)
+        *(_contient(NOM_NORMALISE, echapper_like_sql(func.etabli_normaliser(mot))) for mot in mots)
     )
 
 
@@ -181,18 +193,37 @@ class Resultats:
     factures: list[Facture]
 
 
-def _clients(db: Session, c: Criteres) -> list[ClientTrouve]:
+def _condition_clients(c: Criteres) -> ColumnElement[bool]:
+    """Clients trouvés par le nom, le téléphone ou la plaque d'un de leurs véhicules.
+
+    Un OR entre ces conditions et un IN sur les véhicules empêchait PostgreSQL d'utiliser
+    les index trigrammes (parcours de toute la table) : les identifiants viennent d'une
+    UNION de branches servies chacune par son index ; la saisie qui n'est ni un téléphone
+    ni une plaque garde la seule condition du nom, sans sous-requête."""
+    par_nom = _nom_contient_chaque_mot(c.mots)
+    if not c.telephone and not c.plaque:
+        return par_nom
+    branches: list[Select[int]] = [select(Client.id).where(par_nom)]
+    if c.telephone:
+        branches.append(
+            select(Client.id).where(Client.telephone.contains(c.telephone, autoescape=True))
+        )
+    if c.plaque:
+        branches.append(select(Vehicule.client_id).where(_plaque_contient(c)))
+    return Client.id.in_(union(*branches))
+
+
+def requete_clients(c: Criteres) -> Select[Client, int]:
     nb_vehicules = (
         select(func.count(Vehicule.id)).where(Vehicule.client_id == Client.id).scalar_subquery()
     )
-    proprietaires = select(Vehicule.client_id).where(_plaque_contient(c))
     pertinence = func.greatest(
         func.similarity(NOM_NORMALISE, func.etabli_normaliser(c.texte)),
         case((Client.telephone == (c.telephone or ""), 1.0), else_=0.0),
     )
-    lignes = db.execute(
+    return (
         select(Client, nb_vehicules)
-        .where(or_(_criteres_client(c), Client.id.in_(proprietaires)))
+        .where(_condition_clients(c))
         .order_by(
             pertinence.desc(),
             func.lower(Client.nom),
@@ -200,7 +231,11 @@ def _clients(db: Session, c: Criteres) -> list[ClientTrouve]:
             Client.id,
         )
         .limit(RESULTATS_MAX)
-    ).all()
+    )
+
+
+def _clients(db: Session, c: Criteres) -> list[ClientTrouve]:
+    lignes = db.execute(requete_clients(c)).all()
     return [ClientTrouve(client, int(nombre)) for client, nombre in lignes]
 
 
