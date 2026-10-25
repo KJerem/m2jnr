@@ -8,6 +8,7 @@ et, sauf mention contraire, `cree_le` / `modifie_le`.
 erDiagram
     UTILISATEUR ||--o{ ORDRE_TRAVAIL : "est affecté à"
     UTILISATEUR ||--o{ HISTORIQUE_STATUT : "effectue"
+    UTILISATEUR |o--o{ UTILISATEUR : "valide ou désactive"
     CLIENT ||--o{ VEHICULE : "possède"
     VEHICULE ||--o{ RENDEZ_VOUS : "a"
     PONT ||--o{ RENDEZ_VOUS : "accueille"
@@ -24,13 +25,18 @@ erDiagram
     UTILISATEUR {
         int id PK
         citext email UK
-        string nom
+        string prenom "obligatoire, 100 car."
+        string nom "peut être vide (nom d'un seul mot repris en 0016)"
         string mot_de_passe_hash "argon2id"
         enum role "gerant | mecanicien"
-        bool actif
+        enum statut "statut_compte : actif | en_attente | desactive"
         int tentatives_echouees
         timestamptz bloque_jusqu_a "null si non bloqué"
         timestamptz derniere_connexion
+        timestamptz valide_le "validation d'une inscription"
+        int valide_par FK "gérant, SET NULL"
+        timestamptz desactive_le "dernière désactivation"
+        int desactive_par FK "gérant, SET NULL"
     }
     CLIENT {
         int id PK
@@ -196,6 +202,30 @@ stateDiagram-v2
 Correspondance avec les badges du design system : `a_faire` → « En attente » (anneau),
 `en_cours` → « En cours », `termine` → « Prêt », `livre` → « Livré ». `prioritaire = true` ajoute le
 badge « Urgent » (losange) et la bande jaune `signal` sur la carte.
+
+## Statut d'un compte
+
+Stories S8.2 et S8.3, migration 0016. `statut` (type `statut_compte`) remplace le booléen
+`actif` : une seule colonne fait foi (le modèle garde une propriété `actif` en lecture, vraie
+pour le statut `actif`), et seul un compte actif ouvre une session, vérifié à chaque requête.
+La migration a repris le prénom du nom existant, coupé au premier espace (« Nadia Benali » →
+« Nadia » + « Benali », « Karim B. » → « Karim » + « B. ») : le nom affiché, prénom puis nom,
+est inchangé. Le downgrade recolle prénom et nom et rend `actif = (statut = 'actif')`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> actif : créé par un gérant, ou premier compte du garage
+    [*] --> en_attente : inscription (POST /auth/register)
+    en_attente --> actif : validé par un gérant (rôle choisi, valide_le, valide_par)
+    en_attente --> [*] : refusé par un gérant (demande supprimée)
+    actif --> desactive : désactivé par un gérant (desactive_le, desactive_par)
+    desactive --> actif : réactivé par un gérant
+```
+
+Badges : `actif` → « Actif » (`pret`), `en_attente` → « En attente de validation »
+(`en-cours`), `desactive` → « Désactivé » (`livre`) ; un compte bloqué après 5 échecs porte en plus
+« Bloqué jusqu'à 15 h 02 » (`urgent`). Il reste toujours au moins un gérant actif : l'API verrouille les
+lignes des gérants actifs (`SELECT … FOR UPDATE`) avant de les compter.
 
 ## Statuts du devis
 

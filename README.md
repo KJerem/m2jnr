@@ -4,7 +4,9 @@
 rendez-vous par pont, ordres de travail suivis de l'accueil à l'atelier, devis calculés au
 centime, factures numérotées sans trou et paiements. C'est le MVP d'un projet de cours mené en
 Scrum par une squad de 5 personnes, en cinq sprints du 26 octobre au 24 décembre 2026 (version
-`v1.0.0`, tag `sprint-4`). Toutes les données sont fictives.
+`v1.0.0`, tag `sprint-4`), suivis du sprint 5 « Comptes et recherche » (4 au 15 janvier 2027,
+version 1.1.0) : comptes des employés, inscription du gérant et recherche dans chaque liste.
+Toutes les données sont fictives.
 
 | Couche | Technologie |
 | --- | --- |
@@ -60,18 +62,21 @@ docker compose up -d --build web     # retour au mode développement
 ```
 
 Autres commandes : `python -m app.cli init-db` (schéma) et
-`docker compose exec api python -m app.cli create-user --email … --nom … --role gerant|mecanicien`
-(mot de passe de 12 caractères au moins, demandé deux fois).
+`docker compose exec api python -m app.cli create-user --email … --prenom … --nom … --role gerant|mecanicien`
+(mot de passe de 12 caractères au moins, demandé deux fois). Sur une base vide, le premier
+gérant peut aussi s'inscrire lui-même depuis `/inscription` (voir « Comptes et inscription »).
 
 ## Comptes de démonstration
 
 | Compte | Rôle | Mot de passe |
 | --- | --- | --- |
 | `nadia@garage.test` (Nadia Benali) | gérant | `DEMO_PASSWORD_GERANT` du fichier `.env` |
-| `karim@garage.test`, `sophie@garage.test`, `lucas@garage.test` | mécaniciens | `DEMO_PASSWORD_MECANICIEN` du fichier `.env` |
+| `karim@garage.test`, `sophie@garage.test`, `lucas@garage.test` (Karim B., Sophie M., Lucas R.) | mécaniciens | `DEMO_PASSWORD_MECANICIEN` du fichier `.env` |
+| `ines.morel@exemple.test` (Inès Morel) | inscription en attente de validation (gérant demandé) | `DEMO_PASSWORD_GERANT` ; ne se connecte qu'une fois validée |
+| `paul.girard@garage.test` (Paul Girard) | ancien mécanicien, désactivé | `DEMO_PASSWORD_MECANICIEN` ; ne se connecte pas |
 
-Cinq mots de passe erronés bloquent un compte 15 minutes ; relancer le seed débloque les comptes
-de démonstration.
+Cinq mots de passe erronés bloquent un compte 15 minutes ; relancer le seed débloque et
+réactive les comptes de démonstration, et remet Inès « en attente » et Paul « désactivé ».
 
 ## Fonctionnalités par rôle
 
@@ -89,13 +94,68 @@ de démonstration.
   légales, adresse du client et date de la prestation ;
 - paiements partiels (carte au terminal, espèces, chèque, virement), reste à payer, statut
   impayée, partielle ou payée, retard après l'échéance ;
-- recherche par nom (sans accents), téléphone, plaque (avec ou sans tirets), numéro d'OT ou de facture.
+- recherche par nom (sans accents), téléphone, plaque (avec ou sans tirets), numéro d'OT ou de facture ;
+- « Employés » : comptes de l'équipe (création, modification, rôle, réinitialisation du mot de
+  passe, déblocage, désactivation et réactivation), validation ou refus des inscriptions en
+  attente, signalées dans « À traiter maintenant » ;
+- un champ de recherche dans chaque liste : devis, factures, clients, véhicules, ordres de
+  travail et employés (filtre côté serveur, gardé dans l'adresse `?q=`).
 
 **Mécanicien**
 - « Mes travaux » : ses OT, vue tablette (grandes cases, « Terminer l'intervention ») ;
-- kanban de l'atelier, planning, fiches véhicules et historique ;
-- aucun accès aux clients, devis, factures, paiements, recherche ni tableau de bord (403) ; il
-  ne reçoit jamais de montant, ni le téléphone, l'e-mail ou l'adresse d'un client.
+- kanban de l'atelier, planning, liste « Véhicules » (propriétaire par son seul nom), fiches
+  véhicules et historique ; recherche dans les listes des véhicules et des ordres de travail,
+  jamais par le téléphone ou l'e-mail d'un client ;
+- aucun accès aux clients, devis, factures, paiements, employés, recherche globale ni tableau
+  de bord du gérant (403) ; il ne reçoit jamais de montant, ni le téléphone, l'e-mail ou
+  l'adresse d'un client.
+
+### Pages de l'interface
+
+| Page | Rôle | Contenu |
+| --- | --- | --- |
+| `/connexion`, `/inscription` | public | connexion ; inscription d'un gérant (story S8.3) |
+| `/` | tous | tableau de bord (gérant) ou « Mes travaux » (mécanicien) |
+| `/planning`, `/atelier`, `/rendez-vous` | tous (rendez-vous : gérant) | planning du jour, kanban, prise de rendez-vous |
+| `/ordres`, `/ordres/{id}`, `/ordres/{id}/tablette` | tous | liste avec recherche et filtres de statut, fiche, vue tablette |
+| `/clients`, `/clients/{id}` | gérant | « Clients & véhicules », onglet Clients, fiche client |
+| `/vehicules`, `/vehicules/{id}` | tous | onglet Véhicules (gérant) ou entrée « Véhicules » (mécanicien), fiche et historique |
+| `/devis`, `/factures`, `/factures/{id}` | gérant | « Devis & factures » (deux onglets avec recherche), facture et paiements |
+| `/employes`, `/employes/nouveau`, `/employes/{id}` | gérant | comptes de l'équipe, création, fiche (validation d'une inscription en attente) |
+| `/recherche?q=` | gérant | recherche globale (clients, véhicules, OT, factures) |
+
+## Comptes et inscription
+
+Chaque compte a un **statut** (`statut_compte`) : `actif`, `en_attente` (inscription pas encore
+validée) ou `desactive` (ancien employé, compte suspendu). Seul un compte actif ouvre une
+session, et l'API relit le compte à chaque requête : un employé désactivé est renvoyé vers
+`/connexion` dès sa navigation suivante, même avec une session ouverte.
+
+- **Gestion par le gérant** (`/employes`, routes `/utilisateurs`, story S8.2) : prénom, nom,
+  e-mail unique sans tenir compte de la casse, rôle, mot de passe de 12 caractères au moins
+  (haché en argon2id, jamais renvoyé ni réaffiché). Le gérant ne change pas son propre rôle et
+  ne se désactive pas ; il reste toujours au moins un gérant actif : les lignes des gérants
+  actifs sont verrouillées (`SELECT … FOR UPDATE`) avant de les compter, deux rétrogradations
+  simultanées ne peuvent pas laisser le garage sans gérant. Réinitialiser le mot de passe
+  débloque aussi le compte.
+- **Inscription** (`/inscription`, `POST /auth/register`, story S8.3, décision du PO) :
+  inscription ouverte, mais tout nouveau compte reste **en attente** jusqu'à sa validation par
+  un gérant actif, qui choisit alors son rôle (gérant ou mécanicien) ou refuse la demande (elle
+  est supprimée). Seul le tout premier compte, quand aucun gérant actif n'existe (installation
+  d'un nouveau garage), est créé actif, gérant, et connecté aussitôt.
+
+Modèle de sécurité de l'inscription :
+
+| Risque | Parade |
+| --- | --- |
+| Savoir si un e-mail a un compte | inscription avec un e-mail connu : même réponse 202 et même message neutre, rien n'est créé ni modifié (le mot de passe du compte existant ne change pas), mot de passe haché dans tous les cas (temps de réponse comparable) ; connexion : « Identifiants invalides. » pour un e-mail inconnu, un mauvais mot de passe ou un compte désactivé |
+| Compte en attente | après le **bon** mot de passe seulement : « Votre compte attend la validation d'un gérant. » (403), ce qui n'apprend rien à qui ne connaît pas le mot de passe ; un mauvais mot de passe sur un compte en attente répond « Identifiants invalides. » |
+| Deux « premiers » gérants | verrou consultatif de transaction (`pg_advisory_xact_lock`) avant de compter les gérants actifs : deux premières inscriptions simultanées passent l'une après l'autre, la seconde reste en attente |
+| Inscriptions en masse | 20 demandes en attente au plus (`MAX_COMPTES_EN_ATTENTE`) : au-delà, 429 `trop_de_demandes`, vérifié avant l'e-mail |
+| Requête forgée depuis un autre site | jeton CSRF exigé comme pour toute écriture, même sans session |
+
+`GET /auth/inscription` dit seulement si la prochaine inscription créera le premier compte : il
+révèle qu'un garage est installé, rien sur ses comptes.
 
 ## Architecture
 
@@ -132,7 +192,7 @@ api/                 FastAPI
   app/routers/       routes HTTP (rôle exigé par routeur)
   app/services/      règles métier, numérotation, PDF, jeu de démonstration
   app/security/      hachage argon2id, jetons de session, CSRF, rôles
-  alembic/versions/  migrations 0001 à 0015
+  alembic/versions/  migrations 0001 à 0016
   tests/             pytest, un fichier par story
 web/                 Next.js
   src/app/           pages (App Router)
@@ -167,8 +227,9 @@ Détails et diagramme : [docs/uml/modele-donnees.md](docs/uml/modele-donnees.md)
 
 ## Sécurité et RGPD
 
-- mots de passe hachés en argon2id ; 5 échecs → compte bloqué 15 minutes, message générique
-  « Identifiants invalides » ;
+- mots de passe hachés en argon2id (12 caractères au moins) ; 5 échecs → compte bloqué
+  15 minutes, message générique « Identifiants invalides. » ; aucune session pour un compte
+  désactivé ou en attente (voir « Comptes et inscription ») ;
 - session dans un cookie httpOnly signé (`SameSite=Lax`, `Secure` derrière HTTPS), jeton CSRF
   « double submit » exigé sur toute requête qui modifie des données ;
 - rôles vérifiés par l'API sur chaque route (403), l'interface ne fait que masquer ;
@@ -202,11 +263,14 @@ La CI GitHub Actions (`.github/workflows/ci.yml`) rejoue ces contrôles à chaqu
 ### Recette de bout en bout (Playwright)
 
 Les parcours de `web/tests/e2e/` (gérant du client au paiement, mécanicien sur la tablette,
-contrôles d'accessibilité) tournent contre la pile Docker lancée et seedée ; ils ne sont pas
-dans la CI. Ils créent leurs propres données à chaque exécution et se rejouent sans nettoyage.
+comptes des employés et inscription d'un gérant, recherche dans les listes, contrôles
+d'accessibilité et de mise en page) tournent contre la pile Docker lancée et seedée ; ils ne
+sont pas dans la CI. Ils créent leurs propres données à chaque exécution (comptes compris,
+e-mails tirés de l'identifiant d'exécution) et se rejouent sans nettoyage ; ils ne bloquent ni
+ne désactivent jamais un compte de démonstration.
 
 ```bash
-docker compose restart web          # serveur de développement à jour
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build web   # build de production (conseillé)
 cd web
 npx playwright install chromium     # une fois
 npm run e2e
@@ -224,7 +288,7 @@ premier créneau libre du pont 3, lu dans les rendez-vous déjà enregistrés.
 
 ## Méthode et historique Git
 
-- `main` : une version par fin de sprint, taguée `sprint-0` … `sprint-4` ;
+- `main` : une version par fin de sprint, taguée `sprint-0` … `sprint-4` et `v1.0.0` ;
 - `develop` : intégration des stories ;
 - `feature/<story>-<slug>` (et `fix/…`) : une branche par story, issue de `develop`, un commit
   par tâche du backlog au format Conventional Commits en français avec l'identifiant de la
@@ -235,7 +299,7 @@ premier créneau libre du pont 3, lu dans les rendez-vous déjà enregistrés.
 Méthode : [Definition of Done](docs/agile/definition-of-done.md),
 [tableau](docs/agile/tableau-kanban.md), [backlog](docs/agile/backlog.md), comptes rendus
 ([sprint 0](docs/agile/sprint-0.md), [1](docs/agile/sprint-1.md), [2](docs/agile/sprint-2.md),
-[3](docs/agile/sprint-3.md), [4](docs/agile/sprint-4.md)), [script de la démo du 24 décembre](docs/agile/script-demo.md),
+[3](docs/agile/sprint-3.md), [4](docs/agile/sprint-4.md)), [script de la démo](docs/agile/script-demo.md) (24 décembre et segment du sprint 5),
 [journal des modifications](CHANGELOG.md).
 
 ## Dépannage
