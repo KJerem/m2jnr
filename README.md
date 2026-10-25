@@ -299,7 +299,7 @@ premier créneau libre du pont 3, lu dans les rendez-vous déjà enregistrés.
 Méthode : [Definition of Done](docs/agile/definition-of-done.md),
 [tableau](docs/agile/tableau-kanban.md), [backlog](docs/agile/backlog.md), comptes rendus
 ([sprint 0](docs/agile/sprint-0.md), [1](docs/agile/sprint-1.md), [2](docs/agile/sprint-2.md),
-[3](docs/agile/sprint-3.md), [4](docs/agile/sprint-4.md)), [script de la démo](docs/agile/script-demo.md) (24 décembre et segment du sprint 5),
+[3](docs/agile/sprint-3.md), [4](docs/agile/sprint-4.md), [5](docs/agile/sprint-5.md)), [script de la démo](docs/agile/script-demo.md) (24 décembre et segment du sprint 5),
 [journal des modifications](CHANGELOG.md).
 
 ## Dépannage
