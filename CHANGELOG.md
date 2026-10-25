@@ -13,6 +13,14 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Une
 ### Corrigé
 - Liste des ordres de travail à 1024 px : numéro d'OT sur une ligne et modèle sous la plaque, le tableau tient dans son cadre [S1.5].
 - Une saisie de recherche en attente est appliquée quand le champ perd le focus [S1.5].
+- Revue du sprint 5 — un compte en attente de validation est refusé comme une adresse inconnue, « Identifiants invalides. » même avec le bon mot de passe et sans compteur : s'inscrire puis se connecter ne dit plus si l'adresse avait déjà un compte, et le mot de passe d'une demande en attente ne se devine plus en ligne [S8.3].
+- Sessions coupées pour de bon : un jeton émis avant la désactivation ou la réinitialisation du mot de passe est refusé, même après une réactivation (migration 0017, `sessions_valides_depuis`) ; le gérant qui change son propre mot de passe reste connecté [S8.2].
+- Les OT non livrés d'un mécanicien désactivé remontent dans « À traiter maintenant » (« Mécanicien à affecter », « compte de … désactivé ») ; la fenêtre de désactivation l'annonce [S8.2].
+- Un compte repris sans nom de famille se modifie sans en inventer un (nom vide accepté à la modification, toujours exigé à la création) [S8.2].
+- Les listes relisent leur recherche, leurs filtres et leur page dans l'adresse : le retour arrière garde `?q=`, le lien « Employés » du menu retire les filtres ; une recherche d'un caractère dans l'adresse est ignorée au lieu d'annoncer « Aucun … ne correspond » [S1.5].
+- Listes des véhicules, des OT et des devis rafraîchies après l'ajout ou la modification d'un véhicule, ou la modification d'un client [S1.5].
+- Focus après « Modifier », « Annuler » et la création d'un employé (premier champ, bouton « Modifier », titre de la fiche) [S8.2].
+- Seed : chronologie vraisemblable de l'ancien employé désactivé (arrivée, validation, dernière connexion, désactivation) ; le parcours e2e des comptes désactive ou refuse ses comptes de recette à la fin [recette].
 
 ## [1.0.0] — sprint-4 : finitions et recette (14 au 24 décembre 2026)
 
