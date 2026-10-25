@@ -1,0 +1,17 @@
+# Démonstration et recette sur le build de production de l'interface.
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build web
+# Le serveur de développement (Turbopack) surveille les sources montées depuis Windows et peut
+# répondre 404 sur une route après un redémarrage ; le build de production ne dépend d'aucune
+# surveillance de fichiers. Retour au mode développement :
+#   docker compose up -d --build web
+services:
+  web:
+    build:
+      context: ./web
+      target: prod
+      args:
+        API_INTERNAL_URL: http://api:8000
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+    volumes: !reset []
