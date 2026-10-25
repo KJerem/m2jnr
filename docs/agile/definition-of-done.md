@@ -17,6 +17,11 @@ liste avant le passage en colonne « Terminé ».
 - [ ] `pytest` et `npm test` passent en local et en CI.
 - [ ] Les tests passent **à chaque commit** : `pytest` est lancé sans pipe (ou avec `set -o pipefail`)
       avant de valider, et son code de sortie est vérifié.
+- [ ] `pytest`, `ruff check`, `ruff format --check` et `mypy app` sont lancés comme commandes séparées,
+      chacune avec son code de sortie vérifié, avant chaque commit **et** avant chaque fusion (le commit
+      de fusion doit être vert lui aussi).
+- [ ] Une branche de correctif n'est fusionnée qu'après son commit `fix(...)` : jamais un test ou un
+      changelog « corrigé » sans le correctif dans la même fusion.
 - [ ] Les règles d'accès sont testées (403 pour un rôle non autorisé).
 
 ## Produit
